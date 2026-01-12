@@ -116,6 +116,9 @@ quote = "1.0"
 proc-macro2 = "1.0"
 darling = "0.20"
 
+# Runtime registration
+inventory = "0.3"
+
 [workspace.lints.rust]
 unsafe_code = "warn"
 missing_docs = "warn"

@@ -16,6 +16,7 @@
 
 pub mod matching;
 pub mod messages;
+pub mod ring_messages;
 pub mod types;
 
 /// Prelude for convenient imports.

@@ -514,6 +514,113 @@ impl BatchKernel<GetSnapshotInput, GetSnapshotOutput> for OrderMatchingEngine {
     }
 }
 
+// ============================================================================
+// Ring Kernel Handler Implementation
+// ============================================================================
+
+use crate::ring_messages::{
+    CancelOrderResponse, CancelOrderRing, QueryBookResponse, QueryBookRing, RingOrderStatus,
+    RingString, SubmitOrderResponse, SubmitOrderRing,
+};
+use ringkernel_core::message::CorrelationId;
+use ringkernel_core::RingContext;
+use rustkernel_core::traits::RingKernelHandler;
+
+/// Ring kernel handler for ultra-low latency order submission.
+#[async_trait]
+impl RingKernelHandler<SubmitOrderRing, SubmitOrderResponse> for OrderMatchingEngine {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: SubmitOrderRing,
+    ) -> KernelResult<SubmitOrderResponse> {
+        // Convert Ring message to domain Order
+        let order = msg.to_order();
+
+        // Clone self to get mutable access (in production, would use interior mutability)
+        let mut engine = self.clone();
+        let result = engine.submit_order(order);
+
+        // Convert result to Ring response
+        let status = match result.status {
+            OrderStatus::New => RingOrderStatus::New,
+            OrderStatus::PartiallyFilled => RingOrderStatus::PartiallyFilled,
+            OrderStatus::Filled => RingOrderStatus::Filled,
+            OrderStatus::Canceled => RingOrderStatus::Canceled,
+            OrderStatus::Rejected | OrderStatus::Expired => RingOrderStatus::Rejected,
+        };
+
+        Ok(SubmitOrderResponse {
+            correlation_id: msg.correlation_id,
+            order_id: msg.order_id,
+            status,
+            filled_quantity: result.filled_quantity.0,
+            avg_price: result.avg_price.0,
+            remaining: result.remaining.0,
+            trade_count: result.trades.len() as u32,
+            error: RingString::empty(),
+        })
+    }
+}
+
+/// Ring kernel handler for order cancellation.
+#[async_trait]
+impl RingKernelHandler<CancelOrderRing, CancelOrderResponse> for OrderMatchingEngine {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: CancelOrderRing,
+    ) -> KernelResult<CancelOrderResponse> {
+        let mut engine = self.clone();
+        let canceled = engine.cancel_order(msg.order_id);
+
+        Ok(CancelOrderResponse {
+            correlation_id: msg.correlation_id,
+            order_id: msg.order_id,
+            success: canceled.is_some(),
+            remaining: canceled.map_or(0, |o| o.remaining.0),
+        })
+    }
+}
+
+/// Ring kernel handler for book queries.
+#[async_trait]
+impl RingKernelHandler<QueryBookRing, QueryBookResponse> for OrderMatchingEngine {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: QueryBookRing,
+    ) -> KernelResult<QueryBookResponse> {
+        let book = self.get_book(msg.symbol_id);
+
+        let (best_bid, best_ask, bid_depth, ask_depth, spread, mid_price) = match book {
+            Some(b) => {
+                let (bid_d, ask_d) = b.depth_at_levels(msg.depth as usize);
+                (
+                    b.best_bid().map_or(0, |p| p.0),
+                    b.best_ask().map_or(0, |p| p.0),
+                    bid_d.0,
+                    ask_d.0,
+                    b.spread().map_or(0, |p| p.0),
+                    b.mid_price().map_or(0, |p| p.0),
+                )
+            }
+            None => (0, 0, 0, 0, 0, 0),
+        };
+
+        Ok(QueryBookResponse {
+            correlation_id: msg.correlation_id,
+            symbol_id: msg.symbol_id,
+            best_bid,
+            best_ask,
+            bid_depth,
+            ask_depth,
+            spread,
+            mid_price,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
