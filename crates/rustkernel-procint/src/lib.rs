@@ -7,41 +7,47 @@
 //! - `PartialOrderAnalysis` - Concurrency detection
 //! - `ConformanceChecking` - Multi-model conformance (DFG/Petri/BPMN)
 //! - `OCPMPatternMatching` - Object-centric process mining
+//!
+//! ## Features
+//! - Directly-follows graph construction from event logs
+//! - Partial order analysis for concurrency detection
+//! - Conformance checking against DFG and Petri net models
+//! - Object-centric process mining for multi-object workflows
 
 #![warn(missing_docs)]
 
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+pub mod conformance;
+pub mod dfg;
+pub mod ocpm;
+pub mod partial_order;
+pub mod types;
 
-/// DFG construction kernel.
-#[derive(Debug, Clone, Default)]
-pub struct DFGConstruction { metadata: KernelMetadata }
-impl DFGConstruction {
-    /// Create a new kernel.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { metadata: KernelMetadata::batch("procint/dfg-construction", Domain::ProcessIntelligence)
-            .with_description("Directly-follows graph construction")
-            .with_throughput(100_000).with_latency_us(50.0) }
-    }
+/// Prelude for convenient imports.
+pub mod prelude {
+    pub use crate::conformance::*;
+    pub use crate::dfg::*;
+    pub use crate::ocpm::*;
+    pub use crate::partial_order::*;
+    pub use crate::types::*;
 }
-impl GpuKernel for DFGConstruction { fn metadata(&self) -> &KernelMetadata { &self.metadata } }
 
-/// Conformance checking kernel.
-#[derive(Debug, Clone, Default)]
-pub struct ConformanceChecking { metadata: KernelMetadata }
-impl ConformanceChecking {
-    /// Create a new kernel.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { metadata: KernelMetadata::ring("procint/conformance-checking", Domain::ProcessIntelligence)
-            .with_description("Multi-model conformance checking")
-            .with_throughput(50_000).with_latency_us(100.0) }
-    }
-}
-impl GpuKernel for ConformanceChecking { fn metadata(&self) -> &KernelMetadata { &self.metadata } }
+// Re-export main kernels
+pub use conformance::ConformanceChecking;
+pub use dfg::DFGConstruction;
+pub use ocpm::OCPMPatternMatching;
+pub use partial_order::PartialOrderAnalysis;
 
-/// Register all process intelligence kernels.
-pub fn register_all(_registry: &rustkernel_core::registry::KernelRegistry) -> rustkernel_core::error::Result<()> {
+// Re-export key types
+pub use types::{
+    AlignmentStep, Arc, ConformanceResult, ConformanceStats, DFGEdge, DFGResult, Deviation,
+    DeviationType, DirectlyFollowsGraph, EventLog, OCPMEvent, OCPMEventLog, OCPMObject,
+    OCPMPatternResult, PartialOrderResult, PetriNet, Place, ProcessEvent, Trace, Transition,
+};
+
+/// Register all process intelligence kernels with a registry.
+pub fn register_all(
+    _registry: &rustkernel_core::registry::KernelRegistry,
+) -> rustkernel_core::error::Result<()> {
     tracing::info!("Registering process intelligence kernels");
     Ok(())
 }

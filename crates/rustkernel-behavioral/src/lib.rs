@@ -4,32 +4,50 @@
 //!
 //! ## Kernels
 //! - `BehavioralProfiling` - Feature extraction for user behavior
-//! - `AnomalyProfiling` - Deviation scoring
+//! - `AnomalyProfiling` - Deviation scoring from behavioral baseline
 //! - `FraudSignatureDetection` - Known fraud pattern matching
-//! - `CausalGraphConstruction` - DAG inference
-//! - `ForensicQueryExecution` - Historical pattern search
-//! - `EventCorrelation` - Temporal event correlation
+//! - `CausalGraphConstruction` - DAG inference from event streams
+//! - `ForensicQueryExecution` - Historical pattern search and analysis
+//! - `EventCorrelationKernel` - Temporal event correlation and clustering
 
 #![warn(missing_docs)]
 
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+pub mod causal;
+pub mod correlation;
+pub mod forensics;
+pub mod profiling;
+pub mod signatures;
+pub mod types;
 
-/// Behavioral profiling kernel.
-#[derive(Debug, Clone, Default)]
-pub struct BehavioralProfiling { metadata: KernelMetadata }
-impl BehavioralProfiling {
-    /// Create a new kernel.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { metadata: KernelMetadata::ring("behavioral/profiling", Domain::BehavioralAnalytics)
-            .with_description("User behavioral feature extraction")
-            .with_throughput(100_000).with_latency_us(10.0) }
-    }
+/// Prelude for convenient imports.
+pub mod prelude {
+    pub use crate::causal::*;
+    pub use crate::correlation::*;
+    pub use crate::forensics::*;
+    pub use crate::profiling::*;
+    pub use crate::signatures::*;
+    pub use crate::types::*;
 }
-impl GpuKernel for BehavioralProfiling { fn metadata(&self) -> &KernelMetadata { &self.metadata } }
 
-/// Register all behavioral kernels.
-pub fn register_all(_registry: &rustkernel_core::registry::KernelRegistry) -> rustkernel_core::error::Result<()> {
+// Re-export main kernels
+pub use causal::CausalGraphConstruction;
+pub use correlation::EventCorrelationKernel;
+pub use forensics::ForensicQueryExecution;
+pub use profiling::{AnomalyProfiling, BehavioralProfiling};
+pub use signatures::FraudSignatureDetection;
+
+// Re-export key types
+pub use types::{
+    AnomalyResult, AnomalyType, BehaviorProfile, CausalEdge, CausalGraphResult, CausalNode,
+    CorrelationCluster, CorrelationResult, CorrelationType, EventCorrelation, EventValue,
+    FeatureDeviation, ForensicQuery, ForensicResult, FraudSignature, ProfilingResult, QueryType,
+    SignatureMatch, SignaturePattern, UserEvent,
+};
+
+/// Register all behavioral kernels with a registry.
+pub fn register_all(
+    _registry: &rustkernel_core::registry::KernelRegistry,
+) -> rustkernel_core::error::Result<()> {
     tracing::info!("Registering behavioral analytics kernels");
     Ok(())
 }

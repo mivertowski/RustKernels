@@ -3,46 +3,57 @@
 //! GPU-accelerated clearing and settlement kernels.
 //!
 //! ## Kernels
-//! - `ClearingValidation` - Trade validation
+//! - `ClearingValidation` - Trade validation for clearing eligibility
 //! - `DVPMatching` - Delivery vs payment matching
-//! - `NettingCalculation` - Multilateral netting
-//! - `SettlementExecution` - Settlement finalization
+//! - `NettingCalculation` - Multilateral netting calculation
+//! - `SettlementExecution` - Settlement instruction execution
 //! - `ZeroBalanceFrequency` - Settlement efficiency metrics
+//!
+//! ## Features
+//! - Trade validation with counterparty/security eligibility checks
+//! - DVP instruction matching with tolerance-based scoring
+//! - Multilateral netting to reduce gross obligations
+//! - Settlement execution with priority and partial settlement support
+//! - Zero balance frequency and efficiency metrics
 
 #![warn(missing_docs)]
 
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+pub mod dvp;
+pub mod efficiency;
+pub mod netting;
+pub mod settlement;
+pub mod types;
+pub mod validation;
 
-/// DVP matching kernel.
-#[derive(Debug, Clone, Default)]
-pub struct DVPMatching { metadata: KernelMetadata }
-impl DVPMatching {
-    /// Create a new kernel.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { metadata: KernelMetadata::ring("clearing/dvp-matching", Domain::Clearing)
-            .with_description("Delivery vs payment matching")
-            .with_throughput(50_000).with_latency_us(100.0) }
-    }
+/// Prelude for convenient imports.
+pub mod prelude {
+    pub use crate::dvp::*;
+    pub use crate::efficiency::*;
+    pub use crate::netting::*;
+    pub use crate::settlement::*;
+    pub use crate::types::*;
+    pub use crate::validation::*;
 }
-impl GpuKernel for DVPMatching { fn metadata(&self) -> &KernelMetadata { &self.metadata } }
 
-/// Netting calculation kernel.
-#[derive(Debug, Clone, Default)]
-pub struct NettingCalculation { metadata: KernelMetadata }
-impl NettingCalculation {
-    /// Create a new kernel.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { metadata: KernelMetadata::batch("clearing/netting", Domain::Clearing)
-            .with_description("Multilateral netting calculation")
-            .with_throughput(10_000).with_latency_us(500.0) }
-    }
-}
-impl GpuKernel for NettingCalculation { fn metadata(&self) -> &KernelMetadata { &self.metadata } }
+// Re-export main kernels
+pub use dvp::DVPMatching;
+pub use efficiency::ZeroBalanceFrequency;
+pub use netting::NettingCalculation;
+pub use settlement::SettlementExecution;
+pub use validation::ClearingValidation;
 
-/// Register all clearing kernels.
-pub fn register_all(_registry: &rustkernel_core::registry::KernelRegistry) -> rustkernel_core::error::Result<()> {
+// Re-export key types
+pub use types::{
+    DVPInstruction, DVPMatchResult, DVPStatus, ErrorSeverity, InstructionType, NetPosition,
+    NettingConfig, NettingResult, SettlementEfficiency, SettlementExecutionResult,
+    SettlementInstruction, SettlementStatus, Trade, TradeStatus, TradeType, ValidationConfig,
+    ValidationError, ValidationResult, ZeroBalanceMetrics,
+};
+
+/// Register all clearing kernels with a registry.
+pub fn register_all(
+    _registry: &rustkernel_core::registry::KernelRegistry,
+) -> rustkernel_core::error::Result<()> {
     tracing::info!("Registering clearing kernels");
     Ok(())
 }

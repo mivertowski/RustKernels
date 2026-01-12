@@ -4,27 +4,38 @@
 //!
 //! ## Kernels
 //! - `OrderMatchingEngine` - Price-time priority matching (<10μs P99)
+//!
+//! ## Features
+//! - Price-time priority matching
+//! - Support for limit and market orders
+//! - Self-trade prevention
+//! - Order book management with L2 snapshots
+//! - Batch order processing
 
 #![warn(missing_docs)]
 
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+pub mod matching;
+pub mod types;
 
-/// Order matching engine kernel.
-#[derive(Debug, Clone, Default)]
-pub struct OrderMatchingEngine { metadata: KernelMetadata }
-impl OrderMatchingEngine {
-    /// Create a new kernel.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { metadata: KernelMetadata::ring("orderbook/matching", Domain::OrderMatching)
-            .with_description("Price-time priority order matching")
-            .with_throughput(100_000).with_latency_us(10.0).with_gpu_native(true) }
-    }
+/// Prelude for convenient imports.
+pub mod prelude {
+    pub use crate::matching::*;
+    pub use crate::types::*;
 }
-impl GpuKernel for OrderMatchingEngine { fn metadata(&self) -> &KernelMetadata { &self.metadata } }
 
-/// Register all order matching kernels.
-pub fn register_all(_registry: &rustkernel_core::registry::KernelRegistry) -> rustkernel_core::error::Result<()> {
+// Re-export main kernel
+pub use matching::OrderMatchingEngine;
+
+// Re-export key types
+pub use types::{
+    EngineConfig, L2Snapshot, MatchResult, Order, OrderBook, OrderStatus, OrderType, Price,
+    PriceLevel, Quantity, Side, TimeInForce, Trade,
+};
+
+/// Register all order matching kernels with a registry.
+pub fn register_all(
+    _registry: &rustkernel_core::registry::KernelRegistry,
+) -> rustkernel_core::error::Result<()> {
     tracing::info!("Registering order matching kernels");
     Ok(())
 }
