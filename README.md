@@ -25,9 +25,9 @@ Most kernels support both modes. Choose based on your latency requirements.
 
 | Domain | Crate | Kernels |
 |--------|-------|---------|
-| Graph Analytics | `rustkernel-graph` | 15 |
-| Statistical ML | `rustkernel-ml` | 6 |
-| Compliance | `rustkernel-compliance` | 9 |
+| Graph Analytics | `rustkernel-graph` | 26 |
+| Statistical ML | `rustkernel-ml` | 8 |
+| Compliance | `rustkernel-compliance` | 11 |
 | Temporal Analysis | `rustkernel-temporal` | 7 |
 | Risk Analytics | `rustkernel-risk` | 4 |
 | Banking | `rustkernel-banking` | 1 |
@@ -36,7 +36,7 @@ Most kernels support both modes. Choose based on your latency requirements.
 | Process Intelligence | `rustkernel-procint` | 4 |
 | Clearing | `rustkernel-clearing` | 5 |
 | Treasury | `rustkernel-treasury` | 5 |
-| Accounting | `rustkernel-accounting` | 5 |
+| Accounting | `rustkernel-accounting` | 9 |
 | Payments | `rustkernel-payments` | 2 |
 | Audit | `rustkernel-audit` | 2 |
 
