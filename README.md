@@ -1,233 +1,103 @@
 # RustKernels
 
-GPU-accelerated kernel library for financial services, analytics, and compliance workloads.
+GPU kernel library for financial services and analytics. Ported from the DotCompute C# implementation to Rust, using the RingKernel framework.
 
-RustKernels is a Rust port of the DotCompute GPU kernel library, leveraging the RustCompute (RingKernel) framework for GPU-native persistent actors.
+**Version**: 0.1.0
+**Author**: Michael Ivertowski
+**License**: Apache-2.0
 
-## Features
+## What This Is
 
-- **14 Domain Categories**: Graph analytics, ML, compliance, risk, temporal analysis, and more
-- **72+ Kernels**: Comprehensive coverage of financial and analytical algorithms
-- **Dual Execution Modes**:
-  - **Batch**: CPU-orchestrated, 10-50us overhead, for periodic heavy computation
-  - **Ring**: GPU-persistent actor, 100-500ns latency, for high-frequency operations
-- **Enterprise Licensing**: Domain-based licensing and feature gating
-- **Multi-Backend**: CUDA, WebGPU, and CPU backends via RustCompute
+A collection of GPU-accelerated algorithms organized into 14 domain-specific crates. The kernels cover graph analytics, machine learning, compliance/AML, risk calculations, and various financial operations.
 
-## Quick Start
+This is not a general-purpose compute library. It exists to provide a consistent Rust interface to algorithms that were previously implemented in C# against Orleans grains.
 
-Add to your `Cargo.toml`:
+## Execution Modes
+
+Kernels operate in one of two modes:
+
+- **Batch**: CPU-orchestrated execution. Higher launch overhead (10-50μs), but simpler to reason about. State lives in CPU memory.
+- **Ring**: GPU-persistent actors via RingKernel. Lower latency (100-500ns per message), but requires understanding the actor model. State remains on GPU.
+
+Most kernels support both modes. Choose based on your latency requirements.
+
+## Domains
+
+| Domain | Crate | Kernels |
+|--------|-------|---------|
+| Graph Analytics | `rustkernel-graph` | 15 |
+| Statistical ML | `rustkernel-ml` | 6 |
+| Compliance | `rustkernel-compliance` | 9 |
+| Temporal Analysis | `rustkernel-temporal` | 7 |
+| Risk Analytics | `rustkernel-risk` | 4 |
+| Banking | `rustkernel-banking` | 1 |
+| Behavioral Analytics | `rustkernel-behavioral` | 6 |
+| Order Matching | `rustkernel-orderbook` | 1 |
+| Process Intelligence | `rustkernel-procint` | 4 |
+| Clearing | `rustkernel-clearing` | 5 |
+| Treasury | `rustkernel-treasury` | 5 |
+| Accounting | `rustkernel-accounting` | 5 |
+| Payments | `rustkernel-payments` | 2 |
+| Audit | `rustkernel-audit` | 2 |
+
+## Usage
 
 ```toml
 [dependencies]
-rustkernel = "0.1"
+rustkernel = "0.1.0"
 ```
-
-Basic usage:
 
 ```rust
 use rustkernel::prelude::*;
 use rustkernel::graph::centrality::PageRank;
 
-fn main() {
-    // Create a kernel
-    let kernel = PageRank::new();
-
-    // Check metadata
-    let metadata = kernel.metadata();
-    println!("Kernel: {} ({:?})", metadata.id, metadata.domain);
-}
+let kernel = PageRank::new();
+let metadata = kernel.metadata();
 ```
 
-## Domains
-
-### Priority 1 (High Value)
-
-| Domain | Feature Flag | Kernels | Description |
-|--------|-------------|---------|-------------|
-| Graph Analytics | `graph` | 15 | Centrality, community detection, motifs, similarity |
-| Statistical ML | `ml` | 6 | Clustering, anomaly detection, regression |
-| Compliance | `compliance` | 9 | AML, KYC, sanctions screening |
-| Temporal Analysis | `temporal` | 7 | Forecasting, change detection, decomposition |
-| Risk Analytics | `risk` | 4 | Credit risk, VaR, portfolio risk |
-
-### Priority 2 (Medium)
-
-| Domain | Feature Flag | Kernels | Description |
-|--------|-------------|---------|-------------|
-| Banking | `banking` | 1 | Fraud detection |
-| Behavioral Analytics | `behavioral` | 6 | Profiling, forensics |
-| Order Matching | `orderbook` | 1 | HFT order book |
-| Process Intelligence | `procint` | 4 | Process mining |
-| Clearing | `clearing` | 5 | Settlement, netting |
-
-### Priority 3 (Lower)
-
-| Domain | Feature Flag | Kernels | Description |
-|--------|-------------|---------|-------------|
-| Treasury Management | `treasury` | 5 | Cash flow, hedging |
-| Accounting | `accounting` | 5 | Chart of accounts, reconciliation |
-| Payment Processing | `payments` | 2 | Transaction execution |
-| Financial Audit | `audit` | 2 | Feature extraction |
-
-## Feature Flags
-
-Enable domains via Cargo features:
+Feature flags control which domains are compiled:
 
 ```toml
-# Default: P1 domains
-rustkernel = "0.1"
+# Only what you need
+rustkernel = { version = "0.1.0", features = ["graph", "risk"] }
 
-# Specific domains
-rustkernel = { version = "0.1", features = ["graph", "ml", "risk"] }
-
-# All domains
-rustkernel = { version = "0.1", features = ["full"] }
+# Everything
+rustkernel = { version = "0.1.0", features = ["full"] }
 ```
 
-Available features:
-- `default`: graph, ml, compliance, temporal, risk
-- `full`: All 14 domains
-- Individual: `graph`, `ml`, `compliance`, `temporal`, `risk`, `banking`, `behavioral`, `orderbook`, `procint`, `clearing`, `treasury`, `accounting`, `payments`, `audit`
-
-## Examples
-
-Run the examples:
-
-```bash
-# PageRank centrality
-cargo run --example graph_pagerank --features graph
-
-# K-Means clustering
-cargo run --example ml_kmeans --features ml
-
-# AML pattern detection
-cargo run --example compliance_aml --features compliance
-
-# Monte Carlo VaR
-cargo run --example risk_var --features risk
-
-# Order matching engine
-cargo run --example orderbook_matching --features orderbook
-```
-
-## CLI Tool
-
-Install the CLI:
-
-```bash
-cargo install --path crates/rustkernel-cli
-```
-
-Commands:
-
-```bash
-# List all kernels
-rustkernel list
-
-# List kernels by domain
-rustkernel list --domain graph
-
-# Show kernel info
-rustkernel info graph/pagerank
-
-# Show domains
-rustkernel domains
-
-# Check system compatibility
-rustkernel check --all-backends
-```
-
-## Licensing
-
-RustKernels supports tiered licensing:
-
-| Tier | Domains | GPU-Native | Max Kernels |
-|------|---------|------------|-------------|
-| Development | All | Yes | Unlimited |
-| Community | Core, Graph, ML | No | 5 |
-| Professional | Configurable | No | 50 |
-| Enterprise | All | Yes | Unlimited |
-
-```rust
-use rustkernel::core::license::{License, StandardLicenseValidator, LicenseValidator};
-
-// Development (all features, local use)
-let dev_license = rustkernel::core::license::dev_license();
-
-// Community (limited features)
-let community = License::community("User");
-let validator = StandardLicenseValidator::new(community);
-
-// Enterprise (all features)
-let enterprise = License::enterprise("Corp", None);
-```
-
-## Architecture
-
-```
-RustKernels/
-├── crates/
-│   ├── rustkernel/              # Facade crate
-│   ├── rustkernel-core/         # Core traits and registry
-│   ├── rustkernel-derive/       # Proc macros
-│   ├── rustkernel-graph/        # Graph Analytics
-│   ├── rustkernel-ml/           # Statistical ML
-│   ├── rustkernel-compliance/   # Compliance
-│   ├── rustkernel-temporal/     # Temporal Analysis
-│   ├── rustkernel-risk/         # Risk Analytics
-│   ├── rustkernel-banking/      # Banking
-│   ├── rustkernel-behavioral/   # Behavioral Analytics
-│   ├── rustkernel-orderbook/    # Order Matching
-│   ├── rustkernel-procint/      # Process Intelligence
-│   ├── rustkernel-clearing/     # Clearing
-│   ├── rustkernel-treasury/     # Treasury Management
-│   ├── rustkernel-accounting/   # Accounting
-│   ├── rustkernel-payments/     # Payment Processing
-│   ├── rustkernel-audit/        # Financial Audit
-│   └── rustkernel-cli/          # CLI tool
-└── examples/                    # Usage examples
-```
-
-## Benchmarks
-
-Run benchmarks:
-
-```bash
-# All benchmarks
-cargo bench --package rustkernel
-
-# Specific domain
-cargo bench --package rustkernel-graph
-```
-
-## Testing
-
-```bash
-# All tests
-cargo test --workspace
-
-# With all features
-cargo test --workspace --all-features
-
-# Specific domain
-cargo test --package rustkernel-graph
-```
+Default features include: `graph`, `ml`, `compliance`, `temporal`, `risk`.
 
 ## Requirements
 
-- Rust 1.85+
-- RustCompute/RingKernel 0.1+
-- Optional: CUDA toolkit (for GPU acceleration)
+- Rust 1.85 or later
+- RustCompute (RingKernel) — expected at `../../RustCompute/RustCompute/` relative to this workspace
+- CUDA toolkit if you want actual GPU execution; otherwise falls back to CPU
+
+## Building and Testing
+
+```bash
+cargo build --workspace
+cargo test --workspace
+cargo test --package rustkernel-graph  # single domain
+```
+
+## Project Structure
+
+```
+crates/
+├── rustkernel/           # Facade, re-exports domains
+├── rustkernel-core/      # Traits, registry, licensing
+├── rustkernel-derive/    # Proc macros
+├── rustkernel-cli/       # Command-line tool
+└── rustkernel-{domain}/  # 14 domain crates
+```
+
+## Status
+
+The port is functionally complete. All 72 kernels have been implemented with both BatchKernel and RingKernelHandler traits. K2K (kernel-to-kernel) messaging is in place for cross-kernel coordination patterns.
+
+Test coverage exists for all domains. Some edge cases in the behavioral analytics causal graph module remain flaky.
 
 ## License
 
-MIT OR Apache-2.0
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `cargo test --workspace`
-5. Submit a pull request
+Licensed under Apache-2.0. See [LICENSE](LICENSE) for details.
