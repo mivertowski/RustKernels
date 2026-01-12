@@ -325,7 +325,7 @@ impl LicenseValidator for StandardLicenseValidator {
         // Check if the domain for this feature is licensed
         // Feature format: "Domain.FeatureName"
         if let Some((domain_str, _)) = feature.split_once('.') {
-            if let Some(domain) = Domain::from_str(domain_str) {
+            if let Some(domain) = Domain::parse(domain_str) {
                 if self.license.domains.contains(&domain) {
                     return Ok(());
                 }

@@ -73,8 +73,11 @@ pub enum MappingTransformation {
     Aggregate,
     /// Conditional mapping.
     Conditional {
+        /// Condition expression to evaluate.
         condition: String,
+        /// Target account if condition is true.
         if_true: String,
+        /// Target account if condition is false.
         if_false: String,
     },
 }

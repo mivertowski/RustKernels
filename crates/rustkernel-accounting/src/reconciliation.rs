@@ -7,7 +7,7 @@
 
 use crate::types::{
     ExceptionType, MatchType, MatchedPair, ReconciliationException, ReconciliationItem,
-    ReconciliationResult, ReconciliationSource, ReconciliationStats, ReconciliationStatus,
+    ReconciliationResult, ReconciliationStats,
 };
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::HashMap;
@@ -79,7 +79,7 @@ impl GLReconciliation {
         // Match items
         for (account, sources) in &source_by_account {
             if let Some(targets) = target_by_account.get(account) {
-                for (source_idx, source_item) in sources {
+                for (_source_idx, source_item) in sources {
                     let best_match =
                         Self::find_best_match(source_item, targets, &used_targets, config);
 
@@ -464,6 +464,7 @@ pub struct DuplicateGroup {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{ReconciliationSource, ReconciliationStatus};
 
     fn create_test_source() -> Vec<ReconciliationItem> {
         vec![

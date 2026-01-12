@@ -206,8 +206,9 @@ struct KernelMessageArgs {
     #[darling(default)]
     type_id: Option<u64>,
 
-    /// Domain for the message.
+    /// Domain for the message (reserved for future use).
     #[darling(default)]
+    #[allow(dead_code)]
     domain: Option<String>,
 }
 

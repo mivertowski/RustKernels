@@ -6,8 +6,8 @@
 //! - Apply GL mappings
 
 use crate::types::{
-    ErrorSeverity, JournalEntry, JournalLine, JournalStatus, MappedAccount, MappingResult,
-    TransformationResult, TransformationStats, ValidationError,
+    ErrorSeverity, JournalEntry, JournalLine, MappedAccount, MappingResult, TransformationResult,
+    TransformationStats, ValidationError,
 };
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::HashMap;
@@ -362,7 +362,7 @@ pub enum PeriodType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::MappingStats;
+    use crate::types::{JournalStatus, MappingStats};
 
     fn create_test_entry() -> JournalEntry {
         JournalEntry {

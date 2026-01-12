@@ -7,7 +7,7 @@
 
 use crate::types::{
     AccountCorrelation, AccountTimeSeries, AnomalyType, CorrelationAnomaly, CorrelationResult,
-    CorrelationStats, CorrelationType, TimeSeriesPoint,
+    CorrelationStats, CorrelationType,
 };
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::HashMap;
@@ -323,8 +323,9 @@ impl TemporalCorrelation {
         }
 
         // Use Lanczos approximation coefficients
-        let g = 7.0;
-        let c = [
+        // Note: These are standard mathematical constants with exact values
+        #[allow(clippy::excessive_precision)]
+        const LANCZOS_COEFFS: [f64; 9] = [
             0.99999999999980993,
             676.5203681218851,
             -1259.1392167224028,
@@ -335,6 +336,8 @@ impl TemporalCorrelation {
             9.9843695780195716e-6,
             1.5056327351493116e-7,
         ];
+        let g = 7.0;
+        let c = LANCZOS_COEFFS;
 
         if x < 0.5 {
             // Reflection formula
@@ -466,7 +469,7 @@ impl TemporalCorrelation {
         }
 
         // Get dates for the aligned series
-        let dates_a: HashMap<u64, usize> = ts_a
+        let _dates_a: HashMap<u64, usize> = ts_a
             .data_points
             .iter()
             .enumerate()
@@ -607,7 +610,7 @@ pub struct CorrelationBreak {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::TimeFrequency;
+    use crate::types::{TimeFrequency, TimeSeriesPoint};
 
     fn create_correlated_series() -> (AccountTimeSeries, AccountTimeSeries) {
         let base_values = vec![

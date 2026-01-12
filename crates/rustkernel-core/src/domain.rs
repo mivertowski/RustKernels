@@ -134,7 +134,7 @@ impl Domain {
 
     /// Parse a domain from a string.
     #[must_use]
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "GraphAnalytics" => Some(Domain::GraphAnalytics),
             "StatisticalML" => Some(Domain::StatisticalML),
@@ -283,10 +283,10 @@ mod tests {
     #[test]
     fn test_domain_from_str() {
         assert_eq!(
-            Domain::from_str("GraphAnalytics"),
+            Domain::parse("GraphAnalytics"),
             Some(Domain::GraphAnalytics)
         );
-        assert_eq!(Domain::from_str("Unknown"), None);
+        assert_eq!(Domain::parse("Unknown"), None);
     }
 
     #[test]

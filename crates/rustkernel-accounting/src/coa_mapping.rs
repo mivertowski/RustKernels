@@ -218,16 +218,15 @@ impl ChartOfAccountsMapping {
     /// Evaluate a simple condition.
     fn evaluate_condition(account: &Account, condition: &str) -> bool {
         // Simple attribute-based conditions
-        if condition.starts_with("attr:") {
-            let parts: Vec<&str> = condition[5..].splitn(2, '=').collect();
+        if let Some(stripped) = condition.strip_prefix("attr:") {
+            let parts: Vec<&str> = stripped.splitn(2, '=').collect();
             if parts.len() == 2 {
                 return account.attributes.get(parts[0]) == Some(&parts[1].to_string());
             }
         }
 
         // Account type conditions
-        if condition.starts_with("type:") {
-            let type_str = &condition[5..];
+        if let Some(type_str) = condition.strip_prefix("type:") {
             return match type_str {
                 "asset" => account.account_type == crate::types::AccountType::Asset,
                 "liability" => account.account_type == crate::types::AccountType::Liability,
@@ -303,7 +302,7 @@ impl GpuKernel for ChartOfAccountsMapping {
 }
 
 /// Mapping configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MappingConfig {
     /// Include inactive accounts.
     pub include_inactive: bool,
@@ -311,16 +310,6 @@ pub struct MappingConfig {
     pub default_target: Option<String>,
     /// Strict mode (fail on unmapped).
     pub strict_mode: bool,
-}
-
-impl Default for MappingConfig {
-    fn default() -> Self {
-        Self {
-            include_inactive: false,
-            default_target: None,
-            strict_mode: false,
-        }
-    }
 }
 
 /// Rule validation error.

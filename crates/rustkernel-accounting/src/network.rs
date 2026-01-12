@@ -253,7 +253,7 @@ impl NetworkAnalysis {
         }
 
         if let Some(neighbors) = graph.get(current) {
-            for (next, amount) in neighbors {
+            for (next, _amount) in neighbors {
                 if *next == path[0] && path.len() >= 2 {
                     // Found a cycle
                     let total_amount: f64 = path
