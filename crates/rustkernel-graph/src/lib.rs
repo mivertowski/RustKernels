@@ -35,6 +35,7 @@
 
 pub mod centrality;
 pub mod community;
+pub mod messages;
 pub mod metrics;
 pub mod motif;
 pub mod similarity;
@@ -46,6 +47,7 @@ pub mod types;
 pub mod prelude {
     pub use crate::centrality::*;
     pub use crate::community::*;
+    pub use crate::messages::*;
     pub use crate::metrics::*;
     pub use crate::motif::*;
     pub use crate::similarity::*;

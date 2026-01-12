@@ -169,7 +169,7 @@ pub enum TriadType {
 }
 
 /// Result of motif detection.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MotifResult {
     /// Count of each motif type.
     pub motif_counts: std::collections::HashMap<String, u64>,

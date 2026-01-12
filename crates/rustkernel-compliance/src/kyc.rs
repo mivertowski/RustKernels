@@ -4,10 +4,17 @@
 //! - Risk scoring
 //! - Entity resolution/matching
 
+use crate::messages::{
+    EntityResolutionInput, EntityResolutionOutput, KYCScoringInput, KYCScoringOutput,
+};
 use crate::types::{
     Entity, EntityMatch, EntityResolutionResult, KYCFactors, KYCResult, RiskTier,
 };
+use async_trait::async_trait;
+use rustkernel_core::error::Result;
+use rustkernel_core::traits::BatchKernel;
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+use std::time::Instant;
 
 // ============================================================================
 // KYC Scoring Kernel
@@ -122,6 +129,18 @@ impl KYCScoring {
 impl GpuKernel for KYCScoring {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<KYCScoringInput, KYCScoringOutput> for KYCScoring {
+    async fn execute(&self, input: KYCScoringInput) -> Result<KYCScoringOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.factors, None);
+        Ok(KYCScoringOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 
@@ -410,6 +429,18 @@ impl EntityResolution {
 impl GpuKernel for EntityResolution {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<EntityResolutionInput, EntityResolutionOutput> for EntityResolution {
+    async fn execute(&self, input: EntityResolutionInput) -> Result<EntityResolutionOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.query, &input.candidates, input.min_score, input.max_matches);
+        Ok(EntityResolutionOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 

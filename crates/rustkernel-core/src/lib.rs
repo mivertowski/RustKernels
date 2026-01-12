@@ -17,6 +17,7 @@ pub mod domain;
 pub mod error;
 pub mod kernel;
 pub mod license;
+pub mod messages;
 pub mod registry;
 pub mod slo;
 pub mod test_kernels;
@@ -39,10 +40,11 @@ pub mod prelude {
     pub use crate::error::{KernelError, Result};
     pub use crate::kernel::{KernelMetadata, KernelMode};
     pub use crate::license::{DevelopmentLicense, License, LicenseError, LicenseValidator};
+    pub use crate::messages::{CorrelationId, KernelRequest, KernelResponse, KernelResult};
     pub use crate::registry::{KernelRegistry, RegistryStats};
     pub use crate::slo::{SLOResult, SLOValidator};
     pub use crate::test_kernels::{EchoKernel, MatMul, ReduceSum, VectorAdd};
-    pub use crate::traits::{BatchKernel, GpuKernel, RingKernelHandler};
+    pub use crate::traits::{BatchKernel, GpuKernel, IterativeKernel, RingKernelHandler};
 
     // Re-exports from ringkernel-core
     pub use ringkernel_core::runtime::{KernelHandle, KernelId, KernelState, LaunchOptions};

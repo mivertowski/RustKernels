@@ -6,12 +6,20 @@
 //! - Rapid movement (velocity) analysis
 //! - Multi-pattern AML detection
 
+use crate::messages::{
+    AMLPatternInput, AMLPatternOutput, CircularFlowInput, CircularFlowOutput, RapidMovementInput,
+    RapidMovementOutput, ReciprocityFlowInput, ReciprocityFlowOutput,
+};
 use crate::types::{
     AMLPattern, AMLPatternResult, CircularFlowResult, PatternDetail, RapidMovementResult,
     ReciprocityResult, TimeWindow, Transaction,
 };
+use async_trait::async_trait;
+use rustkernel_core::error::Result;
+use rustkernel_core::traits::BatchKernel;
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::{HashMap, HashSet};
+use std::time::Instant;
 
 // ============================================================================
 // Circular Flow Ratio Kernel
@@ -209,6 +217,18 @@ impl GpuKernel for CircularFlowRatio {
     }
 }
 
+#[async_trait]
+impl BatchKernel<CircularFlowInput, CircularFlowOutput> for CircularFlowRatio {
+    async fn execute(&self, input: CircularFlowInput) -> Result<CircularFlowOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.transactions, input.min_amount);
+        Ok(CircularFlowOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
 // ============================================================================
 // Reciprocity Flow Ratio Kernel
 // ============================================================================
@@ -315,6 +335,18 @@ impl ReciprocityFlowRatio {
 impl GpuKernel for ReciprocityFlowRatio {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<ReciprocityFlowInput, ReciprocityFlowOutput> for ReciprocityFlowRatio {
+    async fn execute(&self, input: ReciprocityFlowInput) -> Result<ReciprocityFlowOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.transactions, input.window, input.min_amount);
+        Ok(ReciprocityFlowOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 
@@ -438,6 +470,23 @@ impl RapidMovement {
 impl GpuKernel for RapidMovement {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<RapidMovementInput, RapidMovementOutput> for RapidMovement {
+    async fn execute(&self, input: RapidMovementInput) -> Result<RapidMovementOutput> {
+        let start = Instant::now();
+        let result = Self::compute(
+            &input.transactions,
+            input.window_hours,
+            input.velocity_threshold,
+            input.amount_threshold,
+        );
+        Ok(RapidMovementOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 
@@ -680,6 +729,22 @@ impl AMLPatternDetection {
 impl GpuKernel for AMLPatternDetection {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<AMLPatternInput, AMLPatternOutput> for AMLPatternDetection {
+    async fn execute(&self, input: AMLPatternInput) -> Result<AMLPatternOutput> {
+        let start = Instant::now();
+        let result = Self::compute(
+            &input.transactions,
+            input.structuring_threshold,
+            input.structuring_window_hours,
+        );
+        Ok(AMLPatternOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 

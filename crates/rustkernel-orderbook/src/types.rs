@@ -3,12 +3,14 @@
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
+use serde::{Deserialize, Serialize};
+
 // ============================================================================
 // Order Types
 // ============================================================================
 
 /// A trading order.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Order {
     /// Unique order ID.
     pub id: u64,
@@ -99,7 +101,7 @@ impl Order {
 }
 
 /// Order side.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Side {
     /// Buy order.
     Buy,
@@ -108,7 +110,7 @@ pub enum Side {
 }
 
 /// Order type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OrderType {
     /// Limit order (price specified).
     Limit,
@@ -121,7 +123,7 @@ pub enum OrderType {
 }
 
 /// Time-in-force specification.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TimeInForce {
     /// Good-till-canceled.
     GTC,
@@ -134,7 +136,7 @@ pub enum TimeInForce {
 }
 
 /// Order status.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OrderStatus {
     /// New order.
     New,
@@ -155,7 +157,7 @@ pub enum OrderStatus {
 // ============================================================================
 
 /// Price in fixed-point representation (price * 10^8).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct Price(pub i64);
 
 impl Price {
@@ -183,7 +185,7 @@ impl PartialOrd for Price {
 }
 
 /// Quantity in fixed-point representation (quantity * 10^8).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct Quantity(pub u64);
 
 impl Quantity {
@@ -203,7 +205,7 @@ impl Quantity {
 // ============================================================================
 
 /// Price level in the order book.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PriceLevel {
     /// Price at this level.
     pub price: Price,
@@ -252,7 +254,7 @@ impl PriceLevel {
 }
 
 /// Order book for a single symbol.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderBook {
     /// Symbol ID.
     pub symbol_id: u32,
@@ -327,7 +329,7 @@ impl OrderBook {
 // ============================================================================
 
 /// A trade execution.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Trade {
     /// Trade ID.
     pub id: u64,
@@ -348,7 +350,7 @@ pub struct Trade {
 }
 
 /// Matching result for an order.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MatchResult {
     /// Original order ID.
     pub order_id: u64,
@@ -433,7 +435,7 @@ impl MatchResult {
 // ============================================================================
 
 /// Level 2 market data snapshot.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct L2Snapshot {
     /// Symbol ID.
     pub symbol_id: u32,
@@ -477,7 +479,7 @@ impl L2Snapshot {
 // ============================================================================
 
 /// Order matching engine configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EngineConfig {
     /// Maximum order size.
     pub max_order_size: Quantity,

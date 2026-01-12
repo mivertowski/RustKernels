@@ -3,11 +3,16 @@
 //! This module provides real-time transaction monitoring
 //! with configurable rules and thresholds.
 
+use crate::messages::{TransactionMonitoringInput, TransactionMonitoringOutput};
 use crate::types::{
     Alert, MonitoringResult, MonitoringRule, RuleType, Severity, TimeWindow, Transaction,
 };
+use async_trait::async_trait;
+use rustkernel_core::error::Result;
+use rustkernel_core::traits::BatchKernel;
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::HashMap;
+use std::time::Instant;
 
 // ============================================================================
 // Transaction Monitoring Kernel
@@ -262,6 +267,18 @@ impl TransactionMonitoring {
 impl GpuKernel for TransactionMonitoring {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<TransactionMonitoringInput, TransactionMonitoringOutput> for TransactionMonitoring {
+    async fn execute(&self, input: TransactionMonitoringInput) -> Result<TransactionMonitoringOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.transactions, &input.rules, input.current_time);
+        Ok(TransactionMonitoringOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 

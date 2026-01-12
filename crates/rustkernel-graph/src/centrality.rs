@@ -8,15 +8,18 @@
 //! - PageRank (power iteration with teleport)
 //! - Katz centrality (attenuated paths)
 
+use crate::messages::{CentralityInput, CentralityOutput, CentralityParams};
 use crate::types::{CentralityResult, CsrGraph, NodeScore};
+use async_trait::async_trait;
 use rustkernel_core::{
     domain::Domain,
     error::Result,
     kernel::KernelMetadata,
-    traits::GpuKernel,
+    traits::{BatchKernel, GpuKernel},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
+use std::time::Instant;
 
 // ============================================================================
 // PageRank Kernel
@@ -705,6 +708,136 @@ impl Default for KatzCentrality {
 impl GpuKernel for KatzCentrality {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+// ============================================================================
+// BatchKernel Implementations
+// ============================================================================
+
+/// Batch execution wrapper for all centrality kernels.
+///
+/// Since centrality algorithms are computationally intensive,
+/// they benefit from batch execution with CPU orchestration.
+
+#[async_trait]
+impl BatchKernel<CentralityInput, CentralityOutput> for BetweennessCentrality {
+    async fn execute(&self, input: CentralityInput) -> Result<CentralityOutput> {
+        let start = Instant::now();
+        let normalized = input.normalize;
+        let result = Self::compute(&input.graph, normalized);
+        let compute_time_us = start.elapsed().as_micros() as u64;
+
+        Ok(CentralityOutput {
+            result,
+            compute_time_us,
+        })
+    }
+}
+
+#[async_trait]
+impl BatchKernel<CentralityInput, CentralityOutput> for ClosenessCentrality {
+    async fn execute(&self, input: CentralityInput) -> Result<CentralityOutput> {
+        let start = Instant::now();
+        let harmonic = match input.params {
+            CentralityParams::Closeness { harmonic } => harmonic,
+            _ => false,
+        };
+        let result = Self::compute(&input.graph, harmonic);
+        let compute_time_us = start.elapsed().as_micros() as u64;
+
+        Ok(CentralityOutput {
+            result,
+            compute_time_us,
+        })
+    }
+}
+
+#[async_trait]
+impl BatchKernel<CentralityInput, CentralityOutput> for EigenvectorCentrality {
+    async fn execute(&self, input: CentralityInput) -> Result<CentralityOutput> {
+        let start = Instant::now();
+        let max_iterations = input.max_iterations.unwrap_or(1000);
+        let tolerance = input.tolerance.unwrap_or(1e-6);
+        let result = Self::compute(&input.graph, max_iterations, tolerance);
+        let compute_time_us = start.elapsed().as_micros() as u64;
+
+        Ok(CentralityOutput {
+            result,
+            compute_time_us,
+        })
+    }
+}
+
+#[async_trait]
+impl BatchKernel<CentralityInput, CentralityOutput> for KatzCentrality {
+    async fn execute(&self, input: CentralityInput) -> Result<CentralityOutput> {
+        let start = Instant::now();
+        let (alpha, beta) = match input.params {
+            CentralityParams::Katz { alpha, beta } => (alpha, beta),
+            _ => (0.1, 1.0),
+        };
+        let max_iterations = input.max_iterations.unwrap_or(100);
+        let tolerance = input.tolerance.unwrap_or(1e-6);
+        let result = Self::compute(&input.graph, alpha, beta, max_iterations, tolerance);
+        let compute_time_us = start.elapsed().as_micros() as u64;
+
+        Ok(CentralityOutput {
+            result,
+            compute_time_us,
+        })
+    }
+}
+
+/// PageRank can be used in both batch and ring modes.
+/// This is the batch mode implementation.
+impl PageRank {
+    /// Execute PageRank as a batch operation.
+    ///
+    /// Convenience method that runs the algorithm to convergence.
+    pub async fn compute_batch(
+        &self,
+        graph: CsrGraph,
+        damping: f32,
+        max_iterations: u32,
+        threshold: f64,
+    ) -> Result<CentralityResult> {
+        Self::run_to_convergence(graph, damping, max_iterations, threshold)
+    }
+}
+
+#[async_trait]
+impl BatchKernel<CentralityInput, CentralityOutput> for PageRank {
+    async fn execute(&self, input: CentralityInput) -> Result<CentralityOutput> {
+        let start = Instant::now();
+        let damping = match input.params {
+            CentralityParams::PageRank { damping } => damping,
+            _ => 0.85,
+        };
+        let max_iterations = input.max_iterations.unwrap_or(100);
+        let tolerance = input.tolerance.unwrap_or(1e-6);
+        let result = Self::run_to_convergence(input.graph, damping, max_iterations, tolerance)?;
+        let compute_time_us = start.elapsed().as_micros() as u64;
+
+        Ok(CentralityOutput {
+            result,
+            compute_time_us,
+        })
+    }
+}
+
+/// Degree centrality batch implementation.
+#[async_trait]
+impl BatchKernel<CentralityInput, CentralityOutput> for DegreeCentrality {
+    async fn execute(&self, input: CentralityInput) -> Result<CentralityOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.graph);
+        let compute_time_us = start.elapsed().as_micros() as u64;
+
+        Ok(CentralityOutput {
+            result,
+            compute_time_us,
+        })
     }
 }
 

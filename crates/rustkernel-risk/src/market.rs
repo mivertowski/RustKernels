@@ -5,8 +5,16 @@
 //! - Portfolio risk aggregation
 //! - Expected Shortfall (CVaR)
 
+use crate::messages::{
+    MonteCarloVaRInput, MonteCarloVaROutput, PortfolioRiskAggregationInput,
+    PortfolioRiskAggregationOutput,
+};
 use crate::types::{Portfolio, PortfolioRiskResult, VaRParams, VaRResult};
+use async_trait::async_trait;
+use rustkernel_core::error::Result;
+use rustkernel_core::traits::BatchKernel;
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+use std::time::Instant;
 
 // ============================================================================
 // Monte Carlo VaR Kernel
@@ -289,6 +297,18 @@ impl GpuKernel for MonteCarloVaR {
     }
 }
 
+#[async_trait]
+impl BatchKernel<MonteCarloVaRInput, MonteCarloVaROutput> for MonteCarloVaR {
+    async fn execute(&self, input: MonteCarloVaRInput) -> Result<MonteCarloVaROutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.portfolio, input.params);
+        Ok(MonteCarloVaROutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
 // ============================================================================
 // Portfolio Risk Aggregation Kernel
 // ============================================================================
@@ -426,6 +446,23 @@ impl PortfolioRiskAggregation {
 impl GpuKernel for PortfolioRiskAggregation {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<PortfolioRiskAggregationInput, PortfolioRiskAggregationOutput>
+    for PortfolioRiskAggregation
+{
+    async fn execute(
+        &self,
+        input: PortfolioRiskAggregationInput,
+    ) -> Result<PortfolioRiskAggregationOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.portfolio, input.confidence_level, input.holding_period);
+        Ok(PortfolioRiskAggregationOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 

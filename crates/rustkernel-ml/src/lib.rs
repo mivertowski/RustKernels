@@ -22,17 +22,19 @@
 
 #![warn(missing_docs)]
 
-pub mod clustering;
 pub mod anomaly;
+pub mod clustering;
 pub mod ensemble;
+pub mod messages;
 pub mod regression;
 pub mod types;
 
 /// Prelude for convenient imports.
 pub mod prelude {
-    pub use crate::clustering::*;
     pub use crate::anomaly::*;
+    pub use crate::clustering::*;
     pub use crate::ensemble::*;
+    pub use crate::messages::*;
     pub use crate::regression::*;
     pub use crate::types::*;
 }

@@ -4,10 +4,23 @@
 //! - Change point detection (PELT, Binary Segmentation, CUSUM)
 //! - Time series anomaly detection
 
+use std::time::Instant;
+
+use async_trait::async_trait;
+
+use crate::messages::{
+    ChangePointDetectionInput, ChangePointDetectionOutput, TimeSeriesAnomalyDetectionInput,
+    TimeSeriesAnomalyDetectionOutput,
+};
 use crate::types::{
     AnomalyMethod, ChangePointMethod, ChangePointResult, TimeSeries, TimeSeriesAnomalyResult,
 };
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+use rustkernel_core::{
+    domain::Domain,
+    error::Result,
+    kernel::KernelMetadata,
+    traits::{BatchKernel, GpuKernel},
+};
 
 // ============================================================================
 // Change Point Detection Kernel
@@ -373,6 +386,18 @@ impl GpuKernel for ChangePointDetection {
     }
 }
 
+#[async_trait]
+impl BatchKernel<ChangePointDetectionInput, ChangePointDetectionOutput> for ChangePointDetection {
+    async fn execute(&self, input: ChangePointDetectionInput) -> Result<ChangePointDetectionOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.series, input.method, input.penalty, input.min_segment);
+        Ok(ChangePointDetectionOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
 // ============================================================================
 // Time Series Anomaly Detection Kernel
 // ============================================================================
@@ -665,6 +690,23 @@ impl TimeSeriesAnomalyDetection {
 impl GpuKernel for TimeSeriesAnomalyDetection {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<TimeSeriesAnomalyDetectionInput, TimeSeriesAnomalyDetectionOutput>
+    for TimeSeriesAnomalyDetection
+{
+    async fn execute(
+        &self,
+        input: TimeSeriesAnomalyDetectionInput,
+    ) -> Result<TimeSeriesAnomalyDetectionOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.series, input.method, input.threshold, input.window);
+        Ok(TimeSeriesAnomalyDetectionOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 

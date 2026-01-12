@@ -155,6 +155,15 @@ pub struct SimilarityScore {
     pub similarity: f64,
 }
 
+/// Result of similarity computation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimilarityResult {
+    /// Computed similarity scores.
+    pub scores: Vec<SimilarityScore>,
+    /// Method used for computation.
+    pub method: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

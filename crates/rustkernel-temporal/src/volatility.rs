@@ -5,8 +5,20 @@
 //! - EWMA (Exponentially Weighted Moving Average) volatility
 //! - Realized volatility measures
 
+use std::time::Instant;
+
+use async_trait::async_trait;
+
+use crate::messages::{
+    EWMAVolatilityInput, EWMAVolatilityOutput, VolatilityAnalysisInput, VolatilityAnalysisOutput,
+};
 use crate::types::{GARCHCoefficients, GARCHParams, TimeSeries, VolatilityResult};
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+use rustkernel_core::{
+    domain::Domain,
+    error::Result,
+    kernel::KernelMetadata,
+    traits::{BatchKernel, GpuKernel},
+};
 
 // ============================================================================
 // Volatility Analysis Kernel
@@ -449,6 +461,30 @@ impl VolatilityAnalysis {
 impl GpuKernel for VolatilityAnalysis {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<VolatilityAnalysisInput, VolatilityAnalysisOutput> for VolatilityAnalysis {
+    async fn execute(&self, input: VolatilityAnalysisInput) -> Result<VolatilityAnalysisOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.returns, input.params, input.forecast_horizon);
+        Ok(VolatilityAnalysisOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
+#[async_trait]
+impl BatchKernel<EWMAVolatilityInput, EWMAVolatilityOutput> for VolatilityAnalysis {
+    async fn execute(&self, input: EWMAVolatilityInput) -> Result<EWMAVolatilityOutput> {
+        let start = Instant::now();
+        let result = Self::compute_ewma(&input.returns, input.lambda, input.forecast_horizon);
+        Ok(EWMAVolatilityOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 

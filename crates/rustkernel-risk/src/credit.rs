@@ -6,8 +6,15 @@
 //! - Expected Loss calculation
 //! - Risk-weighted asset calculation
 
+use crate::messages::{
+    CreditRiskBatchInput, CreditRiskBatchOutput, CreditRiskScoringInput, CreditRiskScoringOutput,
+};
 use crate::types::{CreditExposure, CreditFactors, CreditRiskResult};
+use async_trait::async_trait;
+use rustkernel_core::error::Result;
+use rustkernel_core::traits::BatchKernel;
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+use std::time::Instant;
 
 // ============================================================================
 // Credit Risk Scoring Kernel
@@ -255,6 +262,34 @@ impl CreditRiskScoring {
 impl GpuKernel for CreditRiskScoring {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<CreditRiskScoringInput, CreditRiskScoringOutput> for CreditRiskScoring {
+    async fn execute(&self, input: CreditRiskScoringInput) -> Result<CreditRiskScoringOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.factors, input.ead, input.maturity);
+        Ok(CreditRiskScoringOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
+#[async_trait]
+impl BatchKernel<CreditRiskBatchInput, CreditRiskBatchOutput> for CreditRiskScoring {
+    async fn execute(&self, input: CreditRiskBatchInput) -> Result<CreditRiskBatchOutput> {
+        let start = Instant::now();
+        let results = input
+            .exposures
+            .iter()
+            .map(Self::compute_from_exposure)
+            .collect();
+        Ok(CreditRiskBatchOutput {
+            results,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 

@@ -4,8 +4,20 @@
 //! - ARIMA (AutoRegressive Integrated Moving Average)
 //! - Prophet-style decomposition forecasting
 
+use std::time::Instant;
+
+use async_trait::async_trait;
+
+use crate::messages::{
+    ARIMAForecastInput, ARIMAForecastOutput, ProphetDecompositionInput, ProphetDecompositionOutput,
+};
 use crate::types::{ARIMAParams, ARIMAResult, ProphetResult, TimeSeries};
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+use rustkernel_core::{
+    domain::Domain,
+    error::Result,
+    kernel::KernelMetadata,
+    traits::{BatchKernel, GpuKernel},
+};
 
 // ============================================================================
 // ARIMA Forecast Kernel
@@ -364,6 +376,18 @@ impl GpuKernel for ARIMAForecast {
     }
 }
 
+#[async_trait]
+impl BatchKernel<ARIMAForecastInput, ARIMAForecastOutput> for ARIMAForecast {
+    async fn execute(&self, input: ARIMAForecastInput) -> Result<ARIMAForecastOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.series, input.params, input.horizon);
+        Ok(ARIMAForecastOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
 // ============================================================================
 // Prophet-style Decomposition Forecast Kernel
 // ============================================================================
@@ -545,6 +569,18 @@ impl ProphetDecomposition {
 impl GpuKernel for ProphetDecomposition {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<ProphetDecompositionInput, ProphetDecompositionOutput> for ProphetDecomposition {
+    async fn execute(&self, input: ProphetDecompositionInput) -> Result<ProphetDecompositionOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.series, input.period, input.horizon);
+        Ok(ProphetDecompositionOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 

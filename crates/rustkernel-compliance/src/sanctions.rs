@@ -4,10 +4,17 @@
 //! - OFAC/UN/EU sanctions list screening
 //! - Politically Exposed Persons (PEP) screening
 
+use crate::messages::{
+    PEPScreeningInput, PEPScreeningOutput, SanctionsScreeningInput, SanctionsScreeningOutput,
+};
 use crate::types::{
     PEPEntry, PEPMatch, PEPResult, SanctionsEntry, SanctionsMatch, SanctionsResult,
 };
+use async_trait::async_trait;
+use rustkernel_core::error::Result;
+use rustkernel_core::traits::BatchKernel;
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+use std::time::Instant;
 
 // ============================================================================
 // Sanctions Screening Kernel
@@ -160,6 +167,18 @@ impl GpuKernel for SanctionsScreening {
     }
 }
 
+#[async_trait]
+impl BatchKernel<SanctionsScreeningInput, SanctionsScreeningOutput> for SanctionsScreening {
+    async fn execute(&self, input: SanctionsScreeningInput) -> Result<SanctionsScreeningOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.name, &input.sanctions_list, input.min_score, input.max_matches);
+        Ok(SanctionsScreeningOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
 // ============================================================================
 // PEP Screening Kernel
 // ============================================================================
@@ -266,6 +285,18 @@ impl PEPScreening {
 impl GpuKernel for PEPScreening {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<PEPScreeningInput, PEPScreeningOutput> for PEPScreening {
+    async fn execute(&self, input: PEPScreeningInput) -> Result<PEPScreeningOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.name, &input.pep_list, input.min_score, input.max_matches);
+        Ok(PEPScreeningOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 

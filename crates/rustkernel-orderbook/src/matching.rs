@@ -6,12 +6,25 @@
 //! - Self-trade prevention
 //! - Order book management
 
+use std::collections::HashMap;
+use std::time::Instant;
+
+use async_trait::async_trait;
+
+use crate::messages::{
+    BatchOrderInput, BatchOrderOutput, CancelOrderInput, CancelOrderOutput, GetSnapshotInput,
+    GetSnapshotOutput, ModifyOrderInput, ModifyOrderOutput, SubmitOrderInput, SubmitOrderOutput,
+};
 use crate::types::{
     EngineConfig, L2Snapshot, MatchResult, Order, OrderBook, OrderStatus, OrderType, Price,
     PriceLevel, Quantity, Side, TimeInForce, Trade,
 };
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
-use std::collections::HashMap;
+use rustkernel_core::{
+    domain::Domain,
+    error::Result as KernelResult,
+    kernel::KernelMetadata,
+    traits::{BatchKernel, GpuKernel},
+};
 
 // ============================================================================
 // Order Matching Engine Kernel
@@ -427,6 +440,77 @@ impl Clone for OrderMatchingEngine {
 impl GpuKernel for OrderMatchingEngine {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<SubmitOrderInput, SubmitOrderOutput> for OrderMatchingEngine {
+    async fn execute(&self, input: SubmitOrderInput) -> KernelResult<SubmitOrderOutput> {
+        let start = Instant::now();
+        // Note: This requires &mut self, but BatchKernel takes &self
+        // In practice, this would use interior mutability (Mutex/RwLock)
+        // For now, we clone and process
+        let mut engine = self.clone();
+        let result = engine.submit_order(input.order);
+        Ok(SubmitOrderOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
+#[async_trait]
+impl BatchKernel<BatchOrderInput, BatchOrderOutput> for OrderMatchingEngine {
+    async fn execute(&self, input: BatchOrderInput) -> KernelResult<BatchOrderOutput> {
+        let start = Instant::now();
+        let mut engine = self.clone();
+        let results = engine.process_batch(input.orders);
+        let total_trades: usize = results.iter().map(|r| r.trades.len()).sum();
+        Ok(BatchOrderOutput {
+            results,
+            total_trades,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
+#[async_trait]
+impl BatchKernel<CancelOrderInput, CancelOrderOutput> for OrderMatchingEngine {
+    async fn execute(&self, input: CancelOrderInput) -> KernelResult<CancelOrderOutput> {
+        let start = Instant::now();
+        let mut engine = self.clone();
+        let canceled_order = engine.cancel_order(input.order_id);
+        Ok(CancelOrderOutput {
+            success: canceled_order.is_some(),
+            canceled_order,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
+#[async_trait]
+impl BatchKernel<ModifyOrderInput, ModifyOrderOutput> for OrderMatchingEngine {
+    async fn execute(&self, input: ModifyOrderInput) -> KernelResult<ModifyOrderOutput> {
+        let start = Instant::now();
+        let mut engine = self.clone();
+        let result = engine.modify_order(input.order_id, input.new_price, input.new_quantity);
+        Ok(ModifyOrderOutput {
+            success: result.is_some(),
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
+#[async_trait]
+impl BatchKernel<GetSnapshotInput, GetSnapshotOutput> for OrderMatchingEngine {
+    async fn execute(&self, input: GetSnapshotInput) -> KernelResult<GetSnapshotOutput> {
+        let start = Instant::now();
+        let snapshot = self.get_snapshot(input.symbol_id, input.depth);
+        Ok(GetSnapshotOutput {
+            snapshot,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 

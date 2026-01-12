@@ -628,6 +628,76 @@ impl GpuKernel for HierarchicalClustering {
     }
 }
 
+// ============================================================================
+// BatchKernel Implementations
+// ============================================================================
+
+use crate::messages::{DBSCANInput, DBSCANOutput, HierarchicalInput, HierarchicalOutput, KMeansInput, KMeansOutput, Linkage};
+use async_trait::async_trait;
+use rustkernel_core::error::Result;
+use rustkernel_core::traits::BatchKernel;
+use std::time::Instant;
+
+/// K-Means batch kernel implementation.
+impl KMeans {
+    /// Execute K-Means clustering as a batch operation.
+    ///
+    /// Convenience method for batch clustering.
+    pub async fn cluster_batch(&self, input: KMeansInput) -> Result<KMeansOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.data, input.k, input.max_iterations, input.tolerance);
+        let compute_time_us = start.elapsed().as_micros() as u64;
+
+        Ok(KMeansOutput {
+            result,
+            compute_time_us,
+        })
+    }
+}
+
+#[async_trait]
+impl BatchKernel<KMeansInput, KMeansOutput> for KMeans {
+    async fn execute(&self, input: KMeansInput) -> Result<KMeansOutput> {
+        self.cluster_batch(input).await
+    }
+}
+
+/// DBSCAN batch kernel implementation.
+#[async_trait]
+impl BatchKernel<DBSCANInput, DBSCANOutput> for DBSCAN {
+    async fn execute(&self, input: DBSCANInput) -> Result<DBSCANOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.data, input.eps, input.min_samples, input.metric);
+        let compute_time_us = start.elapsed().as_micros() as u64;
+
+        Ok(DBSCANOutput {
+            result,
+            compute_time_us,
+        })
+    }
+}
+
+/// Hierarchical clustering batch kernel implementation.
+#[async_trait]
+impl BatchKernel<HierarchicalInput, HierarchicalOutput> for HierarchicalClustering {
+    async fn execute(&self, input: HierarchicalInput) -> Result<HierarchicalOutput> {
+        let start = Instant::now();
+        let linkage_method = match input.linkage {
+            Linkage::Single => LinkageMethod::Single,
+            Linkage::Complete => LinkageMethod::Complete,
+            Linkage::Average => LinkageMethod::Average,
+            Linkage::Ward => LinkageMethod::Ward,
+        };
+        let result = Self::compute(&input.data, input.n_clusters, linkage_method, input.metric);
+        let compute_time_us = start.elapsed().as_micros() as u64;
+
+        Ok(HierarchicalOutput {
+            result,
+            compute_time_us,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

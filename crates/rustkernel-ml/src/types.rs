@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// A dense matrix for ML data (row-major storage).
 ///
 /// Each row represents a sample, each column represents a feature.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataMatrix {
     /// Flat storage of all values (row-major).
     pub data: Vec<f64>,
@@ -91,7 +91,7 @@ impl DataMatrix {
 // ============================================================================
 
 /// Distance metric for similarity calculations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum DistanceMetric {
     /// Euclidean distance (L2 norm).
     #[default]
@@ -190,7 +190,7 @@ impl Dataset {
 // ============================================================================
 
 /// Clustering result.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusteringResult {
     /// Cluster assignment per sample.
     pub labels: Vec<usize>,

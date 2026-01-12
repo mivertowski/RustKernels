@@ -5,8 +5,15 @@
 //! - Historical stress scenarios
 //! - Reverse stress testing
 
+use crate::messages::{
+    StressTestingBatchInput, StressTestingBatchOutput, StressTestingInput, StressTestingOutput,
+};
 use crate::types::{Portfolio, Sensitivity, StressScenario, StressTestResult};
+use async_trait::async_trait;
+use rustkernel_core::error::Result;
+use rustkernel_core::traits::BatchKernel;
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+use std::time::Instant;
 
 // ============================================================================
 // Stress Testing Kernel
@@ -258,6 +265,44 @@ impl StressTesting {
 impl GpuKernel for StressTesting {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<StressTestingInput, StressTestingOutput> for StressTesting {
+    async fn execute(&self, input: StressTestingInput) -> Result<StressTestingOutput> {
+        let start = Instant::now();
+        let result = Self::compute(
+            &input.portfolio,
+            &input.scenario,
+            input.sensitivities.as_deref(),
+        );
+        Ok(StressTestingOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
+#[async_trait]
+impl BatchKernel<StressTestingBatchInput, StressTestingBatchOutput> for StressTesting {
+    async fn execute(&self, input: StressTestingBatchInput) -> Result<StressTestingBatchOutput> {
+        let start = Instant::now();
+        let results = Self::compute_batch(
+            &input.portfolio,
+            &input.scenarios,
+            input.sensitivities.as_deref(),
+        );
+        let worst_case = Self::worst_case(
+            &input.portfolio,
+            &input.scenarios,
+            input.sensitivities.as_deref(),
+        );
+        Ok(StressTestingBatchOutput {
+            results,
+            worst_case,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 

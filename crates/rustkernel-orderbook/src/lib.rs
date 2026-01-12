@@ -15,11 +15,13 @@
 #![warn(missing_docs)]
 
 pub mod matching;
+pub mod messages;
 pub mod types;
 
 /// Prelude for convenient imports.
 pub mod prelude {
     pub use crate::matching::*;
+    pub use crate::messages::*;
     pub use crate::types::*;
 }
 

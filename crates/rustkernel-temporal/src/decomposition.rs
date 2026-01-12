@@ -4,8 +4,21 @@
 //! - Seasonal decomposition (STL-like)
 //! - Trend extraction (various moving average methods)
 
+use std::time::Instant;
+
+use async_trait::async_trait;
+
+use crate::messages::{
+    SeasonalDecompositionInput, SeasonalDecompositionOutput, TrendExtractionInput,
+    TrendExtractionOutput,
+};
 use crate::types::{DecompositionResult, TimeSeries, TrendMethod, TrendResult};
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+use rustkernel_core::{
+    domain::Domain,
+    error::Result,
+    kernel::KernelMetadata,
+    traits::{BatchKernel, GpuKernel},
+};
 
 // ============================================================================
 // Seasonal Decomposition Kernel
@@ -278,6 +291,23 @@ impl GpuKernel for SeasonalDecomposition {
     }
 }
 
+#[async_trait]
+impl BatchKernel<SeasonalDecompositionInput, SeasonalDecompositionOutput>
+    for SeasonalDecomposition
+{
+    async fn execute(
+        &self,
+        input: SeasonalDecompositionInput,
+    ) -> Result<SeasonalDecompositionOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.series, input.period, input.robust);
+        Ok(SeasonalDecompositionOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
 // ============================================================================
 // Trend Extraction Kernel
 // ============================================================================
@@ -475,6 +505,18 @@ impl TrendExtraction {
 impl GpuKernel for TrendExtraction {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+#[async_trait]
+impl BatchKernel<TrendExtractionInput, TrendExtractionOutput> for TrendExtraction {
+    async fn execute(&self, input: TrendExtractionInput) -> Result<TrendExtractionOutput> {
+        let start = Instant::now();
+        let result = Self::compute(&input.series, input.method, input.window);
+        Ok(TrendExtractionOutput {
+            result,
+            compute_time_us: start.elapsed().as_micros() as u64,
+        })
     }
 }
 

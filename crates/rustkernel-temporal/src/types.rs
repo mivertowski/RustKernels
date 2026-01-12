@@ -1,13 +1,13 @@
 //! Temporal analysis types and data structures.
 
-// serde support available via feature flag
+use serde::{Deserialize, Serialize};
 
 // ============================================================================
 // Time Series Types
 // ============================================================================
 
 /// A time series data structure.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeSeries {
     /// Values in the series.
     pub values: Vec<f64>,
@@ -74,7 +74,7 @@ impl TimeSeries {
 // ============================================================================
 
 /// ARIMA model parameters.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ARIMAParams {
     /// AR order (p).
     pub p: usize,
@@ -92,7 +92,7 @@ impl ARIMAParams {
 }
 
 /// Result of ARIMA fitting and forecasting.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ARIMAResult {
     /// AR coefficients.
     pub ar_coefficients: Vec<f64>,
@@ -111,7 +111,7 @@ pub struct ARIMAResult {
 }
 
 /// Prophet-style decomposition result.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProphetResult {
     /// Trend component.
     pub trend: Vec<f64>,
@@ -130,7 +130,7 @@ pub struct ProphetResult {
 // ============================================================================
 
 /// Seasonal decomposition result (STL-like).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecompositionResult {
     /// Trend component.
     pub trend: Vec<f64>,
@@ -145,7 +145,7 @@ pub struct DecompositionResult {
 }
 
 /// Type of trend extraction method.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TrendMethod {
     /// Simple moving average.
     SimpleMovingAverage,
@@ -158,7 +158,7 @@ pub enum TrendMethod {
 }
 
 /// Trend extraction result.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrendResult {
     /// Extracted trend.
     pub trend: Vec<f64>,
@@ -173,7 +173,7 @@ pub struct TrendResult {
 // ============================================================================
 
 /// Change point detection result.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChangePointResult {
     /// Indices of detected change points.
     pub change_points: Vec<usize>,
@@ -188,7 +188,7 @@ pub struct ChangePointResult {
 }
 
 /// Change point detection method.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChangePointMethod {
     /// PELT (Pruned Exact Linear Time).
     PELT,
@@ -199,7 +199,7 @@ pub enum ChangePointMethod {
 }
 
 /// Anomaly detection result for time series.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeSeriesAnomalyResult {
     /// Anomaly scores per point.
     pub scores: Vec<f64>,
@@ -212,7 +212,7 @@ pub struct TimeSeriesAnomalyResult {
 }
 
 /// Method for time series anomaly detection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AnomalyMethod {
     /// Z-score based.
     ZScore,
@@ -229,7 +229,7 @@ pub enum AnomalyMethod {
 // ============================================================================
 
 /// GARCH model parameters.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct GARCHParams {
     /// ARCH order (p).
     pub p: usize,
@@ -245,7 +245,7 @@ impl GARCHParams {
 }
 
 /// Volatility analysis result.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VolatilityResult {
     /// Estimated conditional variance series.
     pub variance: Vec<f64>,
@@ -258,7 +258,7 @@ pub struct VolatilityResult {
 }
 
 /// GARCH model coefficients.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GARCHCoefficients {
     /// Omega (constant term).
     pub omega: f64,

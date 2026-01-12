@@ -25,6 +25,7 @@
 pub mod decomposition;
 pub mod detection;
 pub mod forecasting;
+pub mod messages;
 pub mod types;
 pub mod volatility;
 
@@ -33,6 +34,7 @@ pub mod prelude {
     pub use crate::decomposition::*;
     pub use crate::detection::*;
     pub use crate::forecasting::*;
+    pub use crate::messages::*;
     pub use crate::types::*;
     pub use crate::volatility::*;
 }

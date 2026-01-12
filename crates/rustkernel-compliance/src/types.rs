@@ -26,7 +26,7 @@ pub struct Transaction {
 }
 
 /// Time window for analysis.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct TimeWindow {
     /// Start timestamp (inclusive).
     pub start: u64,
@@ -56,7 +56,7 @@ impl TimeWindow {
 // ============================================================================
 
 /// Result of circular flow analysis.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CircularFlowResult {
     /// Ratio of circular flow amount to total flow.
     pub circular_ratio: f64,
@@ -69,7 +69,7 @@ pub struct CircularFlowResult {
 }
 
 /// Result of reciprocity analysis.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReciprocityResult {
     /// Ratio of reciprocal transactions.
     pub reciprocity_ratio: f64,
@@ -80,7 +80,7 @@ pub struct ReciprocityResult {
 }
 
 /// Result of rapid movement (velocity) analysis.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RapidMovementResult {
     /// Entities flagged for rapid movement.
     pub flagged_entities: Vec<u64>,
@@ -91,7 +91,7 @@ pub struct RapidMovementResult {
 }
 
 /// AML pattern types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AMLPattern {
     /// Structuring (smurfing) - breaking large amounts into smaller ones.
     Structuring,
@@ -108,7 +108,7 @@ pub enum AMLPattern {
 }
 
 /// Result of AML pattern detection.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AMLPatternResult {
     /// Detected patterns with associated entities.
     pub patterns: Vec<(AMLPattern, Vec<u64>)>,
@@ -119,7 +119,7 @@ pub struct AMLPatternResult {
 }
 
 /// Details of a detected pattern.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PatternDetail {
     /// Pattern type.
     pub pattern: AMLPattern,
@@ -138,7 +138,7 @@ pub struct PatternDetail {
 // ============================================================================
 
 /// KYC risk factors.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KYCFactors {
     /// Customer ID.
     pub customer_id: u64,
@@ -157,7 +157,7 @@ pub struct KYCFactors {
 }
 
 /// Result of KYC scoring.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KYCResult {
     /// Customer ID.
     pub customer_id: u64,
@@ -170,7 +170,7 @@ pub struct KYCResult {
 }
 
 /// Risk tier classification.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RiskTier {
     /// Low risk (0-25).
     Low,
@@ -194,7 +194,7 @@ impl From<f64> for RiskTier {
 }
 
 /// Entity for resolution/matching.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Entity {
     /// Entity ID.
     pub id: u64,
@@ -211,7 +211,7 @@ pub struct Entity {
 }
 
 /// Type of entity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EntityType {
     /// Individual person.
     Individual,
@@ -224,7 +224,7 @@ pub enum EntityType {
 }
 
 /// Result of entity resolution.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntityResolutionResult {
     /// Query entity ID.
     pub query_id: u64,
@@ -233,7 +233,7 @@ pub struct EntityResolutionResult {
 }
 
 /// A potential entity match.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntityMatch {
     /// Matched entity ID.
     pub entity_id: u64,
@@ -252,7 +252,7 @@ pub struct EntityMatch {
 // ============================================================================
 
 /// Sanctions list entry.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SanctionsEntry {
     /// Entry ID.
     pub id: u64,
@@ -271,7 +271,7 @@ pub struct SanctionsEntry {
 }
 
 /// Result of sanctions screening.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SanctionsResult {
     /// Query entity name.
     pub query_name: String,
@@ -282,7 +282,7 @@ pub struct SanctionsResult {
 }
 
 /// A sanctions list match.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SanctionsMatch {
     /// Matched entry ID.
     pub entry_id: u64,
@@ -297,7 +297,7 @@ pub struct SanctionsMatch {
 }
 
 /// PEP (Politically Exposed Person) entry.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PEPEntry {
     /// Entry ID.
     pub id: u64,
@@ -314,7 +314,7 @@ pub struct PEPEntry {
 }
 
 /// Result of PEP screening.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PEPResult {
     /// Query name.
     pub query_name: String,
@@ -325,7 +325,7 @@ pub struct PEPResult {
 }
 
 /// A PEP match.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PEPMatch {
     /// Entry ID.
     pub entry_id: u64,
@@ -346,7 +346,7 @@ pub struct PEPMatch {
 // ============================================================================
 
 /// Transaction monitoring rule.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonitoringRule {
     /// Rule ID.
     pub id: u64,
@@ -363,7 +363,7 @@ pub struct MonitoringRule {
 }
 
 /// Type of monitoring rule.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RuleType {
     /// Single transaction amount threshold.
     SingleAmount,
@@ -378,7 +378,7 @@ pub enum RuleType {
 }
 
 /// Alert severity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Severity {
     /// Informational.
     Info,
@@ -393,7 +393,7 @@ pub enum Severity {
 }
 
 /// Generated alert from monitoring.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Alert {
     /// Alert ID.
     pub id: u64,
@@ -416,7 +416,7 @@ pub struct Alert {
 }
 
 /// Result of transaction monitoring.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonitoringResult {
     /// Generated alerts.
     pub alerts: Vec<Alert>,

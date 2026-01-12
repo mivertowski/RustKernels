@@ -1,11 +1,13 @@
 //! Risk analytics types and data structures.
 
+use serde::{Deserialize, Serialize};
+
 // ============================================================================
 // Portfolio Types
 // ============================================================================
 
 /// A portfolio of assets for risk analysis.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Portfolio {
     /// Asset identifiers.
     pub asset_ids: Vec<u64>,
@@ -72,7 +74,7 @@ impl Portfolio {
 // ============================================================================
 
 /// Credit exposure for a single obligor.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreditExposure {
     /// Obligor ID.
     pub obligor_id: u64,
@@ -108,7 +110,7 @@ impl CreditExposure {
 }
 
 /// Credit scoring factors for an obligor.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreditFactors {
     /// Obligor ID.
     pub obligor_id: u64,
@@ -131,7 +133,7 @@ pub struct CreditFactors {
 }
 
 /// Result of credit risk scoring.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreditRiskResult {
     /// Obligor ID.
     pub obligor_id: u64,
@@ -154,7 +156,7 @@ pub struct CreditRiskResult {
 // ============================================================================
 
 /// Value at Risk calculation parameters.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct VaRParams {
     /// Confidence level (e.g., 0.95 for 95% VaR).
     pub confidence_level: f64,
@@ -186,7 +188,7 @@ impl VaRParams {
 }
 
 /// Result of VaR calculation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VaRResult {
     /// Value at Risk (loss at confidence level).
     pub var: f64,
@@ -205,7 +207,7 @@ pub struct VaRResult {
 }
 
 /// Portfolio risk aggregation result.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PortfolioRiskResult {
     /// Total portfolio VaR.
     pub portfolio_var: f64,
@@ -228,7 +230,7 @@ pub struct PortfolioRiskResult {
 // ============================================================================
 
 /// A stress scenario definition.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StressScenario {
     /// Scenario name.
     pub name: String,
@@ -283,7 +285,7 @@ impl StressScenario {
 }
 
 /// Result of stress testing.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StressTestResult {
     /// Scenario name.
     pub scenario_name: String,
@@ -304,7 +306,7 @@ pub struct StressTestResult {
 // ============================================================================
 
 /// Market risk factor.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RiskFactor {
     /// Factor name.
     pub name: String,
@@ -317,7 +319,7 @@ pub struct RiskFactor {
 }
 
 /// Type of risk factor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RiskFactorType {
     /// Equity index or stock price.
     Equity,
@@ -334,7 +336,7 @@ pub enum RiskFactorType {
 }
 
 /// Sensitivity of a position to risk factors.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sensitivity {
     /// Asset ID.
     pub asset_id: u64,
