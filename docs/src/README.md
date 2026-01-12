@@ -6,7 +6,7 @@
 
 ## Overview
 
-RustKernels provides **94 GPU-accelerated algorithms** across **14 domain-specific crates**, designed for financial services, compliance, and enterprise analytics. Ported from the DotCompute C# implementation to Rust, using the RingKernel framework.
+RustKernels provides **98 GPU-accelerated algorithms** across **14 domain-specific crates**, designed for financial services, compliance, and enterprise analytics. Ported from the DotCompute C# implementation to Rust, using the RingKernel framework.
 
 <div class="warning">
 
@@ -19,7 +19,7 @@ This is a specialized compute library for financial and enterprise workloads, no
 | Feature | Description |
 |---------|-------------|
 | **14 Domain Categories** | Graph analytics, ML, compliance, risk, treasury, and more |
-| **94 Kernels** | Comprehensive coverage of financial algorithms |
+| **98 Kernels** | Comprehensive coverage of financial algorithms |
 | **Dual Execution Modes** | Batch (CPU-orchestrated) and Ring (GPU-persistent) |
 | **Enterprise Ready** | Apache-2.0 license, domain-based feature gating |
 | **K2K Messaging** | Cross-kernel coordination patterns |
@@ -41,7 +41,7 @@ Most kernels support both modes. Choose based on your latency requirements.
 | Domain | Crate | Kernels | Description |
 |--------|-------|---------|-------------|
 | Graph Analytics | `rustkernel-graph` | 26 | PageRank, community detection, centrality measures |
-| Statistical ML | `rustkernel-ml` | 8 | Clustering, anomaly detection, regression |
+| Statistical ML | `rustkernel-ml` | 12 | Clustering, anomaly detection, regression, explainability |
 | Compliance | `rustkernel-compliance` | 11 | AML patterns, KYC, sanctions screening |
 | Temporal Analysis | `rustkernel-temporal` | 7 | Forecasting, anomaly detection, decomposition |
 | Risk Analytics | `rustkernel-risk` | 5 | Credit scoring, VaR, stress testing, correlation |

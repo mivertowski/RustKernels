@@ -13,21 +13,31 @@
 //! - `IsolationForest` - Ensemble of isolation trees
 //! - `LocalOutlierFactor` - k-NN density estimation
 //!
+//! ### Streaming Anomaly Detection (2 kernels)
+//! - `StreamingIsolationForest` - Online anomaly detection with sliding window
+//! - `AdaptiveThreshold` - Self-adjusting thresholds with drift detection
+//!
 //! ### Ensemble (1 kernel)
 //! - `EnsembleVoting` - Weighted majority voting
 //!
 //! ### Regression (2 kernels)
 //! - `LinearRegression` - OLS via normal equations
 //! - `RidgeRegression` - L2 regularization
+//!
+//! ### Explainability (2 kernels)
+//! - `SHAPValues` - Kernel SHAP for feature explanations
+//! - `FeatureImportance` - Permutation-based feature importance
 
 #![warn(missing_docs)]
 
 pub mod anomaly;
 pub mod clustering;
 pub mod ensemble;
+pub mod explainability;
 pub mod messages;
 pub mod regression;
 pub mod ring_messages;
+pub mod streaming;
 pub mod types;
 
 /// Prelude for convenient imports.
@@ -35,9 +45,11 @@ pub mod prelude {
     pub use crate::anomaly::*;
     pub use crate::clustering::*;
     pub use crate::ensemble::*;
+    pub use crate::explainability::*;
     pub use crate::messages::*;
     pub use crate::regression::*;
     pub use crate::ring_messages::*;
+    pub use crate::streaming::*;
     pub use crate::types::*;
 }
 
@@ -58,6 +70,10 @@ pub fn register_all(
     registry.register_metadata(anomaly::IsolationForest::new().metadata().clone())?;
     registry.register_metadata(anomaly::LocalOutlierFactor::new().metadata().clone())?;
 
+    // Streaming anomaly detection kernels (2)
+    registry.register_metadata(streaming::StreamingIsolationForest::new().metadata().clone())?;
+    registry.register_metadata(streaming::AdaptiveThreshold::new().metadata().clone())?;
+
     // Ensemble kernel (1)
     registry.register_metadata(ensemble::EnsembleVoting::new().metadata().clone())?;
 
@@ -65,7 +81,11 @@ pub fn register_all(
     registry.register_metadata(regression::LinearRegression::new().metadata().clone())?;
     registry.register_metadata(regression::RidgeRegression::new().metadata().clone())?;
 
-    tracing::info!("Registered 8 statistical ML kernels");
+    // Explainability kernels (2)
+    registry.register_metadata(explainability::SHAPValues::new().metadata().clone())?;
+    registry.register_metadata(explainability::FeatureImportance::new().metadata().clone())?;
+
+    tracing::info!("Registered 12 statistical ML kernels");
     Ok(())
 }
 
@@ -78,6 +98,6 @@ mod tests {
     fn test_register_all() {
         let registry = KernelRegistry::new();
         register_all(&registry).expect("Failed to register ML kernels");
-        assert_eq!(registry.total_count(), 8);
+        assert_eq!(registry.total_count(), 12);
     }
 }

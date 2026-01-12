@@ -26,7 +26,7 @@ Most kernels support both modes. Choose based on your latency requirements.
 | Domain | Crate | Kernels |
 |--------|-------|---------|
 | Graph Analytics | `rustkernel-graph` | 26 |
-| Statistical ML | `rustkernel-ml` | 8 |
+| Statistical ML | `rustkernel-ml` | 12 |
 | Compliance | `rustkernel-compliance` | 11 |
 | Temporal Analysis | `rustkernel-temporal` | 7 |
 | Risk Analytics | `rustkernel-risk` | 5 |
@@ -94,7 +94,7 @@ crates/
 
 ## Status
 
-The port is functionally complete. All 94 kernels have been implemented with both BatchKernel and RingKernelHandler traits. K2K (kernel-to-kernel) messaging is in place for cross-kernel coordination patterns.
+The port is functionally complete. All 98 kernels have been implemented with both BatchKernel and RingKernelHandler traits. K2K (kernel-to-kernel) messaging is in place for cross-kernel coordination patterns.
 
 Test coverage exists for all domains. Some edge cases in the behavioral analytics causal graph module remain flaky.
 
