@@ -1,10 +1,10 @@
 # Graph Analytics
 
 **Crate**: `rustkernel-graph`
-**Kernels**: 21
+**Kernels**: 26
 **Feature**: `graph` (included in default features)
 
-Graph analytics kernels for network analysis, social network analysis, and knowledge graph operations.
+Graph analytics kernels for network analysis, social network analysis, knowledge graph operations, and AML/fraud detection.
 
 ## Kernel Overview
 
@@ -27,7 +27,7 @@ Graph analytics kernels for network analysis, social network analysis, and knowl
 | LouvainCommunity | `graph/louvain-community` | Batch, Ring | Modularity optimization |
 | LabelPropagation | `graph/label-propagation` | Batch, Ring | Fast community detection |
 
-### Similarity Measures (4)
+### Similarity Measures (5)
 
 | Kernel | ID | Modes | Description |
 |--------|-----|-------|-------------|
@@ -35,6 +35,7 @@ Graph analytics kernels for network analysis, social network analysis, and knowl
 | CosineSimilarity | `graph/cosine-similarity` | Batch, Ring | Vector-based similarity |
 | AdamicAdarIndex | `graph/adamic-adar-index` | Batch | Weighted common neighbors |
 | CommonNeighbors | `graph/common-neighbors` | Batch, Ring | Shared neighbor counting |
+| ValueSimilarity | `graph/value-similarity` | Batch | Distribution comparison (JSD/Wasserstein) |
 
 ### Graph Metrics (5)
 
@@ -53,6 +54,25 @@ Graph analytics kernels for network analysis, social network analysis, and knowl
 | TriangleCounting | `graph/triangle-counting` | Batch, Ring | Triangle enumeration |
 | MotifDetection | `graph/motif-detection` | Batch | Subgraph pattern matching |
 | KCliqueDetection | `graph/k-clique-detection` | Batch | Complete subgraph finding |
+
+### Topology Analysis (2)
+
+| Kernel | ID | Modes | Description |
+|--------|-----|-------|-------------|
+| DegreeRatio | `graph/degree-ratio` | Ring | In/out ratio for source/sink classification |
+| StarTopologyScore | `graph/star-topology` | Batch | Hub-and-spoke detection (smurfing) |
+
+### Cycle Detection (1)
+
+| Kernel | ID | Modes | Description |
+|--------|-----|-------|-------------|
+| ShortCycleParticipation | `graph/cycle-participation` | Batch | 2-4 hop cycle detection (AML) |
+
+### Path Analysis (1)
+
+| Kernel | ID | Modes | Description |
+|--------|-----|-------|-------------|
+| ShortestPath | `graph/shortest-path` | Batch | BFS/Delta-Stepping SSSP/APSP |
 
 ---
 
@@ -172,6 +192,162 @@ let result = kernel.execute(TriangleInput {
 
 println!("Triangles: {}", result.triangle_count);
 println!("Clustering coefficient: {:.4}", result.global_clustering);
+```
+
+---
+
+### ShortCycleParticipation
+
+Detects participation in short cycles (2-4 hops) which are key indicators for AML.
+
+**ID**: `graph/cycle-participation`
+**Modes**: Batch
+**Throughput**: ~25,000 nodes/sec
+
+Short cycles are critical AML indicators:
+- **2-cycles (reciprocal)**: Immediate return transactions
+- **3-cycles (triangles)**: Layering patterns - HIGH AML risk
+- **4-cycles (squares)**: Organized laundering - CRITICAL AML risk
+
+#### Example
+
+```rust
+use rustkernel::graph::cycles::{ShortCycleParticipation, CycleRiskLevel};
+
+let kernel = ShortCycleParticipation::new();
+let results = kernel.compute_all(&graph);
+
+// Find high-risk nodes
+for result in &results {
+    if matches!(result.risk_level, CycleRiskLevel::High | CycleRiskLevel::Critical) {
+        println!("HIGH RISK: Node {} participates in {} 4-cycles",
+                 result.node_index, result.cycle_count_4hop);
+    }
+}
+
+// Count triangles in the graph
+let triangles = ShortCycleParticipation::count_triangles(&graph);
+```
+
+---
+
+### DegreeRatio
+
+Calculates in-degree/out-degree ratio for node classification.
+
+**ID**: `graph/degree-ratio`
+**Modes**: Ring
+**Latency**: ~300ns per query
+
+Classifies nodes as:
+- **Source**: Mostly outgoing edges (payment originators)
+- **Sink**: Mostly incoming edges (collection accounts)
+- **Balanced**: Equal in/out (intermediary accounts)
+
+#### Example
+
+```rust
+use rustkernel::graph::topology::{DegreeRatio, NodeClassification};
+
+let results = DegreeRatio::compute_batch(&graph);
+let roles = DegreeRatio::classify_nodes(&graph);
+
+println!("Sources: {:?}", roles.sources);
+println!("Sinks: {:?}", roles.sinks);
+```
+
+---
+
+### StarTopologyScore
+
+Detects hub-and-spoke patterns for smurfing and money mule detection.
+
+**ID**: `graph/star-topology`
+**Modes**: Batch
+**Throughput**: ~20,000 nodes/sec
+
+Star types:
+- **In-Star**: Collection pattern (many payers to one receiver)
+- **Out-Star**: Distribution pattern (smurfing indicator)
+- **Mixed**: Money mule hub
+
+#### Example
+
+```rust
+use rustkernel::graph::topology::{StarTopologyScore, StarType};
+
+let kernel = StarTopologyScore::with_min_degree(10);
+let hubs = kernel.top_k_hubs(&graph, 10);
+
+// Find potential smurfing accounts (out-stars)
+let out_stars = kernel.find_out_stars(&graph, 0.8);
+for hub in out_stars {
+    println!("POTENTIAL SMURFING: Node {} with score {:.2}",
+             hub.node_index, hub.star_score);
+}
+```
+
+---
+
+### ShortestPath
+
+Computes shortest paths using BFS or Delta-Stepping algorithm.
+
+**ID**: `graph/shortest-path`
+**Modes**: Batch
+**Throughput**: ~50,000 nodes/sec
+
+Supports:
+- Single-source shortest path (SSSP)
+- All-pairs shortest path (APSP)
+- K-shortest paths (Yen's algorithm)
+
+#### Example
+
+```rust
+use rustkernel::graph::paths::ShortestPath;
+
+// Single-source shortest path
+let sssp = ShortestPath::compute_sssp_bfs(&graph, source);
+println!("Distance to target: {}", sssp[target].distance);
+
+// Reconstruct path
+if let Some(path) = ShortestPath::compute_path(&graph, source, target) {
+    println!("Path: {:?}", path.node_path);
+}
+
+// Graph diameter
+let diameter = ShortestPath::compute_diameter(&graph);
+```
+
+---
+
+### ValueSimilarity
+
+Compares node value distributions using statistical distance metrics.
+
+**ID**: `graph/value-similarity`
+**Modes**: Batch
+**Throughput**: ~25,000 pairs/sec
+
+Metrics:
+- **Jensen-Shannon Divergence (JSD)**: Symmetric KL divergence
+- **Wasserstein Distance**: Earth Mover's Distance
+
+#### Example
+
+```rust
+use rustkernel::graph::similarity::{ValueSimilarity, ValueDistribution};
+
+// Create distributions from transaction amounts
+let dist = ValueDistribution::from_values(&node_amounts, 50);
+
+// Find similar nodes using JSD
+let pairs = ValueSimilarity::compute_all_pairs_jsd(&dist, 0.9, 100);
+for pair in &pairs {
+    println!("Similar: {} and {} (similarity: {:.3})",
+             pair.node_a, pair.node_b, pair.similarity);
+}
 ```
 
 ---
