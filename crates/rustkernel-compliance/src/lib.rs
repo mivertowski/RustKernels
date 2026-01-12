@@ -27,6 +27,7 @@ pub mod aml;
 pub mod kyc;
 pub mod messages;
 pub mod monitoring;
+pub mod ring_messages;
 pub mod sanctions;
 pub mod types;
 
@@ -36,6 +37,7 @@ pub mod prelude {
     pub use crate::kyc::*;
     pub use crate::messages::*;
     pub use crate::monitoring::*;
+    pub use crate::ring_messages::*;
     pub use crate::sanctions::*;
     pub use crate::types::*;
 }

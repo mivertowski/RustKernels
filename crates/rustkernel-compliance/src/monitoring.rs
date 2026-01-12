@@ -4,12 +4,14 @@
 //! with configurable rules and thresholds.
 
 use crate::messages::{TransactionMonitoringInput, TransactionMonitoringOutput};
+use crate::ring_messages::{MonitorTransactionResponse, MonitorTransactionRing};
 use crate::types::{
     Alert, MonitoringResult, MonitoringRule, RuleType, Severity, TimeWindow, Transaction,
 };
 use async_trait::async_trait;
+use ringkernel_core::RingContext;
 use rustkernel_core::error::Result;
-use rustkernel_core::traits::BatchKernel;
+use rustkernel_core::traits::{BatchKernel, RingKernelHandler};
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -278,6 +280,80 @@ impl BatchKernel<TransactionMonitoringInput, TransactionMonitoringOutput> for Tr
         Ok(TransactionMonitoringOutput {
             result,
             compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
+// ============================================================================
+// Ring Kernel Handler Implementation
+// ============================================================================
+
+#[async_trait]
+impl RingKernelHandler<MonitorTransactionRing, MonitorTransactionResponse>
+    for TransactionMonitoring
+{
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: MonitorTransactionRing,
+    ) -> Result<MonitorTransactionResponse> {
+        // Convert Ring message to domain Transaction
+        let currency = std::str::from_utf8(&msg.currency[..3])
+            .unwrap_or("USD")
+            .trim_end_matches('\0')
+            .to_string();
+
+        let transaction = Transaction {
+            id: msg.tx_id,
+            source_id: msg.source_id,
+            dest_id: msg.dest_id,
+            amount: msg.amount as f64 / 100_000_000.0, // Convert from fixed-point
+            timestamp: msg.timestamp,
+            currency,
+            tx_type: match msg.tx_type {
+                0 => "wire",
+                1 => "ach",
+                2 => "check",
+                _ => "other",
+            }
+            .to_string(),
+        };
+
+        // Apply default monitoring rules
+        let rules = Self::default_rules();
+        let result = Self::compute(&[transaction], &rules, msg.timestamp);
+
+        // Calculate aggregated risk score
+        let risk_score = if result.alerts.is_empty() {
+            0u8
+        } else {
+            let max_severity = result
+                .alerts
+                .iter()
+                .map(|a| match a.severity {
+                    Severity::Info => 10u8,
+                    Severity::Low => 25,
+                    Severity::Medium => 50,
+                    Severity::High => 75,
+                    Severity::Critical => 100,
+                })
+                .max()
+                .unwrap_or(0);
+            max_severity
+        };
+
+        // Build alert flags bitmask
+        let mut alert_flags = 0u64;
+        for alert in &result.alerts {
+            alert_flags |= 1u64 << (alert.rule_id % 64);
+        }
+
+        Ok(MonitorTransactionResponse {
+            correlation_id: msg.correlation_id,
+            tx_id: msg.tx_id,
+            alert_count: result.alerts.len() as u32,
+            risk_score,
+            alert_flags,
         })
     }
 }

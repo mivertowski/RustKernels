@@ -10,13 +10,18 @@ use crate::messages::{
     AMLPatternInput, AMLPatternOutput, CircularFlowInput, CircularFlowOutput, RapidMovementInput,
     RapidMovementOutput, ReciprocityFlowInput, ReciprocityFlowOutput,
 };
+use crate::ring_messages::{
+    AddGraphEdgeResponse, AddGraphEdgeRing, MatchPatternResponse, MatchPatternRing,
+    QueryCircularRatioResponse, QueryCircularRatioRing,
+};
 use crate::types::{
     AMLPattern, AMLPatternResult, CircularFlowResult, PatternDetail, RapidMovementResult,
     ReciprocityResult, TimeWindow, Transaction,
 };
 use async_trait::async_trait;
+use ringkernel_core::RingContext;
 use rustkernel_core::error::Result;
-use rustkernel_core::traits::BatchKernel;
+use rustkernel_core::traits::{BatchKernel, RingKernelHandler};
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
@@ -225,6 +230,74 @@ impl BatchKernel<CircularFlowInput, CircularFlowOutput> for CircularFlowRatio {
         Ok(CircularFlowOutput {
             result,
             compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Ring Kernel Handler Implementation for CircularFlowRatio
+// ----------------------------------------------------------------------------
+
+/// Ring handler for adding edges to the transaction graph.
+#[async_trait]
+impl RingKernelHandler<AddGraphEdgeRing, AddGraphEdgeResponse> for CircularFlowRatio {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: AddGraphEdgeRing,
+    ) -> Result<AddGraphEdgeResponse> {
+        // Create a single-transaction graph to detect if this edge creates a cycle
+        let transaction = Transaction {
+            id: msg.id.0,
+            source_id: msg.source_id,
+            dest_id: msg.dest_id,
+            amount: msg.amount as f64 / 100_000_000.0,
+            timestamp: msg.timestamp,
+            currency: "USD".to_string(),
+            tx_type: "transfer".to_string(),
+        };
+
+        // In a real Ring kernel, we would maintain GPU-resident graph state
+        // For now, analyze this single edge
+        let result = Self::compute(&[transaction], 0.0);
+
+        // Check if adding this edge created a cycle
+        let cycle_detected = !result.sccs.is_empty()
+            && result.sccs.iter().any(|scc| scc.len() > 1);
+
+        let cycle_size = result
+            .sccs
+            .iter()
+            .filter(|scc| scc.len() > 1)
+            .map(|scc| scc.len() as u32)
+            .max()
+            .unwrap_or(0);
+
+        Ok(AddGraphEdgeResponse {
+            correlation_id: msg.correlation_id,
+            cycle_detected,
+            cycle_size,
+            source_ratio: result.circular_ratio as f32,
+        })
+    }
+}
+
+/// Ring handler for querying circular flow ratio.
+#[async_trait]
+impl RingKernelHandler<QueryCircularRatioRing, QueryCircularRatioResponse> for CircularFlowRatio {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: QueryCircularRatioRing,
+    ) -> Result<QueryCircularRatioResponse> {
+        // In a real Ring kernel, this would query GPU-resident graph state
+        // For now, return a placeholder response
+        Ok(QueryCircularRatioResponse {
+            correlation_id: msg.correlation_id,
+            entity_id: msg.entity_id,
+            ratio: 0.0,    // Would come from GPU state
+            scc_count: 0,  // Would come from GPU state
+            cycle_volume: 0, // Would come from GPU state
         })
     }
 }
@@ -744,6 +817,72 @@ impl BatchKernel<AMLPatternInput, AMLPatternOutput> for AMLPatternDetection {
         Ok(AMLPatternOutput {
             result,
             compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Ring Kernel Handler Implementation for AMLPatternDetection
+// ----------------------------------------------------------------------------
+
+/// Ring handler for pattern matching on streaming transactions.
+#[async_trait]
+impl RingKernelHandler<MatchPatternRing, MatchPatternResponse> for AMLPatternDetection {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: MatchPatternRing,
+    ) -> Result<MatchPatternResponse> {
+        // Convert Ring message to domain Transaction
+        let transaction = Transaction {
+            id: msg.tx_id,
+            source_id: msg.source_id,
+            dest_id: msg.dest_id,
+            amount: msg.amount as f64 / 100_000_000.0,
+            timestamp: msg.timestamp,
+            currency: "USD".to_string(),
+            tx_type: match msg.tx_type {
+                0 => "wire",
+                1 => "ach",
+                2 => "check",
+                _ => "other",
+            }
+            .to_string(),
+        };
+
+        // Default thresholds for streaming analysis
+        let structuring_threshold = 10_000.0;
+        let structuring_window_hours = 24.0;
+
+        let result = Self::compute(&[transaction], structuring_threshold, structuring_window_hours);
+
+        // Build patterns_matched bitmask
+        let mut patterns_matched = 0u64;
+        for (pattern, _) in &result.patterns {
+            let bit = match pattern {
+                AMLPattern::Structuring => 0,
+                AMLPattern::Layering => 1,
+                AMLPattern::RapidMovement => 2,
+                AMLPattern::RoundTripping => 3,
+                AMLPattern::FunnelAccount => 4,
+                AMLPattern::FanOut => 5,
+            };
+            patterns_matched |= 1u64 << bit;
+        }
+
+        let max_score = result
+            .pattern_details
+            .iter()
+            .map(|d| d.confidence)
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .unwrap_or(0.0) as f32;
+
+        Ok(MatchPatternResponse {
+            correlation_id: msg.correlation_id,
+            tx_id: msg.tx_id,
+            patterns_matched,
+            max_score,
+            match_count: result.patterns.len() as u32,
         })
     }
 }

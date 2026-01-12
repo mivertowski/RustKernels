@@ -8,16 +8,21 @@
 use std::time::Instant;
 
 use async_trait::async_trait;
+use ringkernel_core::RingContext;
 
 use crate::messages::{
     EWMAVolatilityInput, EWMAVolatilityOutput, VolatilityAnalysisInput, VolatilityAnalysisOutput,
+};
+use crate::ring_messages::{
+    QueryVolatilityResponse, QueryVolatilityRing, UpdateEWMAVolatilityResponse,
+    UpdateEWMAVolatilityRing, UpdateVolatilityResponse, UpdateVolatilityRing,
 };
 use crate::types::{GARCHCoefficients, GARCHParams, TimeSeries, VolatilityResult};
 use rustkernel_core::{
     domain::Domain,
     error::Result,
     kernel::KernelMetadata,
-    traits::{BatchKernel, GpuKernel},
+    traits::{BatchKernel, GpuKernel, RingKernelHandler},
 };
 
 // ============================================================================
@@ -484,6 +489,107 @@ impl BatchKernel<EWMAVolatilityInput, EWMAVolatilityOutput> for VolatilityAnalys
         Ok(EWMAVolatilityOutput {
             result,
             compute_time_us: start.elapsed().as_micros() as u64,
+        })
+    }
+}
+
+// ============================================================================
+// Ring Kernel Handler Implementations
+// ============================================================================
+
+/// Ring handler for GARCH volatility updates.
+#[async_trait]
+impl RingKernelHandler<UpdateVolatilityRing, UpdateVolatilityResponse> for VolatilityAnalysis {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: UpdateVolatilityRing,
+    ) -> Result<UpdateVolatilityResponse> {
+        // In a real Ring kernel, we would maintain GPU-resident state
+        // with running GARCH estimates per asset.
+        // For now, create a single-observation response
+
+        let return_value = msg.return_f64();
+        let variance = return_value.powi(2);
+        let volatility = variance.sqrt();
+
+        Ok(UpdateVolatilityResponse {
+            correlation_id: msg.correlation_id,
+            asset_id: msg.asset_id,
+            current_volatility: (volatility * 100_000_000.0) as i64,
+            current_variance: (variance * 100_000_000.0) as i64,
+            observation_count: 1,
+        })
+    }
+}
+
+/// Ring handler for volatility queries.
+#[async_trait]
+impl RingKernelHandler<QueryVolatilityRing, QueryVolatilityResponse> for VolatilityAnalysis {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: QueryVolatilityRing,
+    ) -> Result<QueryVolatilityResponse> {
+        // In a real Ring kernel, this would query GPU-resident GARCH state
+        // For now, return a placeholder response
+
+        // Typical GARCH(1,1) persistence
+        let persistence: f64 = 0.95;
+
+        // Initialize forecast array
+        let mut forecast = [0i64; 10];
+        let horizon = msg.horizon.min(10) as usize;
+
+        // Placeholder forecasts (would come from GPU state)
+        let base_vol = 0.02; // 2% volatility
+        for (i, f) in forecast.iter_mut().take(horizon).enumerate() {
+            // Volatility converges to long-run mean
+            let h_vol = base_vol * persistence.powi(i as i32);
+            *f = (h_vol * 100_000_000.0) as i64;
+        }
+
+        Ok(QueryVolatilityResponse {
+            correlation_id: msg.correlation_id,
+            asset_id: msg.asset_id,
+            current_volatility: (base_vol * 100_000_000.0) as i64,
+            forecast,
+            forecast_count: horizon as u8,
+            persistence: (persistence * 10000.0) as i32,
+        })
+    }
+}
+
+/// Ring handler for EWMA volatility updates.
+#[async_trait]
+impl RingKernelHandler<UpdateEWMAVolatilityRing, UpdateEWMAVolatilityResponse>
+    for VolatilityAnalysis
+{
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: UpdateEWMAVolatilityRing,
+    ) -> Result<UpdateEWMAVolatilityResponse> {
+        // In a real Ring kernel, we would maintain EWMA state per asset
+        // σ²_t = λσ²_{t-1} + (1-λ)r²_{t-1}
+
+        let return_value = msg.return_value as f64 / 100_000_000.0;
+        let lambda = msg.lambda_f64();
+
+        // For single observation, variance is r²
+        // In persistent state, this would update running EWMA
+        let variance = return_value.powi(2);
+        let volatility = variance.sqrt();
+
+        // Apply decay factor (placeholder - real impl uses running state)
+        let ewma_variance = (1.0 - lambda) * variance;
+        let ewma_volatility = ewma_variance.sqrt();
+
+        Ok(UpdateEWMAVolatilityResponse {
+            correlation_id: msg.correlation_id,
+            asset_id: msg.asset_id,
+            ewma_variance: (ewma_variance * 100_000_000.0) as i64,
+            ewma_volatility: (ewma_volatility * 100_000_000.0) as i64,
         })
     }
 }
