@@ -165,6 +165,171 @@ pub mod version {
     pub const MIN_RINGKERNEL_VERSION: &str = "0.1.0";
 }
 
+/// Kernel catalog providing overview of all available kernels.
+pub mod catalog {
+    use rustkernel_core::domain::Domain;
+
+    /// Domain information.
+    #[derive(Debug, Clone)]
+    pub struct DomainInfo {
+        /// Domain enum value.
+        pub domain: Domain,
+        /// Human-readable name.
+        pub name: &'static str,
+        /// Description.
+        pub description: &'static str,
+        /// Number of kernels.
+        pub kernel_count: usize,
+        /// Feature flag to enable.
+        pub feature: &'static str,
+    }
+
+    /// Get all domain information.
+    pub fn domains() -> Vec<DomainInfo> {
+        vec![
+            DomainInfo {
+                domain: Domain::GraphAnalytics,
+                name: "Graph Analytics",
+                description: "Centrality measures, community detection, motifs, similarity",
+                kernel_count: 15,
+                feature: "graph",
+            },
+            DomainInfo {
+                domain: Domain::StatisticalML,
+                name: "Statistical ML",
+                description: "Clustering, anomaly detection, regression, ensemble methods",
+                kernel_count: 6,
+                feature: "ml",
+            },
+            DomainInfo {
+                domain: Domain::Compliance,
+                name: "Compliance",
+                description: "AML, KYC, sanctions screening, transaction monitoring",
+                kernel_count: 9,
+                feature: "compliance",
+            },
+            DomainInfo {
+                domain: Domain::TemporalAnalysis,
+                name: "Temporal Analysis",
+                description: "Forecasting, change detection, seasonal decomposition",
+                kernel_count: 7,
+                feature: "temporal",
+            },
+            DomainInfo {
+                domain: Domain::RiskAnalytics,
+                name: "Risk Analytics",
+                description: "Credit risk, Monte Carlo VaR, portfolio risk aggregation",
+                kernel_count: 4,
+                feature: "risk",
+            },
+            DomainInfo {
+                domain: Domain::Banking,
+                name: "Banking",
+                description: "Fraud pattern matching with graph analysis",
+                kernel_count: 1,
+                feature: "banking",
+            },
+            DomainInfo {
+                domain: Domain::BehavioralAnalytics,
+                name: "Behavioral Analytics",
+                description: "User profiling, anomaly profiling, forensics",
+                kernel_count: 6,
+                feature: "behavioral",
+            },
+            DomainInfo {
+                domain: Domain::OrderMatching,
+                name: "Order Matching",
+                description: "High-frequency order book matching engine",
+                kernel_count: 1,
+                feature: "orderbook",
+            },
+            DomainInfo {
+                domain: Domain::ProcessIntelligence,
+                name: "Process Intelligence",
+                description: "Process mining, conformance checking, DFG construction",
+                kernel_count: 4,
+                feature: "procint",
+            },
+            DomainInfo {
+                domain: Domain::Clearing,
+                name: "Clearing",
+                description: "Settlement, DVP matching, netting calculation",
+                kernel_count: 5,
+                feature: "clearing",
+            },
+            DomainInfo {
+                domain: Domain::TreasuryManagement,
+                name: "Treasury Management",
+                description: "Cash flow forecasting, collateral optimization, FX hedging",
+                kernel_count: 5,
+                feature: "treasury",
+            },
+            DomainInfo {
+                domain: Domain::Accounting,
+                name: "Accounting",
+                description: "Chart of accounts mapping, reconciliation, network analysis",
+                kernel_count: 5,
+                feature: "accounting",
+            },
+            DomainInfo {
+                domain: Domain::PaymentProcessing,
+                name: "Payment Processing",
+                description: "Transaction execution, flow analysis",
+                kernel_count: 2,
+                feature: "payments",
+            },
+            DomainInfo {
+                domain: Domain::FinancialAudit,
+                name: "Financial Audit",
+                description: "Feature extraction, hypergraph construction",
+                kernel_count: 2,
+                feature: "audit",
+            },
+        ]
+    }
+
+    /// Get total kernel count across all domains.
+    pub fn total_kernel_count() -> usize {
+        domains().iter().map(|d| d.kernel_count).sum()
+    }
+
+    /// Get enabled domains based on compile-time features.
+    pub fn enabled_domains() -> Vec<&'static str> {
+        let mut enabled = Vec::new();
+
+        #[cfg(feature = "graph")]
+        enabled.push("graph");
+        #[cfg(feature = "ml")]
+        enabled.push("ml");
+        #[cfg(feature = "compliance")]
+        enabled.push("compliance");
+        #[cfg(feature = "temporal")]
+        enabled.push("temporal");
+        #[cfg(feature = "risk")]
+        enabled.push("risk");
+        #[cfg(feature = "banking")]
+        enabled.push("banking");
+        #[cfg(feature = "behavioral")]
+        enabled.push("behavioral");
+        #[cfg(feature = "orderbook")]
+        enabled.push("orderbook");
+        #[cfg(feature = "procint")]
+        enabled.push("procint");
+        #[cfg(feature = "clearing")]
+        enabled.push("clearing");
+        #[cfg(feature = "treasury")]
+        enabled.push("treasury");
+        #[cfg(feature = "accounting")]
+        enabled.push("accounting");
+        #[cfg(feature = "payments")]
+        enabled.push("payments");
+        #[cfg(feature = "audit")]
+        enabled.push("audit");
+
+        enabled
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -181,5 +346,20 @@ mod tests {
     #[test]
     fn test_version() {
         assert!(!version::VERSION.is_empty());
+    }
+
+    #[test]
+    fn test_catalog() {
+        let domains = catalog::domains();
+        assert_eq!(domains.len(), 14);
+        assert_eq!(catalog::total_kernel_count(), 72);
+    }
+
+    #[test]
+    fn test_enabled_domains() {
+        let enabled = catalog::enabled_domains();
+        // Default features include graph, ml, compliance, temporal, risk
+        assert!(enabled.contains(&"graph"));
+        assert!(enabled.contains(&"ml"));
     }
 }
