@@ -29,11 +29,11 @@ Most kernels support both modes. Choose based on your latency requirements.
 | Statistical ML | `rustkernel-ml` | 8 |
 | Compliance | `rustkernel-compliance` | 11 |
 | Temporal Analysis | `rustkernel-temporal` | 7 |
-| Risk Analytics | `rustkernel-risk` | 4 |
+| Risk Analytics | `rustkernel-risk` | 5 |
 | Banking | `rustkernel-banking` | 1 |
 | Behavioral Analytics | `rustkernel-behavioral` | 6 |
 | Order Matching | `rustkernel-orderbook` | 1 |
-| Process Intelligence | `rustkernel-procint` | 4 |
+| Process Intelligence | `rustkernel-procint` | 6 |
 | Clearing | `rustkernel-clearing` | 5 |
 | Treasury | `rustkernel-treasury` | 5 |
 | Accounting | `rustkernel-accounting` | 9 |
@@ -94,7 +94,7 @@ crates/
 
 ## Status
 
-The port is functionally complete. All 72 kernels have been implemented with both BatchKernel and RingKernelHandler traits. K2K (kernel-to-kernel) messaging is in place for cross-kernel coordination patterns.
+The port is functionally complete. All 94 kernels have been implemented with both BatchKernel and RingKernelHandler traits. K2K (kernel-to-kernel) messaging is in place for cross-kernel coordination patterns.
 
 Test coverage exists for all domains. Some edge cases in the behavioral analytics causal graph module remain flaky.
 

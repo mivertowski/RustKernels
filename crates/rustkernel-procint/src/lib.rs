@@ -7,35 +7,45 @@
 //! - `PartialOrderAnalysis` - Concurrency detection
 //! - `ConformanceChecking` - Multi-model conformance (DFG/Petri/BPMN)
 //! - `OCPMPatternMatching` - Object-centric process mining
+//! - `NextActivityPrediction` - Markov/N-gram next activity prediction
+//! - `EventLogImputation` - Event log quality detection and repair
 //!
 //! ## Features
 //! - Directly-follows graph construction from event logs
 //! - Partial order analysis for concurrency detection
 //! - Conformance checking against DFG and Petri net models
 //! - Object-centric process mining for multi-object workflows
+//! - Next activity prediction using Markov chains and N-grams
+//! - Event log imputation for missing events and timestamp repair
 
 #![warn(missing_docs)]
 
 pub mod conformance;
 pub mod dfg;
+pub mod imputation;
 pub mod ocpm;
 pub mod partial_order;
+pub mod prediction;
 pub mod types;
 
 /// Prelude for convenient imports.
 pub mod prelude {
     pub use crate::conformance::*;
     pub use crate::dfg::*;
+    pub use crate::imputation::*;
     pub use crate::ocpm::*;
     pub use crate::partial_order::*;
+    pub use crate::prediction::*;
     pub use crate::types::*;
 }
 
 // Re-export main kernels
 pub use conformance::ConformanceChecking;
 pub use dfg::DFGConstruction;
+pub use imputation::EventLogImputation;
 pub use ocpm::OCPMPatternMatching;
 pub use partial_order::PartialOrderAnalysis;
+pub use prediction::NextActivityPrediction;
 
 // Re-export key types
 pub use types::{
@@ -68,7 +78,13 @@ pub fn register_all(
     // OCPM kernel (1)
     registry.register_metadata(ocpm::OCPMPatternMatching::new().metadata().clone())?;
 
-    tracing::info!("Registered 4 process intelligence kernels");
+    // Prediction kernel (1)
+    registry.register_metadata(prediction::NextActivityPrediction::new().metadata().clone())?;
+
+    // Imputation kernel (1)
+    registry.register_metadata(imputation::EventLogImputation::new().metadata().clone())?;
+
+    tracing::info!("Registered 6 process intelligence kernels");
     Ok(())
 }
 
@@ -81,6 +97,6 @@ mod tests {
     fn test_register_all() {
         let registry = KernelRegistry::new();
         register_all(&registry).expect("Failed to register procint kernels");
-        assert_eq!(registry.total_count(), 4);
+        assert_eq!(registry.total_count(), 6);
     }
 }

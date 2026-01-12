@@ -7,15 +7,17 @@
 //! ### Credit (1 kernel)
 //! - `CreditRiskScoring` - PD/LGD/EAD calculation and credit scoring
 //!
-//! ### Market (2 kernels)
+//! ### Market (3 kernels)
 //! - `MonteCarloVaR` - Monte Carlo Value at Risk simulation
 //! - `PortfolioRiskAggregation` - Correlation-adjusted portfolio VaR
+//! - `RealTimeCorrelation` - Streaming correlation matrix updates
 //!
 //! ### Stress (1 kernel)
 //! - `StressTesting` - Scenario-based stress testing
 
 #![warn(missing_docs)]
 
+pub mod correlation;
 pub mod credit;
 pub mod market;
 pub mod messages;
@@ -25,6 +27,7 @@ pub mod types;
 
 /// Prelude for convenient imports.
 pub mod prelude {
+    pub use crate::correlation::*;
     pub use crate::credit::*;
     pub use crate::market::*;
     pub use crate::messages::*;
@@ -34,6 +37,7 @@ pub mod prelude {
 }
 
 // Re-export main kernels
+pub use correlation::RealTimeCorrelation;
 pub use credit::CreditRiskScoring;
 pub use market::{MonteCarloVaR, PortfolioRiskAggregation};
 pub use stress::StressTesting;
@@ -55,14 +59,15 @@ pub fn register_all(
     // Credit kernel (1)
     registry.register_metadata(credit::CreditRiskScoring::new().metadata().clone())?;
 
-    // Market kernels (2)
+    // Market kernels (3)
     registry.register_metadata(market::MonteCarloVaR::new().metadata().clone())?;
     registry.register_metadata(market::PortfolioRiskAggregation::new().metadata().clone())?;
+    registry.register_metadata(correlation::RealTimeCorrelation::new().metadata().clone())?;
 
     // Stress kernel (1)
     registry.register_metadata(stress::StressTesting::new().metadata().clone())?;
 
-    tracing::info!("Registered 4 risk analytics kernels");
+    tracing::info!("Registered 5 risk analytics kernels");
     Ok(())
 }
 
@@ -75,6 +80,6 @@ mod tests {
     fn test_register_all() {
         let registry = KernelRegistry::new();
         register_all(&registry).expect("Failed to register risk kernels");
-        assert_eq!(registry.total_count(), 4);
+        assert_eq!(registry.total_count(), 5);
     }
 }

@@ -6,7 +6,7 @@
 
 ## Overview
 
-RustKernels provides **91 GPU-accelerated algorithms** across **14 domain-specific crates**, designed for financial services, compliance, and enterprise analytics. Ported from the DotCompute C# implementation to Rust, using the RingKernel framework.
+RustKernels provides **94 GPU-accelerated algorithms** across **14 domain-specific crates**, designed for financial services, compliance, and enterprise analytics. Ported from the DotCompute C# implementation to Rust, using the RingKernel framework.
 
 <div class="warning">
 
@@ -19,7 +19,7 @@ This is a specialized compute library for financial and enterprise workloads, no
 | Feature | Description |
 |---------|-------------|
 | **14 Domain Categories** | Graph analytics, ML, compliance, risk, treasury, and more |
-| **91 Kernels** | Comprehensive coverage of financial algorithms |
+| **94 Kernels** | Comprehensive coverage of financial algorithms |
 | **Dual Execution Modes** | Batch (CPU-orchestrated) and Ring (GPU-persistent) |
 | **Enterprise Ready** | Apache-2.0 license, domain-based feature gating |
 | **K2K Messaging** | Cross-kernel coordination patterns |
@@ -44,11 +44,11 @@ Most kernels support both modes. Choose based on your latency requirements.
 | Statistical ML | `rustkernel-ml` | 8 | Clustering, anomaly detection, regression |
 | Compliance | `rustkernel-compliance` | 11 | AML patterns, KYC, sanctions screening |
 | Temporal Analysis | `rustkernel-temporal` | 7 | Forecasting, anomaly detection, decomposition |
-| Risk Analytics | `rustkernel-risk` | 4 | Credit scoring, VaR, stress testing |
+| Risk Analytics | `rustkernel-risk` | 5 | Credit scoring, VaR, stress testing, correlation |
 | Banking | `rustkernel-banking` | 1 | Fraud pattern matching |
 | Behavioral Analytics | `rustkernel-behavioral` | 6 | Profiling, forensics, event correlation |
 | Order Matching | `rustkernel-orderbook` | 1 | Order book matching engine |
-| Process Intelligence | `rustkernel-procint` | 4 | DFG construction, conformance checking |
+| Process Intelligence | `rustkernel-procint` | 6 | DFG, conformance, prediction, imputation |
 | Clearing | `rustkernel-clearing` | 5 | Netting, settlement, DVP matching |
 | Treasury | `rustkernel-treasury` | 5 | Cash flow, FX hedging, liquidity |
 | Accounting | `rustkernel-accounting` | 9 | Network generation, reconciliation |
