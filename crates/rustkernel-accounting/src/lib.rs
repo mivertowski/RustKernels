@@ -8,12 +8,15 @@
 //! - `GLReconciliation` - Account matching
 //! - `NetworkAnalysis` - Intercompany analysis
 //! - `TemporalCorrelation` - Account correlations
+//! - `NetworkGeneration` - Journal entry to accounting network transformation
+//! - `NetworkGenerationRing` - Streaming network generation
 
 #![warn(missing_docs)]
 
 pub mod coa_mapping;
 pub mod journal;
 pub mod network;
+pub mod network_generation;
 pub mod reconciliation;
 pub mod temporal;
 pub mod types;
@@ -21,6 +24,10 @@ pub mod types;
 pub use coa_mapping::ChartOfAccountsMapping;
 pub use journal::JournalTransformation;
 pub use network::NetworkAnalysis;
+pub use network_generation::{
+    AccountingFlow, AccountingNetwork, FixedPoint128, NetworkGeneration, NetworkGenerationConfig,
+    NetworkGenerationRing, NetworkGenerationStats, SolvingMethod,
+};
 pub use reconciliation::GLReconciliation;
 pub use temporal::TemporalCorrelation;
 
@@ -45,13 +52,27 @@ pub fn register_all(
     // Reconciliation kernel (1)
     registry.register_metadata(reconciliation::GLReconciliation::new().metadata().clone())?;
 
-    // Network kernel (1)
+    // Network analysis kernel (1)
     registry.register_metadata(network::NetworkAnalysis::new().metadata().clone())?;
 
     // Temporal kernel (1)
     registry.register_metadata(temporal::TemporalCorrelation::new().metadata().clone())?;
 
-    tracing::info!("Registered 5 accounting kernels");
+    // Network generation batch kernel (1)
+    registry.register_metadata(
+        network_generation::NetworkGeneration::new()
+            .metadata()
+            .clone(),
+    )?;
+
+    // Network generation ring kernel (1)
+    registry.register_metadata(
+        network_generation::NetworkGenerationRing::new()
+            .metadata()
+            .clone(),
+    )?;
+
+    tracing::info!("Registered 7 accounting kernels");
     Ok(())
 }
 
@@ -64,6 +85,6 @@ mod tests {
     fn test_register_all() {
         let registry = KernelRegistry::new();
         register_all(&registry).expect("Failed to register accounting kernels");
-        assert_eq!(registry.total_count(), 5);
+        assert_eq!(registry.total_count(), 7);
     }
 }

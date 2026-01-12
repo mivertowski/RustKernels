@@ -1,5 +1,6 @@
 //! Accounting types.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -122,7 +123,7 @@ pub struct MappingStats {
 // ============================================================================
 
 /// Journal entry.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JournalEntry {
     /// Entry ID.
     pub id: u64,
@@ -143,7 +144,7 @@ pub struct JournalEntry {
 }
 
 /// Journal line.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JournalLine {
     /// Line number.
     pub line_number: u32,
@@ -164,7 +165,7 @@ pub struct JournalLine {
 }
 
 /// Journal status.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum JournalStatus {
     /// Draft.
     Draft,
