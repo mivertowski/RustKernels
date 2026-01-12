@@ -11,35 +11,18 @@
 
 #![warn(missing_docs)]
 
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+pub mod types;
+pub mod coa_mapping;
+pub mod journal;
+pub mod reconciliation;
+pub mod network;
+pub mod temporal;
 
-/// Chart of accounts mapping kernel.
-#[derive(Debug, Clone, Default)]
-pub struct ChartOfAccountsMapping { metadata: KernelMetadata }
-impl ChartOfAccountsMapping {
-    /// Create a new kernel.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { metadata: KernelMetadata::batch("accounting/coa-mapping", Domain::Accounting)
-            .with_description("Entity-specific chart of accounts mapping")
-            .with_throughput(50_000).with_latency_us(50.0) }
-    }
-}
-impl GpuKernel for ChartOfAccountsMapping { fn metadata(&self) -> &KernelMetadata { &self.metadata } }
-
-/// GL reconciliation kernel.
-#[derive(Debug, Clone, Default)]
-pub struct GLReconciliation { metadata: KernelMetadata }
-impl GLReconciliation {
-    /// Create a new kernel.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { metadata: KernelMetadata::batch("accounting/gl-reconciliation", Domain::Accounting)
-            .with_description("General ledger reconciliation")
-            .with_throughput(20_000).with_latency_us(100.0) }
-    }
-}
-impl GpuKernel for GLReconciliation { fn metadata(&self) -> &KernelMetadata { &self.metadata } }
+pub use coa_mapping::ChartOfAccountsMapping;
+pub use journal::JournalTransformation;
+pub use reconciliation::GLReconciliation;
+pub use network::NetworkAnalysis;
+pub use temporal::TemporalCorrelation;
 
 /// Register all accounting kernels.
 pub fn register_all(_registry: &rustkernel_core::registry::KernelRegistry) -> rustkernel_core::error::Result<()> {

@@ -3,43 +3,43 @@
 //! GPU-accelerated payment processing kernels.
 //!
 //! ## Kernels
-//! - `PaymentProcessing` - Transaction execution
-//! - `FlowAnalysis` - Payment flow metrics
+//! - `PaymentProcessing` - Real-time transaction execution
+//! - `FlowAnalysis` - Payment flow network analysis and metrics
 
 #![warn(missing_docs)]
 
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+pub mod types;
+pub mod processing;
+pub mod flow;
 
-/// Payment processing kernel.
-#[derive(Debug, Clone, Default)]
-pub struct PaymentProcessing { metadata: KernelMetadata }
-impl PaymentProcessing {
-    /// Create a new kernel.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { metadata: KernelMetadata::ring("payments/processing", Domain::PaymentProcessing)
-            .with_description("Payment transaction execution")
-            .with_throughput(100_000).with_latency_us(10.0) }
-    }
-}
-impl GpuKernel for PaymentProcessing { fn metadata(&self) -> &KernelMetadata { &self.metadata } }
-
-/// Payment flow analysis kernel.
-#[derive(Debug, Clone, Default)]
-pub struct FlowAnalysis { metadata: KernelMetadata }
-impl FlowAnalysis {
-    /// Create a new kernel.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { metadata: KernelMetadata::batch("payments/flow-analysis", Domain::PaymentProcessing)
-            .with_description("Payment flow metrics analysis")
-            .with_throughput(50_000).with_latency_us(50.0) }
-    }
-}
-impl GpuKernel for FlowAnalysis { fn metadata(&self) -> &KernelMetadata { &self.metadata } }
+pub use types::*;
+pub use processing::{PaymentProcessing, ProcessingConfig, PaymentRouting};
+pub use flow::{FlowAnalysis, FlowAnalysisConfig, AccountFlowAnalysis};
 
 /// Register all payment kernels.
 pub fn register_all(_registry: &rustkernel_core::registry::KernelRegistry) -> rustkernel_core::error::Result<()> {
     tracing::info!("Registering payment processing kernels");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustkernel_core::{domain::Domain, traits::GpuKernel};
+
+    #[test]
+    fn test_payment_processing_metadata() {
+        let kernel = PaymentProcessing::new();
+        let metadata = kernel.metadata();
+        assert!(metadata.id.contains("processing"));
+        assert_eq!(metadata.domain, Domain::PaymentProcessing);
+    }
+
+    #[test]
+    fn test_flow_analysis_metadata() {
+        let kernel = FlowAnalysis::new();
+        let metadata = kernel.metadata();
+        assert!(metadata.id.contains("flow"));
+        assert_eq!(metadata.domain, Domain::PaymentProcessing);
+    }
 }
