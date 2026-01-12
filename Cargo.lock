@@ -1708,9 +1708,12 @@ name = "rustkernel-graph"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "inventory",
  "nalgebra",
  "proptest",
  "ringkernel-core",
+ "ringkernel-derive",
+ "rkyv",
  "rustkernel-core",
  "rustkernel-derive",
  "serde",
@@ -1724,12 +1727,15 @@ name = "rustkernel-ml"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "inventory",
  "nalgebra",
  "ndarray",
  "proptest",
  "rand",
  "rand_distr",
  "ringkernel-core",
+ "ringkernel-derive",
+ "rkyv",
  "rustkernel-core",
  "rustkernel-derive",
  "serde",
@@ -1788,7 +1794,10 @@ name = "rustkernel-risk"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "inventory",
  "ringkernel-core",
+ "ringkernel-derive",
+ "rkyv",
  "rustkernel-core",
  "rustkernel-derive",
  "serde",

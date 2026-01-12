@@ -27,6 +27,7 @@ pub mod clustering;
 pub mod ensemble;
 pub mod messages;
 pub mod regression;
+pub mod ring_messages;
 pub mod types;
 
 /// Prelude for convenient imports.
@@ -36,6 +37,7 @@ pub mod prelude {
     pub use crate::ensemble::*;
     pub use crate::messages::*;
     pub use crate::regression::*;
+    pub use crate::ring_messages::*;
     pub use crate::types::*;
 }
 

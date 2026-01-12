@@ -113,6 +113,10 @@ pub enum KernelError {
     /// RingKernel error (from underlying runtime).
     #[error("RingKernel error: {0}")]
     RingKernelError(String),
+
+    /// K2K (Kernel-to-Kernel) communication error.
+    #[error("K2K error: {0}")]
+    K2KError(String),
 }
 
 impl KernelError {
@@ -144,6 +148,12 @@ impl KernelError {
     #[must_use]
     pub fn device(msg: impl Into<String>) -> Self {
         KernelError::DeviceError(msg.into())
+    }
+
+    /// Create a K2K error.
+    #[must_use]
+    pub fn k2k(msg: impl Into<String>) -> Self {
+        KernelError::K2KError(msg.into())
     }
 
     /// Returns true if this is a recoverable error.

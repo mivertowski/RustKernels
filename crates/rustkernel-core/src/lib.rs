@@ -15,6 +15,7 @@
 
 pub mod domain;
 pub mod error;
+pub mod k2k;
 pub mod kernel;
 pub mod license;
 pub mod messages;
@@ -38,6 +39,10 @@ pub use ringkernel_core::message::MessageEnvelope;
 pub mod prelude {
     pub use crate::domain::Domain;
     pub use crate::error::{KernelError, Result};
+    pub use crate::k2k::{
+        kernel_id_to_u64, FanOutTracker, IterativeConvergenceSummary, IterativeState,
+        K2KControlMessage, K2KPriority, K2KWorkerResult, PipelineTracker, ScatterGatherState,
+    };
     pub use crate::kernel::{KernelMetadata, KernelMode};
     pub use crate::license::{DevelopmentLicense, License, LicenseError, LicenseValidator};
     pub use crate::messages::{CorrelationId, KernelRequest, KernelResponse, KernelResult};
@@ -47,6 +52,7 @@ pub mod prelude {
     pub use crate::traits::{BatchKernel, GpuKernel, IterativeKernel, RingKernelHandler};
 
     // Re-exports from ringkernel-core
+    pub use ringkernel_core::k2k::{K2KBroker, K2KEndpoint};
     pub use ringkernel_core::runtime::{KernelHandle, KernelId, KernelState, LaunchOptions};
     pub use ringkernel_core::{HlcTimestamp, MessageId, RingContext, RingMessage};
 }

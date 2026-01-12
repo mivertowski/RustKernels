@@ -9,10 +9,18 @@ use crate::messages::{
     MonteCarloVaRInput, MonteCarloVaROutput, PortfolioRiskAggregationInput,
     PortfolioRiskAggregationOutput,
 };
+use crate::ring_messages::{
+    from_currency_fp, from_fixed_point, to_currency_fp, to_fixed_point,
+    K2KMarketUpdate, K2KMarketUpdateAck, K2KPartialVaR, K2KVaRAggregation,
+    K2KVaRAggregationResponse, QueryVaRResponse, QueryVaRRing, RecalculateVaRResponse,
+    RecalculateVaRRing, UpdatePositionResponse, UpdatePositionRing,
+};
 use crate::types::{Portfolio, PortfolioRiskResult, VaRParams, VaRResult};
 use async_trait::async_trait;
+use ringkernel_core::RingContext;
 use rustkernel_core::error::Result;
-use rustkernel_core::traits::BatchKernel;
+use rustkernel_core::k2k::ScatterGatherState;
+use rustkernel_core::traits::{BatchKernel, RingKernelHandler};
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::time::Instant;
 
@@ -294,6 +302,136 @@ impl MonteCarloVaR {
 impl GpuKernel for MonteCarloVaR {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+// ============================================================================
+// Monte Carlo VaR RingKernelHandler Implementations
+// ============================================================================
+
+/// RingKernelHandler for position updates.
+///
+/// Enables streaming position updates for real-time VaR.
+#[async_trait]
+impl RingKernelHandler<UpdatePositionRing, UpdatePositionResponse> for MonteCarloVaR {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: UpdatePositionRing,
+    ) -> Result<UpdatePositionResponse> {
+        // In a real implementation, this would update GPU-resident portfolio state
+        Ok(UpdatePositionResponse {
+            request_id: msg.id.0,
+            asset_id: msg.asset_id,
+            var_stale: true, // Position changed, VaR needs recalculation
+        })
+    }
+}
+
+/// RingKernelHandler for VaR queries.
+///
+/// Returns current cached VaR or triggers recalculation.
+#[async_trait]
+impl RingKernelHandler<QueryVaRRing, QueryVaRResponse> for MonteCarloVaR {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: QueryVaRRing,
+    ) -> Result<QueryVaRResponse> {
+        // In a real implementation, this would query GPU-resident VaR state
+        let confidence = from_fixed_point(msg.confidence_fp);
+
+        Ok(QueryVaRResponse {
+            request_id: msg.id.0,
+            var_fp: 0, // Would come from state
+            es_fp: 0,
+            confidence_fp: msg.confidence_fp,
+            holding_period: msg.holding_period,
+            is_fresh: false,
+        })
+    }
+}
+
+/// RingKernelHandler for VaR recalculation.
+///
+/// Triggers full Monte Carlo simulation with given parameters.
+#[async_trait]
+impl RingKernelHandler<RecalculateVaRRing, RecalculateVaRResponse> for MonteCarloVaR {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: RecalculateVaRRing,
+    ) -> Result<RecalculateVaRResponse> {
+        let start = Instant::now();
+        let confidence = from_fixed_point(msg.confidence_fp);
+
+        // In a real implementation, this would run on GPU-resident portfolio
+        // For now, return placeholder
+        let compute_time_us = start.elapsed().as_micros() as u64;
+
+        Ok(RecalculateVaRResponse {
+            request_id: msg.id.0,
+            var_fp: 0, // Would be computed
+            es_fp: 0,
+            compute_time_us,
+            n_simulations: msg.n_simulations,
+        })
+    }
+}
+
+/// RingKernelHandler for K2K market updates.
+///
+/// Processes streaming market data for real-time VaR adjustments.
+#[async_trait]
+impl RingKernelHandler<K2KMarketUpdate, K2KMarketUpdateAck> for MonteCarloVaR {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: K2KMarketUpdate,
+    ) -> Result<K2KMarketUpdateAck> {
+        // In a distributed setting, this would:
+        // 1. Update local price for asset
+        // 2. Recalculate position value
+        // 3. Estimate VaR impact
+        let vol_delta = from_fixed_point(msg.vol_delta_fp);
+        let var_impact = vol_delta * 1000.0; // Simplified impact estimate
+
+        Ok(K2KMarketUpdateAck {
+            request_id: msg.id.0,
+            worker_id: 0, // Would be actual worker ID
+            var_impact_fp: to_currency_fp(var_impact),
+        })
+    }
+}
+
+/// RingKernelHandler for K2K partial VaR aggregation.
+///
+/// Used in distributed VaR calculation to aggregate partial results.
+#[async_trait]
+impl RingKernelHandler<K2KVaRAggregation, K2KVaRAggregationResponse> for MonteCarloVaR {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: K2KVaRAggregation,
+    ) -> Result<K2KVaRAggregationResponse> {
+        // In a distributed setting, this would:
+        // 1. Collect partial VaR contributions
+        // 2. Apply correlation adjustments for diversification
+        // 3. Compute final aggregated VaR
+        let complete = msg.workers_reported >= msg.expected_workers;
+        let aggregated_var = from_currency_fp(msg.aggregated_var_fp);
+
+        // Diversification benefit (simplified - would use actual correlation matrix)
+        let diversification_benefit = aggregated_var * 0.15; // 15% benefit placeholder
+        let final_var = aggregated_var - diversification_benefit;
+
+        Ok(K2KVaRAggregationResponse {
+            correlation_id: msg.correlation_id,
+            complete,
+            final_var_fp: to_currency_fp(final_var),
+            final_es_fp: to_currency_fp(final_var * 1.25), // ES ~1.25x VaR at 95%
+            diversification_benefit_fp: to_currency_fp(diversification_benefit),
+        })
     }
 }
 

@@ -5,7 +5,16 @@
 //! - DBSCAN (density-based clustering)
 //! - Hierarchical clustering (agglomerative)
 
+use crate::ring_messages::{
+    from_fixed_point, to_fixed_point, unpack_coordinates,
+    K2KCentroidBroadcast, K2KCentroidBroadcastAck, K2KKMeansSync, K2KKMeansSyncResponse,
+    K2KPartialCentroid, K2KCentroidAggregation, KMeansAssignResponse, KMeansAssignRing,
+    KMeansQueryResponse, KMeansQueryRing, KMeansUpdateResponse, KMeansUpdateRing,
+};
 use crate::types::{ClusteringResult, DataMatrix, DistanceMetric};
+use ringkernel_core::RingContext;
+use rustkernel_core::k2k::IterativeState;
+use rustkernel_core::traits::RingKernelHandler;
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use rand::prelude::*;
 
@@ -205,6 +214,147 @@ impl KMeans {
 impl GpuKernel for KMeans {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+// ============================================================================
+// KMeans RingKernelHandler Implementations
+// ============================================================================
+
+/// RingKernelHandler for KMeans assignment step (E-step).
+#[async_trait::async_trait]
+impl RingKernelHandler<KMeansAssignRing, KMeansAssignResponse> for KMeans {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: KMeansAssignRing,
+    ) -> Result<KMeansAssignResponse> {
+        // In a real implementation, this would assign points to clusters on GPU
+        Ok(KMeansAssignResponse {
+            request_id: msg.id.0,
+            iteration: msg.iteration,
+            inertia_fp: 0, // Would be computed
+            points_assigned: 0,
+        })
+    }
+}
+
+/// RingKernelHandler for KMeans update step (M-step).
+#[async_trait::async_trait]
+impl RingKernelHandler<KMeansUpdateRing, KMeansUpdateResponse> for KMeans {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: KMeansUpdateRing,
+    ) -> Result<KMeansUpdateResponse> {
+        // In a real implementation, this would update centroids on GPU
+        Ok(KMeansUpdateResponse {
+            request_id: msg.id.0,
+            iteration: msg.iteration,
+            max_shift_fp: 0, // Would be computed
+            converged: false,
+        })
+    }
+}
+
+/// RingKernelHandler for point queries.
+#[async_trait::async_trait]
+impl RingKernelHandler<KMeansQueryRing, KMeansQueryResponse> for KMeans {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: KMeansQueryRing,
+    ) -> Result<KMeansQueryResponse> {
+        // In a real implementation, this would query nearest cluster on GPU
+        let _point = unpack_coordinates(&msg.point, msg.n_dims as usize);
+
+        Ok(KMeansQueryResponse {
+            request_id: msg.id.0,
+            cluster: 0, // Would be computed
+            distance_fp: 0,
+        })
+    }
+}
+
+/// RingKernelHandler for K2K partial centroid updates.
+///
+/// Aggregates partial centroid contributions from distributed workers.
+#[async_trait::async_trait]
+impl RingKernelHandler<K2KPartialCentroid, K2KCentroidAggregation> for KMeans {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: K2KPartialCentroid,
+    ) -> Result<K2KCentroidAggregation> {
+        // In a distributed setting, this would:
+        // 1. Accumulate partial sums from all workers
+        // 2. Compute new centroid as sum / total_count
+        // 3. Calculate centroid shift
+        let n_dims = msg.n_dims as usize;
+        let mut new_centroid = [0i64; 8];
+
+        // Placeholder: just return the partial sum normalized
+        if msg.point_count > 0 {
+            for i in 0..n_dims {
+                new_centroid[i] = msg.coord_sum_fp[i] / msg.point_count as i64;
+            }
+        }
+
+        Ok(K2KCentroidAggregation {
+            request_id: msg.id.0,
+            cluster_id: msg.cluster_id,
+            iteration: msg.iteration,
+            new_centroid_fp: new_centroid,
+            total_points: msg.point_count,
+            shift_fp: 0, // Would compute shift from old centroid
+        })
+    }
+}
+
+/// RingKernelHandler for K2K iteration sync.
+///
+/// Synchronizes distributed KMeans workers after each iteration.
+#[async_trait::async_trait]
+impl RingKernelHandler<K2KKMeansSync, K2KKMeansSyncResponse> for KMeans {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: K2KKMeansSync,
+    ) -> Result<K2KKMeansSyncResponse> {
+        // In a distributed setting, this would:
+        // 1. Collect inertia and shift from all workers
+        // 2. Compute global convergence
+        let global_shift = from_fixed_point(msg.max_shift_fp);
+        let converged = global_shift < 1e-6;
+
+        Ok(K2KKMeansSyncResponse {
+            request_id: msg.id.0,
+            iteration: msg.iteration,
+            all_synced: true, // Placeholder
+            global_inertia_fp: msg.local_inertia_fp, // Would aggregate
+            global_max_shift_fp: msg.max_shift_fp,
+            converged,
+        })
+    }
+}
+
+/// RingKernelHandler for K2K centroid broadcast.
+///
+/// Receives new centroids broadcast from coordinator.
+#[async_trait::async_trait]
+impl RingKernelHandler<K2KCentroidBroadcast, K2KCentroidBroadcastAck> for KMeans {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: K2KCentroidBroadcast,
+    ) -> Result<K2KCentroidBroadcastAck> {
+        // In a distributed setting, this would update local centroids
+        Ok(K2KCentroidBroadcastAck {
+            request_id: msg.id.0,
+            worker_id: 0, // Would be actual worker ID
+            iteration: msg.iteration,
+            applied: true,
+        })
     }
 }
 

@@ -9,13 +9,20 @@
 //! - Katz centrality (attenuated paths)
 
 use crate::messages::{CentralityInput, CentralityOutput, CentralityParams};
+use crate::ring_messages::{
+    from_fixed_point, to_fixed_point, K2KBarrier, K2KBarrierRelease, K2KIterationSync,
+    K2KIterationSyncResponse, PageRankConvergeResponse, PageRankConvergeRing,
+    PageRankIterateResponse, PageRankIterateRing, PageRankQueryResponse, PageRankQueryRing,
+};
 use crate::types::{CentralityResult, CsrGraph, NodeScore};
 use async_trait::async_trait;
+use ringkernel_core::RingContext;
 use rustkernel_core::{
     domain::Domain,
     error::Result,
+    k2k::IterativeState,
     kernel::KernelMetadata,
-    traits::{BatchKernel, GpuKernel},
+    traits::{BatchKernel, GpuKernel, RingKernelHandler},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
@@ -202,6 +209,137 @@ impl Default for PageRank {
 impl GpuKernel for PageRank {
     fn metadata(&self) -> &KernelMetadata {
         &self.metadata
+    }
+}
+
+// ============================================================================
+// PageRank RingKernelHandler Implementations
+// ============================================================================
+
+/// RingKernelHandler for PageRank queries.
+///
+/// Enables low-latency score queries for individual nodes in Ring mode.
+#[async_trait]
+impl RingKernelHandler<PageRankQueryRing, PageRankQueryResponse> for PageRank {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: PageRankQueryRing,
+    ) -> Result<PageRankQueryResponse> {
+        // In a real implementation, this would query GPU-resident state.
+        // For now, return a placeholder response.
+        Ok(PageRankQueryResponse {
+            request_id: msg.id.0,
+            node_id: msg.node_id,
+            score_fp: to_fixed_point(0.0), // Would come from state
+            iteration: 0,
+            converged: false,
+        })
+    }
+}
+
+/// RingKernelHandler for PageRank single iteration.
+///
+/// Performs one power iteration step in Ring mode.
+#[async_trait]
+impl RingKernelHandler<PageRankIterateRing, PageRankIterateResponse> for PageRank {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: PageRankIterateRing,
+    ) -> Result<PageRankIterateResponse> {
+        // In a real implementation, this would:
+        // 1. Perform one iteration on GPU-resident state
+        // 2. Return the max delta from this iteration
+        Ok(PageRankIterateResponse {
+            request_id: msg.id.0,
+            iteration: 1,
+            max_delta_fp: to_fixed_point(0.1), // Placeholder
+            converged: false,
+        })
+    }
+}
+
+/// RingKernelHandler for PageRank convergence.
+///
+/// Runs PageRank to convergence using K2K coordination for iterative state.
+#[async_trait]
+impl RingKernelHandler<PageRankConvergeRing, PageRankConvergeResponse> for PageRank {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: PageRankConvergeRing,
+    ) -> Result<PageRankConvergeResponse> {
+        let threshold = from_fixed_point(msg.threshold_fp);
+        let max_iterations = msg.max_iterations as u64;
+
+        // Use K2K IterativeState for convergence tracking
+        let mut iterative_state = IterativeState::new(threshold, max_iterations);
+
+        // Simulate convergence (in real impl, would iterate on GPU state)
+        let mut current_delta = 1.0;
+        while iterative_state.should_continue() {
+            current_delta *= 0.5; // Simulate convergence
+            iterative_state.update(current_delta);
+        }
+
+        let summary = iterative_state.summary();
+
+        Ok(PageRankConvergeResponse {
+            request_id: msg.id.0,
+            iterations: summary.iterations as u32,
+            final_delta_fp: to_fixed_point(summary.final_delta),
+            converged: summary.converged,
+        })
+    }
+}
+
+/// RingKernelHandler for K2K iteration synchronization.
+///
+/// Used in distributed PageRank to synchronize iterations across partitions.
+#[async_trait]
+impl RingKernelHandler<K2KIterationSync, K2KIterationSyncResponse> for PageRank {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: K2KIterationSync,
+    ) -> Result<K2KIterationSyncResponse> {
+        // In a distributed setting, this would:
+        // 1. Record this worker's delta
+        // 2. Check if all workers have synced
+        // 3. Compute global delta
+        // 4. Determine global convergence
+        Ok(K2KIterationSyncResponse {
+            request_id: msg.id.0,
+            iteration: msg.iteration,
+            all_synced: true, // Placeholder
+            global_delta_fp: msg.local_delta_fp, // In real impl, max across workers
+            global_converged: from_fixed_point(msg.local_delta_fp) < 1e-6,
+        })
+    }
+}
+
+/// RingKernelHandler for K2K barrier synchronization.
+///
+/// Implements barrier synchronization for distributed PageRank iterations.
+#[async_trait]
+impl RingKernelHandler<K2KBarrier, K2KBarrierRelease> for PageRank {
+    async fn handle(
+        &self,
+        _ctx: &mut RingContext,
+        msg: K2KBarrier,
+    ) -> Result<K2KBarrierRelease> {
+        // In a distributed setting, this would:
+        // 1. Record this worker as ready
+        // 2. Check if all workers are ready
+        // 3. Release barrier when all ready
+        let all_ready = msg.ready_count >= msg.total_workers;
+
+        Ok(K2KBarrierRelease {
+            barrier_id: msg.barrier_id,
+            all_ready,
+            next_iteration: msg.barrier_id + 1,
+        })
     }
 }
 

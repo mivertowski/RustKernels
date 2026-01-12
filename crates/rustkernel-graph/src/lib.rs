@@ -38,6 +38,7 @@ pub mod community;
 pub mod messages;
 pub mod metrics;
 pub mod motif;
+pub mod ring_messages;
 pub mod similarity;
 
 // Common graph types
@@ -50,6 +51,7 @@ pub mod prelude {
     pub use crate::messages::*;
     pub use crate::metrics::*;
     pub use crate::motif::*;
+    pub use crate::ring_messages::*;
     pub use crate::similarity::*;
     pub use crate::types::*;
 }

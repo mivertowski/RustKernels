@@ -12,6 +12,9 @@ repository.workspace = true
 rustkernel-core = { workspace = true }
 rustkernel-derive = { workspace = true }
 ringkernel-core = { workspace = true }
+ringkernel-derive = { workspace = true }
+rkyv = { workspace = true }
+inventory = { workspace = true }
 
 tokio = { workspace = true }
 async-trait = { workspace = true }

@@ -19,6 +19,7 @@
 pub mod credit;
 pub mod market;
 pub mod messages;
+pub mod ring_messages;
 pub mod stress;
 pub mod types;
 
@@ -27,6 +28,7 @@ pub mod prelude {
     pub use crate::credit::*;
     pub use crate::market::*;
     pub use crate::messages::*;
+    pub use crate::ring_messages::*;
     pub use crate::stress::*;
     pub use crate::types::*;
 }
