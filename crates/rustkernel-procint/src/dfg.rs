@@ -32,10 +32,13 @@ impl DFGConstruction {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            metadata: KernelMetadata::batch("procint/dfg-construction", Domain::ProcessIntelligence)
-                .with_description("Directly-follows graph construction")
-                .with_throughput(100_000)
-                .with_latency_us(50.0),
+            metadata: KernelMetadata::batch(
+                "procint/dfg-construction",
+                Domain::ProcessIntelligence,
+            )
+            .with_description("Directly-follows graph construction")
+            .with_throughput(100_000)
+            .with_latency_us(50.0),
         }
     }
 

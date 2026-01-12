@@ -30,13 +30,58 @@ use std::time::Instant;
 // Circular Flow Ratio Kernel
 // ============================================================================
 
+/// Per-entity circular flow state.
+#[derive(Debug, Clone, Default)]
+pub struct EntityCircularState {
+    /// Total outgoing volume.
+    pub outgoing_volume: f64,
+    /// Total incoming volume.
+    pub incoming_volume: f64,
+    /// Volume in circular flows.
+    pub circular_volume: f64,
+    /// Number of outgoing edges.
+    pub out_degree: u32,
+    /// Number of incoming edges.
+    pub in_degree: u32,
+    /// Whether entity is in an SCC.
+    pub in_scc: bool,
+}
+
+/// Circular flow state for Ring mode operations.
+#[derive(Debug, Clone, Default)]
+pub struct CircularFlowState {
+    /// Transaction graph: source -> [(dest, amount)]
+    pub graph: HashMap<u64, Vec<(u64, f64)>>,
+    /// Per-entity state.
+    pub entities: HashMap<u64, EntityCircularState>,
+    /// Cached SCCs.
+    pub sccs: Vec<Vec<u64>>,
+    /// Total transaction volume.
+    pub total_volume: f64,
+    /// Total circular volume.
+    pub circular_volume: f64,
+    /// Whether SCCs need recalculation.
+    pub sccs_stale: bool,
+}
+
 /// Circular flow detection kernel.
 ///
 /// Detects circular transactions using Strongly Connected Components (SCC).
 /// High circular flow ratio indicates potential money laundering.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CircularFlowRatio {
     metadata: KernelMetadata,
+    /// Internal state for Ring mode operations.
+    state: std::sync::RwLock<CircularFlowState>,
+}
+
+impl Clone for CircularFlowRatio {
+    fn clone(&self) -> Self {
+        Self {
+            metadata: self.metadata.clone(),
+            state: std::sync::RwLock::new(self.state.read().unwrap().clone()),
+        }
+    }
 }
 
 impl Default for CircularFlowRatio {
@@ -54,7 +99,120 @@ impl CircularFlowRatio {
                 .with_description("Circular flow detection via SCC")
                 .with_throughput(50_000)
                 .with_latency_us(100.0),
+            state: std::sync::RwLock::new(CircularFlowState::default()),
         }
+    }
+
+    /// Add an edge to the transaction graph.
+    /// Returns (cycle_detected, cycle_size, source_ratio).
+    pub fn add_edge(&self, source_id: u64, dest_id: u64, amount: f64) -> (bool, u32, f64) {
+        let mut state = self.state.write().unwrap();
+
+        // Add edge to graph
+        state
+            .graph
+            .entry(source_id)
+            .or_default()
+            .push((dest_id, amount));
+        state.total_volume += amount;
+        state.sccs_stale = true;
+
+        // Update entity states
+        let source_state = state.entities.entry(source_id).or_default();
+        source_state.outgoing_volume += amount;
+        source_state.out_degree += 1;
+
+        let dest_state = state.entities.entry(dest_id).or_default();
+        dest_state.incoming_volume += amount;
+        dest_state.in_degree += 1;
+
+        // Quick cycle check using DFS from dest back to source
+        let cycle_detected = Self::has_path(&state.graph, dest_id, source_id);
+
+        let cycle_size = if cycle_detected {
+            // Estimate cycle size (full SCC would be more accurate)
+            Self::estimate_cycle_size(&state.graph, source_id, dest_id)
+        } else {
+            0
+        };
+
+        let source_ratio = {
+            let s = state.entities.get(&source_id).unwrap();
+            if s.outgoing_volume > 0.0 {
+                s.circular_volume / s.outgoing_volume
+            } else {
+                0.0
+            }
+        };
+
+        (cycle_detected, cycle_size, source_ratio)
+    }
+
+    /// Query circular flow ratio for an entity.
+    pub fn query_entity(&self, entity_id: u64) -> (f64, u32, u64) {
+        let state = self.state.read().unwrap();
+
+        if let Some(entity_state) = state.entities.get(&entity_id) {
+            let ratio = if entity_state.outgoing_volume > 0.0 {
+                entity_state.circular_volume / entity_state.outgoing_volume
+            } else {
+                0.0
+            };
+            let scc_count = state
+                .sccs
+                .iter()
+                .filter(|scc| scc.contains(&entity_id))
+                .count() as u32;
+            let cycle_volume = (entity_state.circular_volume * 100_000_000.0) as u64;
+            (ratio, scc_count, cycle_volume)
+        } else {
+            (0.0, 0, 0)
+        }
+    }
+
+    /// Check if there's a path from src to dst in the graph.
+    fn has_path(graph: &HashMap<u64, Vec<(u64, f64)>>, src: u64, dst: u64) -> bool {
+        let mut visited = HashSet::new();
+        let mut stack = vec![src];
+
+        while let Some(node) = stack.pop() {
+            if node == dst {
+                return true;
+            }
+            if visited.insert(node) {
+                if let Some(neighbors) = graph.get(&node) {
+                    for &(neighbor, _) in neighbors {
+                        if !visited.contains(&neighbor) {
+                            stack.push(neighbor);
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// Estimate cycle size using BFS.
+    fn estimate_cycle_size(graph: &HashMap<u64, Vec<(u64, f64)>>, start: u64, end: u64) -> u32 {
+        let mut visited = HashSet::new();
+        let mut queue = std::collections::VecDeque::new();
+        queue.push_back((end, 1u32));
+
+        while let Some((node, depth)) = queue.pop_front() {
+            if node == start {
+                return depth;
+            }
+            if visited.insert(node) {
+                if let Some(neighbors) = graph.get(&node) {
+                    for &(neighbor, _) in neighbors {
+                        if !visited.contains(&neighbor) {
+                            queue.push_back((neighbor, depth + 1));
+                        }
+                    }
+                }
+            }
+        }
+        0
     }
 
     /// Detect circular flows in transactions.
@@ -246,38 +404,16 @@ impl RingKernelHandler<AddGraphEdgeRing, AddGraphEdgeResponse> for CircularFlowR
         _ctx: &mut RingContext,
         msg: AddGraphEdgeRing,
     ) -> Result<AddGraphEdgeResponse> {
-        // Create a single-transaction graph to detect if this edge creates a cycle
-        let transaction = Transaction {
-            id: msg.id.0,
-            source_id: msg.source_id,
-            dest_id: msg.dest_id,
-            amount: msg.amount as f64 / 100_000_000.0,
-            timestamp: msg.timestamp,
-            currency: "USD".to_string(),
-            tx_type: "transfer".to_string(),
-        };
-
-        // In a real Ring kernel, we would maintain GPU-resident graph state
-        // For now, analyze this single edge
-        let result = Self::compute(&[transaction], 0.0);
-
-        // Check if adding this edge created a cycle
-        let cycle_detected = !result.sccs.is_empty()
-            && result.sccs.iter().any(|scc| scc.len() > 1);
-
-        let cycle_size = result
-            .sccs
-            .iter()
-            .filter(|scc| scc.len() > 1)
-            .map(|scc| scc.len() as u32)
-            .max()
-            .unwrap_or(0);
+        // Add edge to internal graph state
+        let amount = msg.amount as f64 / 100_000_000.0;
+        let (cycle_detected, cycle_size, source_ratio) =
+            self.add_edge(msg.source_id, msg.dest_id, amount);
 
         Ok(AddGraphEdgeResponse {
             correlation_id: msg.correlation_id,
             cycle_detected,
             cycle_size,
-            source_ratio: result.circular_ratio as f32,
+            source_ratio: source_ratio as f32,
         })
     }
 }
@@ -290,14 +426,15 @@ impl RingKernelHandler<QueryCircularRatioRing, QueryCircularRatioResponse> for C
         _ctx: &mut RingContext,
         msg: QueryCircularRatioRing,
     ) -> Result<QueryCircularRatioResponse> {
-        // In a real Ring kernel, this would query GPU-resident graph state
-        // For now, return a placeholder response
+        // Query internal state for this entity
+        let (ratio, scc_count, cycle_volume) = self.query_entity(msg.entity_id);
+
         Ok(QueryCircularRatioResponse {
             correlation_id: msg.correlation_id,
             entity_id: msg.entity_id,
-            ratio: 0.0,    // Would come from GPU state
-            scc_count: 0,  // Would come from GPU state
-            cycle_volume: 0, // Would come from GPU state
+            ratio: ratio as f32,
+            scc_count,
+            cycle_volume: cycle_volume as i64,
         })
     }
 }
@@ -355,11 +492,7 @@ impl ReciprocityFlowRatio {
         // Filter by time window if specified
         let txs: Vec<&Transaction> = transactions
             .iter()
-            .filter(|tx| {
-                window
-                    .map(|w| w.contains(tx.timestamp))
-                    .unwrap_or(true)
-            })
+            .filter(|tx| window.map(|w| w.contains(tx.timestamp)).unwrap_or(true))
             .collect();
 
         // Build directed edge map: (src, dst) -> total amount
@@ -708,7 +841,10 @@ impl AMLPatternDetection {
                             confidence,
                             time_span: TimeWindow::new(
                                 tx.timestamp,
-                                window_txs.last().map(|t| t.timestamp).unwrap_or(tx.timestamp),
+                                window_txs
+                                    .last()
+                                    .map(|t| t.timestamp)
+                                    .unwrap_or(tx.timestamp),
                             ),
                         });
                         break; // One pattern per source
@@ -854,7 +990,11 @@ impl RingKernelHandler<MatchPatternRing, MatchPatternResponse> for AMLPatternDet
         let structuring_threshold = 10_000.0;
         let structuring_window_hours = 24.0;
 
-        let result = Self::compute(&[transaction], structuring_threshold, structuring_window_hours);
+        let result = Self::compute(
+            &[transaction],
+            structuring_threshold,
+            structuring_window_hours,
+        );
 
         // Build patterns_matched bitmask
         let mut patterns_matched = 0u64;

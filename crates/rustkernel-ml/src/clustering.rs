@@ -6,28 +6,59 @@
 //! - Hierarchical clustering (agglomerative)
 
 use crate::ring_messages::{
-    from_fixed_point, to_fixed_point, unpack_coordinates,
-    K2KCentroidBroadcast, K2KCentroidBroadcastAck, K2KKMeansSync, K2KKMeansSyncResponse,
-    K2KPartialCentroid, K2KCentroidAggregation, KMeansAssignResponse, KMeansAssignRing,
-    KMeansQueryResponse, KMeansQueryRing, KMeansUpdateResponse, KMeansUpdateRing,
+    K2KCentroidAggregation, K2KCentroidBroadcast, K2KCentroidBroadcastAck, K2KKMeansSync,
+    K2KKMeansSyncResponse, K2KPartialCentroid, KMeansAssignResponse, KMeansAssignRing,
+    KMeansQueryResponse, KMeansQueryRing, KMeansUpdateResponse, KMeansUpdateRing, from_fixed_point,
+    to_fixed_point, unpack_coordinates,
 };
 use crate::types::{ClusteringResult, DataMatrix, DistanceMetric};
+use rand::prelude::*;
 use ringkernel_core::RingContext;
-use rustkernel_core::k2k::IterativeState;
 use rustkernel_core::traits::RingKernelHandler;
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
-use rand::prelude::*;
 
 // ============================================================================
 // K-Means Clustering Kernel
 // ============================================================================
 
+/// K-Means clustering state for Ring mode operations.
+#[derive(Debug, Clone, Default)]
+pub struct KMeansState {
+    /// Current centroids (k * n_features).
+    pub centroids: Vec<f64>,
+    /// Input data reference (stored for query operations).
+    pub data: Option<DataMatrix>,
+    /// Number of clusters.
+    pub k: usize,
+    /// Number of features per point.
+    pub n_features: usize,
+    /// Current iteration.
+    pub iteration: u32,
+    /// Current inertia (sum of squared distances).
+    pub inertia: f64,
+    /// Whether converged.
+    pub converged: bool,
+    /// Current cluster assignments.
+    pub labels: Vec<usize>,
+}
+
 /// K-Means clustering kernel.
 ///
 /// Implements Lloyd's algorithm with K-Means++ initialization.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct KMeans {
     metadata: KernelMetadata,
+    /// Internal state for Ring mode operations.
+    state: std::sync::RwLock<KMeansState>,
+}
+
+impl Clone for KMeans {
+    fn clone(&self) -> Self {
+        Self {
+            metadata: self.metadata.clone(),
+            state: std::sync::RwLock::new(self.state.read().unwrap().clone()),
+        }
+    }
 }
 
 impl Default for KMeans {
@@ -45,7 +76,144 @@ impl KMeans {
                 .with_description("K-Means clustering with K-Means++ initialization")
                 .with_throughput(20_000)
                 .with_latency_us(50.0),
+            state: std::sync::RwLock::new(KMeansState::default()),
         }
+    }
+
+    /// Initialize the kernel with data and k for Ring mode operations.
+    pub fn initialize(&self, data: DataMatrix, k: usize) {
+        let centroids = Self::kmeans_plus_plus_init(&data, k);
+        let n = data.n_samples;
+        let n_features = data.n_features;
+
+        let mut state = self.state.write().unwrap();
+        *state = KMeansState {
+            centroids,
+            data: Some(data),
+            k,
+            n_features,
+            iteration: 0,
+            inertia: 0.0,
+            converged: false,
+            labels: vec![0; n],
+        };
+    }
+
+    /// Perform one E-step (assignment) on internal state.
+    /// Returns the total inertia (sum of squared distances).
+    pub fn assign_step(&self) -> f64 {
+        let mut state = self.state.write().unwrap();
+
+        // Check if data exists
+        let data = match state.data {
+            Some(ref d) => d.clone(),
+            None => return 0.0,
+        };
+
+        let n = data.n_samples;
+        let d_features = state.n_features;
+        let mut total_inertia = 0.0;
+
+        // Clone centroids to avoid borrow conflict
+        let centroids = state.centroids.clone();
+
+        // Compute assignments
+        let mut new_labels = vec![0usize; n];
+        for i in 0..n {
+            let point = data.row(i);
+            let mut min_dist = f64::MAX;
+            let mut min_cluster = 0;
+
+            for (c, centroid) in centroids.chunks(d_features).enumerate() {
+                let dist = Self::euclidean_distance(point, centroid);
+                if dist < min_dist {
+                    min_dist = dist;
+                    min_cluster = c;
+                }
+            }
+            new_labels[i] = min_cluster;
+            total_inertia += min_dist * min_dist;
+        }
+
+        // Update state
+        state.labels = new_labels;
+        state.inertia = total_inertia;
+        total_inertia
+    }
+
+    /// Perform one M-step (centroid update) on internal state.
+    /// Returns the maximum centroid shift.
+    pub fn update_step(&self) -> f64 {
+        let mut state = self.state.write().unwrap();
+        let Some(ref data) = state.data else {
+            return 0.0;
+        };
+
+        let n = data.n_samples;
+        let d = state.n_features;
+        let k = state.k;
+
+        let mut new_centroids = vec![0.0f64; k * d];
+        let mut counts = vec![0usize; k];
+
+        for i in 0..n {
+            let cluster = state.labels[i];
+            counts[cluster] += 1;
+            let point = data.row(i);
+            for j in 0..d {
+                new_centroids[cluster * d + j] += point[j];
+            }
+        }
+
+        // Normalize centroids
+        for c in 0..k {
+            if counts[c] > 0 {
+                for j in 0..d {
+                    new_centroids[c * d + j] /= counts[c] as f64;
+                }
+            }
+        }
+
+        // Calculate maximum shift
+        let max_shift = state
+            .centroids
+            .chunks(d)
+            .zip(new_centroids.chunks(d))
+            .map(|(old, new)| Self::euclidean_distance(old, new))
+            .fold(0.0f64, f64::max);
+
+        state.centroids = new_centroids;
+        state.iteration += 1;
+        max_shift
+    }
+
+    /// Query the nearest cluster for a point.
+    pub fn query_point(&self, point: &[f64]) -> (usize, f64) {
+        let state = self.state.read().unwrap();
+        let d = state.n_features;
+
+        let mut min_dist = f64::MAX;
+        let mut min_cluster = 0;
+
+        for (c, centroid) in state.centroids.chunks(d).enumerate() {
+            let dist = Self::euclidean_distance(point, centroid);
+            if dist < min_dist {
+                min_dist = dist;
+                min_cluster = c;
+            }
+        }
+
+        (min_cluster, min_dist)
+    }
+
+    /// Get current iteration count.
+    pub fn current_iteration(&self) -> u32 {
+        self.state.read().unwrap().iteration
+    }
+
+    /// Get current inertia.
+    pub fn current_inertia(&self) -> f64 {
+        self.state.read().unwrap().inertia
     }
 
     /// Run K-Means clustering.
@@ -229,12 +397,17 @@ impl RingKernelHandler<KMeansAssignRing, KMeansAssignResponse> for KMeans {
         _ctx: &mut RingContext,
         msg: KMeansAssignRing,
     ) -> Result<KMeansAssignResponse> {
-        // In a real implementation, this would assign points to clusters on GPU
+        // Perform assignment step on internal state
+        let inertia = self.assign_step();
+
+        let state = self.state.read().unwrap();
+        let points_assigned = state.labels.len() as u32;
+
         Ok(KMeansAssignResponse {
             request_id: msg.id.0,
             iteration: msg.iteration,
-            inertia_fp: 0, // Would be computed
-            points_assigned: 0,
+            inertia_fp: to_fixed_point(inertia),
+            points_assigned,
         })
     }
 }
@@ -247,12 +420,21 @@ impl RingKernelHandler<KMeansUpdateRing, KMeansUpdateResponse> for KMeans {
         _ctx: &mut RingContext,
         msg: KMeansUpdateRing,
     ) -> Result<KMeansUpdateResponse> {
-        // In a real implementation, this would update centroids on GPU
+        // Perform update step on internal state
+        let max_shift = self.update_step();
+        let converged = max_shift < 1e-6;
+
+        // Update convergence status in state
+        if converged {
+            let mut state = self.state.write().unwrap();
+            state.converged = true;
+        }
+
         Ok(KMeansUpdateResponse {
             request_id: msg.id.0,
             iteration: msg.iteration,
-            max_shift_fp: 0, // Would be computed
-            converged: false,
+            max_shift_fp: to_fixed_point(max_shift),
+            converged,
         })
     }
 }
@@ -265,13 +447,16 @@ impl RingKernelHandler<KMeansQueryRing, KMeansQueryResponse> for KMeans {
         _ctx: &mut RingContext,
         msg: KMeansQueryRing,
     ) -> Result<KMeansQueryResponse> {
-        // In a real implementation, this would query nearest cluster on GPU
-        let _point = unpack_coordinates(&msg.point, msg.n_dims as usize);
+        // Unpack the query point coordinates
+        let point = unpack_coordinates(&msg.point, msg.n_dims as usize);
+
+        // Query the nearest cluster using internal state
+        let (cluster, distance) = self.query_point(&point);
 
         Ok(KMeansQueryResponse {
             request_id: msg.id.0,
-            cluster: 0, // Would be computed
-            distance_fp: 0,
+            cluster: cluster as u32,
+            distance_fp: to_fixed_point(distance),
         })
     }
 }
@@ -286,19 +471,32 @@ impl RingKernelHandler<K2KPartialCentroid, K2KCentroidAggregation> for KMeans {
         _ctx: &mut RingContext,
         msg: K2KPartialCentroid,
     ) -> Result<K2KCentroidAggregation> {
-        // In a distributed setting, this would:
-        // 1. Accumulate partial sums from all workers
-        // 2. Compute new centroid as sum / total_count
-        // 3. Calculate centroid shift
         let n_dims = msg.n_dims as usize;
+        let cluster_id = msg.cluster_id as usize;
         let mut new_centroid = [0i64; 8];
 
-        // Placeholder: just return the partial sum normalized
+        // Compute new centroid from partial sums
         if msg.point_count > 0 {
-            for i in 0..n_dims {
+            for i in 0..n_dims.min(8) {
                 new_centroid[i] = msg.coord_sum_fp[i] / msg.point_count as i64;
             }
         }
+
+        // Calculate shift from old centroid in internal state
+        let shift = {
+            let state = self.state.read().unwrap();
+            let d = state.n_features;
+            if cluster_id < state.k && d > 0 {
+                let old_centroid = &state.centroids[cluster_id * d..(cluster_id + 1) * d];
+                let new_coords: Vec<f64> = new_centroid[..d.min(8)]
+                    .iter()
+                    .map(|&v| from_fixed_point(v))
+                    .collect();
+                Self::euclidean_distance(old_centroid, &new_coords)
+            } else {
+                0.0
+            }
+        };
 
         Ok(K2KCentroidAggregation {
             request_id: msg.id.0,
@@ -306,7 +504,7 @@ impl RingKernelHandler<K2KPartialCentroid, K2KCentroidAggregation> for KMeans {
             iteration: msg.iteration,
             new_centroid_fp: new_centroid,
             total_points: msg.point_count,
-            shift_fp: 0, // Would compute shift from old centroid
+            shift_fp: to_fixed_point(shift),
         })
     }
 }
@@ -314,6 +512,7 @@ impl RingKernelHandler<K2KPartialCentroid, K2KCentroidAggregation> for KMeans {
 /// RingKernelHandler for K2K iteration sync.
 ///
 /// Synchronizes distributed KMeans workers after each iteration.
+/// In a single-instance setting, validates iteration state and returns convergence status.
 #[async_trait::async_trait]
 impl RingKernelHandler<K2KKMeansSync, K2KKMeansSyncResponse> for KMeans {
     async fn handle(
@@ -321,17 +520,22 @@ impl RingKernelHandler<K2KKMeansSync, K2KKMeansSyncResponse> for KMeans {
         _ctx: &mut RingContext,
         msg: K2KKMeansSync,
     ) -> Result<K2KKMeansSyncResponse> {
-        // In a distributed setting, this would:
-        // 1. Collect inertia and shift from all workers
-        // 2. Compute global convergence
+        let state = self.state.read().unwrap();
+
+        // Verify iteration matches internal state
+        let current_iteration = state.iteration as u64;
+        let all_synced = msg.iteration <= current_iteration;
+
+        // Use reported values for single-worker case
+        // In distributed setting, would aggregate across workers
         let global_shift = from_fixed_point(msg.max_shift_fp);
-        let converged = global_shift < 1e-6;
+        let converged = global_shift < 1e-6 || state.converged;
 
         Ok(K2KKMeansSyncResponse {
             request_id: msg.id.0,
             iteration: msg.iteration,
-            all_synced: true, // Placeholder
-            global_inertia_fp: msg.local_inertia_fp, // Would aggregate
+            all_synced,
+            global_inertia_fp: msg.local_inertia_fp,
             global_max_shift_fp: msg.max_shift_fp,
             converged,
         })
@@ -782,7 +986,10 @@ impl GpuKernel for HierarchicalClustering {
 // BatchKernel Implementations
 // ============================================================================
 
-use crate::messages::{DBSCANInput, DBSCANOutput, HierarchicalInput, HierarchicalOutput, KMeansInput, KMeansOutput, Linkage};
+use crate::messages::{
+    DBSCANInput, DBSCANOutput, HierarchicalInput, HierarchicalOutput, KMeansInput, KMeansOutput,
+    Linkage,
+};
 use async_trait::async_trait;
 use rustkernel_core::error::Result;
 use rustkernel_core::traits::BatchKernel;

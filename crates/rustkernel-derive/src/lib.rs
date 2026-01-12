@@ -26,8 +26,8 @@
 
 use darling::{FromDeriveInput, FromMeta};
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{parse_macro_input, DeriveInput, ItemFn};
+use quote::quote;
+use syn::{DeriveInput, ItemFn, parse_macro_input};
 
 /// Arguments for the `#[gpu_kernel]` attribute.
 #[derive(Debug, FromMeta)]
@@ -119,7 +119,7 @@ pub fn gpu_kernel(attr: TokenStream, item: TokenStream) -> TokenStream {
         _ => {
             return syn::Error::new_spanned(&input.sig, "mode must be 'batch' or 'ring'")
                 .to_compile_error()
-                .into()
+                .into();
         }
     };
 
@@ -213,23 +213,31 @@ struct KernelMessageArgs {
 
 /// Derive macro for kernel messages.
 ///
-/// This generates implementations for serialization and the `RingMessage` trait.
+/// This generates implementations for the `BatchMessage` trait, providing
+/// serialization and type information for batch kernel messages.
 ///
 /// # Attributes
 ///
-/// - `type_id` - Unique message type identifier (optional)
+/// - `type_id` - Unique message type identifier (optional, defaults to hash of type name)
 /// - `domain` - Domain for the message (optional)
 ///
 /// # Example
 ///
 /// ```ignore
-/// #[derive(KernelMessage)]
+/// #[derive(Debug, Clone, Serialize, Deserialize, KernelMessage)]
 /// #[message(type_id = 100, domain = "GraphAnalytics")]
-/// pub struct PageRankRequest {
-///     pub node_id: u64,
-///     pub operation: PageRankOp,
+/// pub struct PageRankInput {
+///     pub graph: CsrGraph,
+///     pub damping: f64,
 /// }
 /// ```
+///
+/// # Generated Implementation
+///
+/// The macro generates:
+/// - `BatchMessage` trait implementation with `message_type_id()`
+/// - `to_json()` and `from_json()` methods for JSON serialization
+/// - A `message_type_id()` associated function on the type itself
 #[proc_macro_derive(KernelMessage, attributes(message))]
 pub fn derive_kernel_message(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -242,9 +250,17 @@ pub fn derive_kernel_message(input: TokenStream) -> TokenStream {
     let name = args.ident;
     let (impl_generics, ty_generics, where_clause) = args.generics.split_for_impl();
 
-    let type_id = args.type_id.unwrap_or(0);
+    // Calculate type_id: use provided value or hash of type name
+    let type_id = args.type_id.unwrap_or_else(|| {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        name.to_string().hash(&mut hasher);
+        hasher.finish()
+    });
 
     let expanded = quote! {
+        // Associated function for direct access
         impl #impl_generics #name #ty_generics #where_clause {
             /// Get the message type ID.
             #[must_use]
@@ -253,9 +269,12 @@ pub fn derive_kernel_message(input: TokenStream) -> TokenStream {
             }
         }
 
-        // Implement basic serialization traits
-        // Note: Full RingMessage implementation requires ringkernel-derive
-        // This is a placeholder that adds basic functionality
+        // Implement BatchMessage trait for batch kernel communication
+        impl #impl_generics ::rustkernel_core::messages::BatchMessage for #name #ty_generics #where_clause {
+            fn message_type_id() -> u64 {
+                #type_id
+            }
+        }
     };
 
     TokenStream::from(expanded)
@@ -274,7 +293,7 @@ pub fn derive_kernel_message(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn kernel_state(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn kernel_state(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // For now, just pass through - state validation can be added later
     let input = parse_macro_input!(item as DeriveInput);
 

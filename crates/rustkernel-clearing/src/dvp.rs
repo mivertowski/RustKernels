@@ -85,12 +85,10 @@ impl DVPMatching {
                     let (confidence, differences) =
                         Self::calculate_match_score(deliverer, receiver, config);
 
-                    if confidence >= config.min_confidence {
-                        if best_match.is_none()
-                            || confidence > best_match.as_ref().unwrap().1
-                        {
-                            best_match = Some((j, confidence, differences));
-                        }
+                    if confidence >= config.min_confidence
+                        && (best_match.is_none() || confidence > best_match.as_ref().unwrap().1)
+                    {
+                        best_match = Some((j, confidence, differences));
                     }
                 }
 
@@ -182,7 +180,9 @@ impl DVPMatching {
             let qty_pct = qty_diff / delivery_qty.max(receive_qty) as f64;
             differences.push(format!(
                 "Quantity mismatch: {} vs {} ({:.2}%)",
-                delivery_qty, receive_qty, qty_pct * 100.0
+                delivery_qty,
+                receive_qty,
+                qty_pct * 100.0
             ));
             if qty_pct > config.quantity_tolerance {
                 return (0.0, differences);
@@ -198,7 +198,9 @@ impl DVPMatching {
             let amt_pct = amt_diff / delivery_amt.max(receive_amt) as f64;
             differences.push(format!(
                 "Payment mismatch: {} vs {} ({:.2}%)",
-                delivery_amt, receive_amt, amt_pct * 100.0
+                delivery_amt,
+                receive_amt,
+                amt_pct * 100.0
             ));
             if amt_pct > config.amount_tolerance {
                 return (0.0, differences);

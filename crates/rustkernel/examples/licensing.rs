@@ -6,8 +6,8 @@
 
 use rustkernel::core::domain::Domain;
 use rustkernel::core::license::{
-    DevelopmentLicense, License, LicenseGuard, LicenseTier,
-    LicenseValidator, StandardLicenseValidator,
+    DevelopmentLicense, License, LicenseGuard, LicenseTier, LicenseValidator,
+    StandardLicenseValidator,
 };
 
 fn main() {
@@ -55,7 +55,10 @@ fn main() {
     let guard = LicenseGuard::new(&dev, Domain::GraphAnalytics);
     println!("   Guard for GraphAnalytics domain:");
     println!("   - Domain check: {:?}", guard.check());
-    println!("   - Feature check: {:?}", guard.check_feature("GraphAnalytics.PageRank"));
+    println!(
+        "   - Feature check: {:?}",
+        guard.check_feature("GraphAnalytics.PageRank")
+    );
     println!("   - GPU native check: {:?}", guard.check_gpu_native());
 }
 

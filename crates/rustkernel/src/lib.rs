@@ -87,7 +87,7 @@
 pub use rustkernel_core as core;
 
 // Re-export derive macros
-pub use rustkernel_derive::{gpu_kernel, kernel_state, KernelMessage};
+pub use rustkernel_derive::{KernelMessage, gpu_kernel, kernel_state};
 
 // Re-export ringkernel for direct access
 pub use ringkernel;
@@ -147,7 +147,7 @@ pub mod prelude {
     pub use rustkernel_core::prelude::*;
 
     // Derive macros
-    pub use rustkernel_derive::{gpu_kernel, kernel_state, KernelMessage};
+    pub use rustkernel_derive::{KernelMessage, gpu_kernel, kernel_state};
 
     // RingKernel types
     pub use ringkernel_core::{

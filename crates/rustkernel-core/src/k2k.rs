@@ -12,8 +12,8 @@
 //! - **Iterative**: Convergence-based algorithms (PageRank, K-Means)
 
 use ringkernel_core::runtime::KernelId;
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 // ============================================================================
@@ -64,7 +64,8 @@ impl IterativeState {
     pub fn update(&mut self, delta: f64) -> bool {
         self.iteration += 1;
         self.last_delta = delta;
-        self.converged = delta < self.convergence_threshold || self.iteration >= self.max_iterations;
+        self.converged =
+            delta < self.convergence_threshold || self.iteration >= self.max_iterations;
         self.converged
     }
 
@@ -223,7 +224,8 @@ impl<T> ScatterGatherState<T> {
 
     /// Get count of pending responses.
     pub fn pending_count(&self) -> usize {
-        self.worker_count.saturating_sub(self.responded_workers.len())
+        self.worker_count
+            .saturating_sub(self.responded_workers.len())
     }
 
     /// Get the results (consumes the state).
@@ -256,7 +258,11 @@ impl FanOutTracker {
 
     /// Add a destination kernel.
     pub fn add_destination(&mut self, dest: KernelId) {
-        if !self.destinations.iter().any(|d| d.as_str() == dest.as_str()) {
+        if !self
+            .destinations
+            .iter()
+            .any(|d| d.as_str() == dest.as_str())
+        {
             self.destinations.push(dest);
         }
     }
@@ -277,7 +283,8 @@ impl FanOutTracker {
         self.broadcast_count += 1;
         // Reset delivery status for new broadcast
         for dest in &self.destinations {
-            self.delivery_status.insert(dest.as_str().to_string(), false);
+            self.delivery_status
+                .insert(dest.as_str().to_string(), false);
         }
     }
 
@@ -410,10 +417,12 @@ impl<T> K2KWorkerResult<T> {
 /// Priority levels for K2K messages.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
+#[derive(Default)]
 pub enum K2KPriority {
     /// Low priority - background processing.
     Low = 0,
     /// Normal priority - default.
+    #[default]
     Normal = 64,
     /// High priority - time-sensitive operations.
     High = 128,
@@ -421,12 +430,6 @@ pub enum K2KPriority {
     Critical = 192,
     /// Real-time priority - latency-critical paths.
     RealTime = 255,
-}
-
-impl Default for K2KPriority {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 impl From<K2KPriority> for u8 {
@@ -477,7 +480,11 @@ mod tests {
 
     #[test]
     fn test_pipeline_tracker() {
-        let stages = vec!["ingest".to_string(), "transform".to_string(), "output".to_string()];
+        let stages = vec![
+            "ingest".to_string(),
+            "transform".to_string(),
+            "output".to_string(),
+        ];
         let mut tracker = PipelineTracker::new(stages);
 
         assert_eq!(tracker.current_stage(), Some("ingest"));

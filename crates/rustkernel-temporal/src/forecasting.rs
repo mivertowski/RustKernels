@@ -112,7 +112,8 @@ impl ARIMAForecast {
         let intercept = diff_series.iter().sum::<f64>() / diff_series.len() as f64;
 
         // Generate fitted values
-        let fitted = Self::generate_fitted(&diff_series, &ar_coefficients, &ma_coefficients, intercept);
+        let fitted =
+            Self::generate_fitted(&diff_series, &ar_coefficients, &ma_coefficients, intercept);
 
         // Integrate back to original scale
         let fitted_integrated = Self::integrate(&fitted, &series.values, params.d);
@@ -229,31 +230,104 @@ impl ARIMAForecast {
         fitted
     }
 
-    /// Fit MA coefficients (simplified).
+    /// Fit MA coefficients using CSS (Conditional Sum of Squares) optimization.
+    ///
+    /// This implements an iterative optimization approach that minimizes
+    /// the sum of squared residuals when fitting MA(q) parameters.
     fn fit_ma(residuals: &[f64], q: usize) -> Vec<f64> {
-        // Simplified: use autocorrelations of residuals
         let n = residuals.len();
-        if n <= q {
+        if n <= q + 10 {
             return vec![0.0; q];
         }
 
-        let mean: f64 = residuals.iter().sum::<f64>() / n as f64;
-        let var: f64 = residuals.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / n as f64;
-
+        let var: f64 = residuals.iter().map(|x| x.powi(2)).sum::<f64>() / n as f64;
         if var < 1e-10 {
             return vec![0.0; q];
         }
 
-        let mut ma_coefs = Vec::with_capacity(q);
+        // Initialize with autocorrelation-based estimates
+        let mean: f64 = residuals.iter().sum::<f64>() / n as f64;
+        let centered: Vec<f64> = residuals.iter().map(|&x| x - mean).collect();
+
+        let mut ma_coefs: Vec<f64> = Vec::with_capacity(q);
+        let c0: f64 = centered.iter().map(|x| x.powi(2)).sum::<f64>() / n as f64;
+
         for k in 1..=q {
-            let cov: f64 = (0..n - k)
-                .map(|i| (residuals[i] - mean) * (residuals[i + k] - mean))
-                .sum::<f64>()
-                / n as f64;
-            ma_coefs.push(cov / var);
+            if c0 > 1e-10 {
+                let ck: f64 = (0..n - k)
+                    .map(|i| centered[i] * centered[i + k])
+                    .sum::<f64>()
+                    / n as f64;
+                // Initial estimate (bounded for stability)
+                ma_coefs.push((ck / c0).clamp(-0.9, 0.9));
+            } else {
+                ma_coefs.push(0.0);
+            }
+        }
+
+        // CSS optimization: iteratively refine MA coefficients
+        let mut best_sse = Self::calculate_ma_sse(residuals, &ma_coefs);
+
+        for _iter in 0..20 {
+            let mut improved = false;
+
+            for j in 0..q {
+                // Try perturbations for coefficient j
+                let original = ma_coefs[j];
+                let step_size = 0.05 * (1.0 - original.abs()).max(0.1);
+
+                for delta in [-step_size, step_size, -step_size * 0.5, step_size * 0.5] {
+                    let new_val = (original + delta).clamp(-0.95, 0.95);
+                    ma_coefs[j] = new_val;
+
+                    // Check invertibility: sum of |theta| < 1
+                    let sum_abs: f64 = ma_coefs.iter().map(|c| c.abs()).sum();
+                    if sum_abs >= 0.99 {
+                        ma_coefs[j] = original;
+                        continue;
+                    }
+
+                    let new_sse = Self::calculate_ma_sse(residuals, &ma_coefs);
+
+                    if new_sse < best_sse && new_sse.is_finite() {
+                        best_sse = new_sse;
+                        improved = true;
+                        break;
+                    } else {
+                        ma_coefs[j] = original;
+                    }
+                }
+            }
+
+            if !improved {
+                break;
+            }
         }
 
         ma_coefs
+    }
+
+    /// Calculate sum of squared errors for MA model.
+    fn calculate_ma_sse(residuals: &[f64], ma_coefs: &[f64]) -> f64 {
+        let n = residuals.len();
+        let q = ma_coefs.len();
+
+        // Reconstruct innovations (errors in the MA sense)
+        let mut innovations = vec![0.0; n];
+
+        for t in 0..n {
+            // e_t = r_t - sum(theta_j * e_{t-j})
+            let mut innovation = residuals[t];
+            for j in 0..q {
+                if t > j {
+                    innovation -= ma_coefs[j] * innovations[t - j - 1];
+                }
+            }
+            innovations[t] = innovation;
+        }
+
+        // Skip initial transient period
+        innovations[q..].iter().map(|e| e.powi(2)).sum()
     }
 
     /// Generate fitted values from ARMA model.
@@ -302,11 +376,7 @@ impl ARIMAForecast {
         let mut result = diff_fitted.to_vec();
 
         for i in 0..d {
-            let start_val = if i < original.len() {
-                original[i]
-            } else {
-                0.0
-            };
+            let start_val = if i < original.len() { original[i] } else { 0.0 };
 
             let mut integrated = vec![start_val];
             for &diff in &result {
@@ -411,10 +481,13 @@ impl ProphetDecomposition {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            metadata: KernelMetadata::batch("temporal/prophet-decomposition", Domain::TemporalAnalysis)
-                .with_description("Prophet-style trend/seasonal decomposition")
-                .with_throughput(5_000)
-                .with_latency_us(200.0),
+            metadata: KernelMetadata::batch(
+                "temporal/prophet-decomposition",
+                Domain::TemporalAnalysis,
+            )
+            .with_description("Prophet-style trend/seasonal decomposition")
+            .with_throughput(5_000)
+            .with_latency_us(200.0),
         }
     }
 
@@ -465,12 +538,7 @@ impl ProphetDecomposition {
             .collect();
 
         // Generate forecasts
-        let forecast = Self::forecast(
-            &trend,
-            seasonal.as_ref(),
-            &residuals,
-            horizon,
-        );
+        let forecast = Self::forecast(&trend, seasonal.as_ref(), &residuals, horizon);
 
         ProphetResult {
             trend,
@@ -556,9 +624,7 @@ impl ProphetDecomposition {
 
         for h in 1..=horizon {
             let trend_forecast = last_trend + slope * h as f64;
-            let seasonal_forecast = seasonal
-                .map(|s| s[(n + h - 1) % s.len()])
-                .unwrap_or(0.0);
+            let seasonal_forecast = seasonal.map(|s| s[(n + h - 1) % s.len()]).unwrap_or(0.0);
             forecasts.push(trend_forecast + seasonal_forecast);
         }
 
@@ -574,7 +640,10 @@ impl GpuKernel for ProphetDecomposition {
 
 #[async_trait]
 impl BatchKernel<ProphetDecompositionInput, ProphetDecompositionOutput> for ProphetDecomposition {
-    async fn execute(&self, input: ProphetDecompositionInput) -> Result<ProphetDecompositionOutput> {
+    async fn execute(
+        &self,
+        input: ProphetDecompositionInput,
+    ) -> Result<ProphetDecompositionOutput> {
         let start = Instant::now();
         let result = Self::compute(&input.series, input.period, input.horizon);
         Ok(ProphetDecompositionOutput {
@@ -599,7 +668,8 @@ mod tests {
         let values: Vec<f64> = (0..60)
             .map(|t| {
                 let trend = 100.0 + 0.5 * t as f64;
-                let seasonal = 10.0 * ((2.0 * std::f64::consts::PI * t as f64 / period as f64).sin());
+                let seasonal =
+                    10.0 * ((2.0 * std::f64::consts::PI * t as f64 / period as f64).sin());
                 trend + seasonal
             })
             .collect();

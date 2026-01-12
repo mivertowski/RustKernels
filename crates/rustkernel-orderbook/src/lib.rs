@@ -37,8 +37,28 @@ pub use types::{
 
 /// Register all order matching kernels with a registry.
 pub fn register_all(
-    _registry: &rustkernel_core::registry::KernelRegistry,
+    registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
+    use rustkernel_core::traits::GpuKernel;
+
     tracing::info!("Registering order matching kernels");
+
+    // Order matching kernel (1)
+    registry.register_metadata(matching::OrderMatchingEngine::new().metadata().clone())?;
+
+    tracing::info!("Registered 1 order matching kernel");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustkernel_core::registry::KernelRegistry;
+
+    #[test]
+    fn test_register_all() {
+        let registry = KernelRegistry::new();
+        register_all(&registry).expect("Failed to register orderbook kernels");
+        assert_eq!(registry.total_count(), 1);
+    }
 }

@@ -100,14 +100,12 @@ impl ClearingValidation {
         }
 
         // Check security eligibility
-        if config.check_security {
-            if !context.eligible_securities.contains(&trade.security_id) {
-                errors.push(ValidationError {
-                    code: "SECURITY_NOT_ELIGIBLE".to_string(),
-                    message: format!("Security {} not eligible for clearing", trade.security_id),
-                    severity: ErrorSeverity::Critical,
-                });
-            }
+        if config.check_security && !context.eligible_securities.contains(&trade.security_id) {
+            errors.push(ValidationError {
+                code: "SECURITY_NOT_ELIGIBLE".to_string(),
+                message: format!("Security {} not eligible for clearing", trade.security_id),
+                severity: ErrorSeverity::Critical,
+            });
         }
 
         // Check settlement date
@@ -339,7 +337,12 @@ mod tests {
         let result = ClearingValidation::validate(&trade, &config, &context);
 
         assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.code == "SECURITY_NOT_ELIGIBLE"));
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.code == "SECURITY_NOT_ELIGIBLE")
+        );
     }
 
     #[test]
@@ -353,7 +356,12 @@ mod tests {
         let result = ClearingValidation::validate(&trade, &config, &context);
 
         assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.code == "INVALID_SETTLEMENT_DATE"));
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.code == "INVALID_SETTLEMENT_DATE")
+        );
     }
 
     #[test]
@@ -367,20 +375,22 @@ mod tests {
         let result = ClearingValidation::validate(&trade, &config, &context);
 
         assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.code == "EXCEEDS_POSITION_LIMIT"));
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.code == "EXCEEDS_POSITION_LIMIT")
+        );
     }
 
     #[test]
     fn test_batch_validation() {
-        let trades = vec![
-            create_valid_trade(),
-            {
-                let mut t = create_valid_trade();
-                t.id = 2;
-                t.quantity = 0;
-                t
-            },
-        ];
+        let trades = vec![create_valid_trade(), {
+            let mut t = create_valid_trade();
+            t.id = 2;
+            t.quantity = 0;
+            t
+        }];
 
         let config = ValidationConfig::default();
         let context = create_context();

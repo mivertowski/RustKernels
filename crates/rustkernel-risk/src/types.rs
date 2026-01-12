@@ -244,7 +244,12 @@ pub struct StressScenario {
 
 impl StressScenario {
     /// Create a new stress scenario.
-    pub fn new(name: &str, description: &str, shocks: Vec<(String, f64)>, probability: f64) -> Self {
+    pub fn new(
+        name: &str,
+        description: &str,
+        shocks: Vec<(String, f64)>,
+        probability: f64,
+    ) -> Self {
         Self {
             name: name.to_string(),
             description: description.to_string(),

@@ -109,19 +109,13 @@ impl DistanceMetric {
     #[must_use]
     pub fn compute(&self, a: &[f64], b: &[f64]) -> f64 {
         match self {
-            DistanceMetric::Euclidean => {
-                a.iter()
-                    .zip(b.iter())
-                    .map(|(x, y)| (x - y).powi(2))
-                    .sum::<f64>()
-                    .sqrt()
-            }
-            DistanceMetric::Manhattan => {
-                a.iter()
-                    .zip(b.iter())
-                    .map(|(x, y)| (x - y).abs())
-                    .sum()
-            }
+            DistanceMetric::Euclidean => a
+                .iter()
+                .zip(b.iter())
+                .map(|(x, y)| (x - y).powi(2))
+                .sum::<f64>()
+                .sqrt(),
+            DistanceMetric::Manhattan => a.iter().zip(b.iter()).map(|(x, y)| (x - y).abs()).sum(),
             DistanceMetric::Cosine => {
                 let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
                 let norm_a: f64 = a.iter().map(|x| x.powi(2)).sum::<f64>().sqrt();
@@ -132,12 +126,11 @@ impl DistanceMetric {
                     1.0 - (dot / (norm_a * norm_b))
                 }
             }
-            DistanceMetric::Chebyshev => {
-                a.iter()
-                    .zip(b.iter())
-                    .map(|(x, y)| (x - y).abs())
-                    .fold(0.0f64, f64::max)
-            }
+            DistanceMetric::Chebyshev => a
+                .iter()
+                .zip(b.iter())
+                .map(|(x, y)| (x - y).abs())
+                .fold(0.0f64, f64::max),
         }
     }
 }

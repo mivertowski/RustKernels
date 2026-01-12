@@ -388,9 +388,17 @@ impl GpuKernel for ChangePointDetection {
 
 #[async_trait]
 impl BatchKernel<ChangePointDetectionInput, ChangePointDetectionOutput> for ChangePointDetection {
-    async fn execute(&self, input: ChangePointDetectionInput) -> Result<ChangePointDetectionOutput> {
+    async fn execute(
+        &self,
+        input: ChangePointDetectionInput,
+    ) -> Result<ChangePointDetectionOutput> {
         let start = Instant::now();
-        let result = Self::compute(&input.series, input.method, input.penalty, input.min_segment);
+        let result = Self::compute(
+            &input.series,
+            input.method,
+            input.penalty,
+            input.min_segment,
+        );
         Ok(ChangePointDetectionOutput {
             result,
             compute_time_us: start.elapsed().as_micros() as u64,
@@ -481,7 +489,13 @@ impl TimeSeriesAnomalyDetection {
             let scores: Vec<f64> = series
                 .values
                 .iter()
-                .map(|&v| if std > 1e-10 { (v - mean).abs() / std } else { 0.0 })
+                .map(|&v| {
+                    if std > 1e-10 {
+                        (v - mean).abs() / std
+                    } else {
+                        0.0
+                    }
+                })
                 .collect();
 
             let expected = vec![mean; n];
@@ -660,12 +674,22 @@ impl TimeSeriesAnomalyDetection {
 
         // Apply z-score to deseasonalized
         let mean: f64 = deseasonalized.iter().sum::<f64>() / n as f64;
-        let std: f64 = (deseasonalized.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / n as f64)
+        let std: f64 = (deseasonalized
+            .iter()
+            .map(|x| (x - mean).powi(2))
+            .sum::<f64>()
+            / n as f64)
             .sqrt();
 
         let scores: Vec<f64> = deseasonalized
             .iter()
-            .map(|&v| if std > 1e-10 { (v - mean).abs() / std } else { 0.0 })
+            .map(|&v| {
+                if std > 1e-10 {
+                    (v - mean).abs() / std
+                } else {
+                    0.0
+                }
+            })
             .collect();
 
         // Expected is mean + seasonal
@@ -749,8 +773,15 @@ mod tests {
         assert!(!result.change_points.is_empty());
 
         // At least one change point should be near 50
-        let near_50 = result.change_points.iter().any(|&cp| (cp as i32 - 50).abs() < 10);
-        assert!(near_50, "Expected change point near 50, got {:?}", result.change_points);
+        let near_50 = result
+            .change_points
+            .iter()
+            .any(|&cp| (cp as i32 - 50).abs() < 10);
+        assert!(
+            near_50,
+            "Expected change point near 50, got {:?}",
+            result.change_points
+        );
 
         // Should have 2 segments
         assert_eq!(result.segment_means.len(), result.change_points.len() + 1);
@@ -831,12 +862,8 @@ mod tests {
             .collect();
         let series = TimeSeries::new(values);
 
-        let result = TimeSeriesAnomalyDetection::compute(
-            &series,
-            AnomalyMethod::SeasonalESD,
-            3.0,
-            Some(12),
-        );
+        let result =
+            TimeSeriesAnomalyDetection::compute(&series, AnomalyMethod::SeasonalESD, 3.0, Some(12));
 
         // Should detect the anomaly at index 60
         assert!(result.anomaly_indices.contains(&60));
@@ -846,8 +873,7 @@ mod tests {
     fn test_empty_series() {
         let empty = TimeSeries::new(Vec::new());
 
-        let cp_result =
-            ChangePointDetection::compute(&empty, ChangePointMethod::PELT, 10.0, 5);
+        let cp_result = ChangePointDetection::compute(&empty, ChangePointMethod::PELT, 10.0, 5);
         assert!(cp_result.change_points.is_empty());
 
         let anomaly_result =

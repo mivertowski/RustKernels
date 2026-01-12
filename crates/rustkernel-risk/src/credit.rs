@@ -197,7 +197,9 @@ impl CreditRiskScoring {
     fn norm_cdf(x: f64) -> f64 {
         let t = 1.0 / (1.0 + 0.2316419 * x.abs());
         let d = 0.3989423 * (-x * x / 2.0).exp();
-        let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+        let p = d
+            * t
+            * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
         if x > 0.0 { 1.0 - p } else { p }
     }
 
@@ -210,7 +212,7 @@ impl CreditRiskScoring {
             -3.969683028665376e+01,
             2.209460984245205e+02,
             -2.759285104469687e+02,
-            1.383577518672690e+02,
+            1.383_577_518_672_69e2,
             -3.066479806614716e+01,
             2.506628277459239e+00,
         ];
@@ -338,11 +340,26 @@ mod tests {
         let result = CreditRiskScoring::compute(&factors, 100_000.0, 5.0);
 
         assert_eq!(result.obligor_id, 1);
-        assert!(result.credit_score > 650.0, "Good obligor should have score > 650, got {}", result.credit_score);
+        assert!(
+            result.credit_score > 650.0,
+            "Good obligor should have score > 650, got {}",
+            result.credit_score
+        );
         // PD maps from score via logistic function
-        assert!(result.pd < 0.25, "Good obligor should have PD < 25%, got {}", result.pd);
-        assert!(result.lgd < 0.45, "Secured loan should have LGD < 45%, got {}", result.lgd);
-        assert!(result.expected_loss < 10000.0, "Expected loss should be reasonable");
+        assert!(
+            result.pd < 0.25,
+            "Good obligor should have PD < 25%, got {}",
+            result.pd
+        );
+        assert!(
+            result.lgd < 0.45,
+            "Secured loan should have LGD < 45%, got {}",
+            result.lgd
+        );
+        assert!(
+            result.expected_loss < 10000.0,
+            "Expected loss should be reasonable"
+        );
     }
 
     #[test]
@@ -351,8 +368,16 @@ mod tests {
         let result = CreditRiskScoring::compute(&factors, 100_000.0, 5.0);
 
         assert_eq!(result.obligor_id, 2);
-        assert!(result.credit_score < 650.0, "Risky obligor should have score < 650, got {}", result.credit_score);
-        assert!(result.pd > 0.05, "Risky obligor should have PD > 5%, got {}", result.pd);
+        assert!(
+            result.credit_score < 650.0,
+            "Risky obligor should have score < 650, got {}",
+            result.credit_score
+        );
+        assert!(
+            result.pd > 0.05,
+            "Risky obligor should have PD > 5%, got {}",
+            result.pd
+        );
         assert!(result.lgd > 0.35, "High LTV loan should have higher LGD");
     }
 
@@ -403,7 +428,12 @@ mod tests {
         let result = CreditRiskScoring::compute(&factors, 100_000.0, 5.0);
 
         assert!(!result.factor_contributions.is_empty());
-        assert!(result.factor_contributions.iter().any(|(name, _)| name == "Payment History"));
+        assert!(
+            result
+                .factor_contributions
+                .iter()
+                .any(|(name, _)| name == "Payment History")
+        );
     }
 
     #[test]
@@ -413,7 +443,12 @@ mod tests {
 
         for &score in &scores {
             let pd = CreditRiskScoring::score_to_pd(score);
-            assert!(pd > 0.0 && pd <= 0.30, "PD out of range for score {}: {}", score, pd);
+            assert!(
+                pd > 0.0 && pd <= 0.30,
+                "PD out of range for score {}: {}",
+                score,
+                pd
+            );
 
             // Higher score should mean lower PD
             let pd_low = CreditRiskScoring::score_to_pd(score + 50.0);

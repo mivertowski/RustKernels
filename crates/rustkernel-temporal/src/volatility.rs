@@ -29,12 +29,53 @@ use rustkernel_core::{
 // Volatility Analysis Kernel
 // ============================================================================
 
+/// Per-asset volatility state for Ring mode operations.
+#[derive(Debug, Clone, Default)]
+pub struct AssetVolatilityState {
+    /// Asset identifier.
+    pub asset_id: u64,
+    /// Current GARCH coefficients.
+    pub coefficients: GARCHCoefficients,
+    /// Current variance estimate.
+    pub variance: f64,
+    /// Current volatility (sqrt variance).
+    pub volatility: f64,
+    /// EWMA variance.
+    pub ewma_variance: f64,
+    /// EWMA lambda.
+    pub ewma_lambda: f64,
+    /// Last return observation.
+    pub last_return: f64,
+    /// Observation count.
+    pub observation_count: u64,
+}
+
+/// Volatility analysis state for Ring mode operations.
+#[derive(Debug, Clone, Default)]
+pub struct VolatilityState {
+    /// Per-asset volatility states.
+    pub assets: std::collections::HashMap<u64, AssetVolatilityState>,
+    /// Default EWMA lambda.
+    pub default_lambda: f64,
+}
+
 /// Volatility analysis kernel using GARCH models.
 ///
 /// Estimates conditional volatility using GARCH(p,q) models.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct VolatilityAnalysis {
     metadata: KernelMetadata,
+    /// Internal state for Ring mode operations.
+    state: std::sync::RwLock<VolatilityState>,
+}
+
+impl Clone for VolatilityAnalysis {
+    fn clone(&self) -> Self {
+        Self {
+            metadata: self.metadata.clone(),
+            state: std::sync::RwLock::new(self.state.read().unwrap().clone()),
+        }
+    }
 }
 
 impl Default for VolatilityAnalysis {
@@ -48,11 +89,155 @@ impl VolatilityAnalysis {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            metadata: KernelMetadata::ring("temporal/volatility-analysis", Domain::TemporalAnalysis)
-                .with_description("GARCH model volatility estimation")
-                .with_throughput(100_000)
-                .with_latency_us(10.0),
+            metadata: KernelMetadata::ring(
+                "temporal/volatility-analysis",
+                Domain::TemporalAnalysis,
+            )
+            .with_description("GARCH model volatility estimation")
+            .with_throughput(100_000)
+            .with_latency_us(10.0),
+            state: std::sync::RwLock::new(VolatilityState {
+                assets: std::collections::HashMap::new(),
+                default_lambda: 0.94,
+            }),
         }
+    }
+
+    /// Initialize or update GARCH state for an asset.
+    pub fn initialize_asset(&self, asset_id: u64, initial_volatility: f64, lambda: f64) {
+        let mut state = self.state.write().unwrap();
+        let var = initial_volatility * initial_volatility;
+        state.assets.insert(
+            asset_id,
+            AssetVolatilityState {
+                asset_id,
+                coefficients: GARCHCoefficients {
+                    omega: var * 0.1,
+                    alpha: vec![0.1],
+                    beta: vec![0.8],
+                },
+                variance: var,
+                volatility: initial_volatility,
+                ewma_variance: var,
+                ewma_lambda: lambda,
+                last_return: 0.0,
+                observation_count: 1,
+            },
+        );
+    }
+
+    /// Update volatility state with a new return observation.
+    pub fn update_asset(&self, asset_id: u64, return_value: f64) -> (f64, f64, u64) {
+        let mut state = self.state.write().unwrap();
+        let default_lambda = state.default_lambda;
+
+        let asset_state = state.assets.entry(asset_id).or_insert_with(|| {
+            let init_var = return_value * return_value;
+            AssetVolatilityState {
+                asset_id,
+                coefficients: GARCHCoefficients {
+                    omega: init_var.max(0.0001) * 0.1,
+                    alpha: vec![0.1],
+                    beta: vec![0.8],
+                },
+                variance: init_var.max(0.0001),
+                volatility: init_var.max(0.0001).sqrt(),
+                ewma_variance: init_var.max(0.0001),
+                ewma_lambda: default_lambda,
+                last_return: return_value,
+                observation_count: 0,
+            }
+        });
+
+        // GARCH update: σ²_t = ω + α*r²_{t-1} + β*σ²_{t-1}
+        let r_sq = return_value * return_value;
+        let omega = asset_state.coefficients.omega;
+        let alpha = asset_state
+            .coefficients
+            .alpha
+            .first()
+            .copied()
+            .unwrap_or(0.1);
+        let beta = asset_state
+            .coefficients
+            .beta
+            .first()
+            .copied()
+            .unwrap_or(0.8);
+
+        let new_variance = omega + alpha * r_sq + beta * asset_state.variance;
+        asset_state.variance = new_variance.max(1e-10);
+        asset_state.volatility = asset_state.variance.sqrt();
+
+        // EWMA update: σ²_t = λ*σ²_{t-1} + (1-λ)*r²_{t-1}
+        let lambda = asset_state.ewma_lambda;
+        asset_state.ewma_variance = lambda * asset_state.ewma_variance + (1.0 - lambda) * r_sq;
+
+        asset_state.last_return = return_value;
+        asset_state.observation_count += 1;
+
+        (
+            asset_state.volatility,
+            asset_state.variance,
+            asset_state.observation_count,
+        )
+    }
+
+    /// Query volatility state for an asset.
+    pub fn query_asset(&self, asset_id: u64, horizon: usize) -> Option<(f64, Vec<f64>, f64)> {
+        let state = self.state.read().unwrap();
+        state.assets.get(&asset_id).map(|asset_state| {
+            let vol = asset_state.volatility;
+
+            // Generate forecast based on GARCH coefficients
+            let alpha_sum: f64 = asset_state.coefficients.alpha.iter().sum();
+            let beta_sum: f64 = asset_state.coefficients.beta.iter().sum();
+            let persistence = (alpha_sum + beta_sum).min(0.999);
+
+            let _long_run_var = if persistence < 0.999 {
+                asset_state.coefficients.omega / (1.0 - persistence)
+            } else {
+                asset_state.variance
+            };
+
+            let mut forecast = Vec::with_capacity(horizon);
+            let mut prev_var = asset_state.variance;
+
+            for _ in 0..horizon {
+                // Mean reversion toward long-run variance
+                prev_var = asset_state.coefficients.omega + persistence * prev_var;
+                forecast.push(prev_var.sqrt());
+            }
+
+            (vol, forecast, persistence)
+        })
+    }
+
+    /// Update EWMA volatility for an asset.
+    pub fn update_ewma(&self, asset_id: u64, return_value: f64, lambda: f64) -> (f64, f64) {
+        let mut state = self.state.write().unwrap();
+        let r_sq = return_value * return_value;
+
+        let asset_state = state
+            .assets
+            .entry(asset_id)
+            .or_insert_with(|| AssetVolatilityState {
+                asset_id,
+                coefficients: GARCHCoefficients::default(),
+                variance: r_sq.max(0.0001),
+                volatility: r_sq.max(0.0001).sqrt(),
+                ewma_variance: r_sq.max(0.0001),
+                ewma_lambda: lambda,
+                last_return: return_value,
+                observation_count: 0,
+            });
+
+        // Update EWMA: σ²_t = λ*σ²_{t-1} + (1-λ)*r²
+        asset_state.ewma_variance = lambda * asset_state.ewma_variance + (1.0 - lambda) * r_sq;
+        asset_state.ewma_lambda = lambda;
+        asset_state.observation_count += 1;
+
+        (asset_state.ewma_variance, asset_state.ewma_variance.sqrt())
     }
 
     /// Estimate volatility using GARCH model.
@@ -394,7 +579,11 @@ impl VolatilityAnalysis {
 
         let mut forecast = Vec::with_capacity(horizon);
         let last_var = *variance.last().unwrap_or(&long_run_var);
-        let last_r_sq = returns.values.last().map(|r| r.powi(2)).unwrap_or(long_run_var);
+        let last_r_sq = returns
+            .values
+            .last()
+            .map(|r| r.powi(2))
+            .unwrap_or(long_run_var);
 
         // One-step forecast
         let mut h1_var = coeffs.omega;
@@ -505,20 +694,17 @@ impl RingKernelHandler<UpdateVolatilityRing, UpdateVolatilityResponse> for Volat
         _ctx: &mut RingContext,
         msg: UpdateVolatilityRing,
     ) -> Result<UpdateVolatilityResponse> {
-        // In a real Ring kernel, we would maintain GPU-resident state
-        // with running GARCH estimates per asset.
-        // For now, create a single-observation response
-
+        // Update GARCH state with new observation
         let return_value = msg.return_f64();
-        let variance = return_value.powi(2);
-        let volatility = variance.sqrt();
+        let (volatility, variance, observation_count) =
+            self.update_asset(msg.asset_id, return_value);
 
         Ok(UpdateVolatilityResponse {
             correlation_id: msg.correlation_id,
             asset_id: msg.asset_id,
             current_volatility: (volatility * 100_000_000.0) as i64,
             current_variance: (variance * 100_000_000.0) as i64,
-            observation_count: 1,
+            observation_count: observation_count as u32,
         })
     }
 }
@@ -531,30 +717,32 @@ impl RingKernelHandler<QueryVolatilityRing, QueryVolatilityResponse> for Volatil
         _ctx: &mut RingContext,
         msg: QueryVolatilityRing,
     ) -> Result<QueryVolatilityResponse> {
-        // In a real Ring kernel, this would query GPU-resident GARCH state
-        // For now, return a placeholder response
-
-        // Typical GARCH(1,1) persistence
-        let persistence: f64 = 0.95;
-
-        // Initialize forecast array
-        let mut forecast = [0i64; 10];
         let horizon = msg.horizon.min(10) as usize;
 
-        // Placeholder forecasts (would come from GPU state)
-        let base_vol = 0.02; // 2% volatility
-        for (i, f) in forecast.iter_mut().take(horizon).enumerate() {
-            // Volatility converges to long-run mean
-            let h_vol = base_vol * persistence.powi(i as i32);
-            *f = (h_vol * 100_000_000.0) as i64;
+        // Query internal state for this asset
+        let (current_vol, forecast_vec, persistence) =
+            self.query_asset(msg.asset_id, horizon).unwrap_or_else(|| {
+                // Default values if asset not found
+                let default_vol: f64 = 0.02;
+                let default_persistence: f64 = 0.90;
+                let forecast: Vec<f64> = (0..horizon)
+                    .map(|i| default_vol * default_persistence.powi(i as i32))
+                    .collect();
+                (default_vol, forecast, default_persistence)
+            });
+
+        // Convert forecast to fixed-point array
+        let mut forecast = [0i64; 10];
+        for (i, &vol) in forecast_vec.iter().take(10).enumerate() {
+            forecast[i] = (vol * 100_000_000.0) as i64;
         }
 
         Ok(QueryVolatilityResponse {
             correlation_id: msg.correlation_id,
             asset_id: msg.asset_id,
-            current_volatility: (base_vol * 100_000_000.0) as i64,
+            current_volatility: (current_vol * 100_000_000.0) as i64,
             forecast,
-            forecast_count: horizon as u8,
+            forecast_count: forecast_vec.len().min(10) as u8,
             persistence: (persistence * 10000.0) as i32,
         })
     }
@@ -570,20 +758,12 @@ impl RingKernelHandler<UpdateEWMAVolatilityRing, UpdateEWMAVolatilityResponse>
         _ctx: &mut RingContext,
         msg: UpdateEWMAVolatilityRing,
     ) -> Result<UpdateEWMAVolatilityResponse> {
-        // In a real Ring kernel, we would maintain EWMA state per asset
-        // σ²_t = λσ²_{t-1} + (1-λ)r²_{t-1}
-
+        // Update EWMA state with new observation
         let return_value = msg.return_value as f64 / 100_000_000.0;
         let lambda = msg.lambda_f64();
 
-        // For single observation, variance is r²
-        // In persistent state, this would update running EWMA
-        let variance = return_value.powi(2);
-        let volatility = variance.sqrt();
-
-        // Apply decay factor (placeholder - real impl uses running state)
-        let ewma_variance = (1.0 - lambda) * variance;
-        let ewma_volatility = ewma_variance.sqrt();
+        // Update running EWMA state
+        let (ewma_variance, ewma_volatility) = self.update_ewma(msg.asset_id, return_value, lambda);
 
         Ok(UpdateEWMAVolatilityResponse {
             correlation_id: msg.correlation_id,
@@ -606,7 +786,8 @@ mod tests {
         for i in 0..200 {
             // GARCH-like volatility clustering
             let shock = if i % 20 < 5 { 0.03 } else { 0.01 };
-            vol = 0.01 + 0.1 * values.last().map(|r: &f64| r.powi(2)).unwrap_or(0.0001) + 0.85 * vol;
+            vol =
+                0.01 + 0.1 * values.last().map(|r: &f64| r.powi(2)).unwrap_or(0.0001) + 0.85 * vol;
             vol = vol.max(0.001);
 
             // Generate return

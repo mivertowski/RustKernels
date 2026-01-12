@@ -113,7 +113,11 @@ impl SLOValidator {
 
     /// Validate throughput against target.
     #[must_use]
-    pub fn validate_throughput(&self, metadata: &KernelMetadata, actual_ops_per_sec: u64) -> SLOResult {
+    pub fn validate_throughput(
+        &self,
+        metadata: &KernelMetadata,
+        actual_ops_per_sec: u64,
+    ) -> SLOResult {
         let target = self
             .overrides
             .get(&metadata.id)

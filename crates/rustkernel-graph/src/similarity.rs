@@ -6,11 +6,7 @@
 //! - Adamic-Adar index (weighted common neighbors)
 
 use crate::types::{CsrGraph, SimilarityScore};
-use rustkernel_core::{
-    domain::Domain,
-    kernel::KernelMetadata,
-    traits::GpuKernel,
-};
+use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::HashSet;
 
 // ============================================================================
@@ -86,7 +82,11 @@ impl JaccardSimilarity {
         }
 
         // Sort by similarity descending
-        results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.similarity
+                .partial_cmp(&a.similarity)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results
     }
 
@@ -175,7 +175,11 @@ impl CosineSimilarity {
             }
         }
 
-        results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.similarity
+                .partial_cmp(&a.similarity)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results
     }
 }
@@ -227,11 +231,7 @@ impl AdamicAdarIndex {
         common_neighbors
             .map(|&z| {
                 let degree = graph.out_degree(z) as f64;
-                if degree > 1.0 {
-                    1.0 / degree.ln()
-                } else {
-                    0.0
-                }
+                if degree > 1.0 { 1.0 / degree.ln() } else { 0.0 }
             })
             .sum()
     }
@@ -263,7 +263,11 @@ impl AdamicAdarIndex {
             }
         }
 
-        results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.similarity
+                .partial_cmp(&a.similarity)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results
     }
 
@@ -344,7 +348,11 @@ impl CommonNeighbors {
             }
         }
 
-        results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.similarity
+                .partial_cmp(&a.similarity)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results
     }
 }
@@ -370,11 +378,25 @@ mod tests {
         //     0 -- 1 -- 2
         //     |    |    |
         //     3 -- 4 -- 5
-        CsrGraph::from_edges(6, &[
-            (0, 1), (1, 0), (1, 2), (2, 1),
-            (0, 3), (3, 0), (1, 4), (4, 1), (2, 5), (5, 2),
-            (3, 4), (4, 3), (4, 5), (5, 4),
-        ])
+        CsrGraph::from_edges(
+            6,
+            &[
+                (0, 1),
+                (1, 0),
+                (1, 2),
+                (2, 1),
+                (0, 3),
+                (3, 0),
+                (1, 4),
+                (4, 1),
+                (2, 5),
+                (5, 2),
+                (3, 4),
+                (4, 3),
+                (4, 5),
+                (5, 4),
+            ],
+        )
     }
 
     #[test]
@@ -392,7 +414,11 @@ mod tests {
         // Intersection = {1}, Union = {1, 3, 5}
         // Jaccard = 1/3
         let sim = JaccardSimilarity::compute_pair(&graph, 0, 2);
-        assert!((sim - 1.0 / 3.0).abs() < 0.01, "Expected ~0.33, got {}", sim);
+        assert!(
+            (sim - 1.0 / 3.0).abs() < 0.01,
+            "Expected ~0.33, got {}",
+            sim
+        );
 
         // Self-comparison: identical neighbor sets should give 1.0 if same node
         // But for different nodes with identical neighbors, it's 1.0

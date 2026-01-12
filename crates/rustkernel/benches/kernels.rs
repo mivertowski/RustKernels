@@ -2,7 +2,7 @@
 //!
 //! Run with: `cargo bench --package rustkernel`
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -12,11 +12,11 @@ use std::collections::HashMap;
 #[cfg(feature = "graph")]
 mod graph_benches {
     use super::*;
+    use rustkernel::core::traits::GpuKernel;
     use rustkernel::graph::{
         centrality::PageRank,
         types::{GraphEdge, GraphNode, PageRankConfig},
     };
-    use rustkernel::core::traits::GpuKernel;
 
     fn create_test_graph(node_count: usize, edge_density: f64) -> (Vec<GraphNode>, Vec<GraphEdge>) {
         let nodes: Vec<GraphNode> = (0..node_count)
@@ -69,11 +69,11 @@ mod graph_benches {
 #[cfg(feature = "ml")]
 mod ml_benches {
     use super::*;
+    use rustkernel::core::traits::GpuKernel;
     use rustkernel::ml::{
         clustering::KMeans,
         types::{DataPoint, KMeansConfig, KMeansInit},
     };
-    use rustkernel::core::traits::GpuKernel;
 
     fn create_test_data(point_count: usize, dimensions: usize) -> Vec<DataPoint> {
         (0..point_count)
@@ -170,11 +170,11 @@ mod compliance_benches {
 #[cfg(feature = "risk")]
 mod risk_benches {
     use super::*;
+    use rustkernel::core::traits::GpuKernel;
     use rustkernel::risk::{
         market::MonteCarloVaR,
         types::{ConfidenceLevel, Portfolio, Position, VaRConfig, VaRMethod},
     };
-    use rustkernel::core::traits::GpuKernel;
 
     fn create_test_portfolio(position_count: usize) -> Portfolio {
         Portfolio {
@@ -226,11 +226,11 @@ mod risk_benches {
 #[cfg(feature = "temporal")]
 mod temporal_benches {
     use super::*;
+    use rustkernel::core::traits::GpuKernel;
     use rustkernel::temporal::{
         forecasting::ARIMAForecast,
         types::{ARIMAConfig, ForecastHorizon, TimeSeries},
     };
-    use rustkernel::core::traits::GpuKernel;
 
     fn create_test_time_series(length: usize) -> TimeSeries {
         TimeSeries {

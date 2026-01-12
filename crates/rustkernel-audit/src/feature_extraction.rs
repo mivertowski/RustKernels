@@ -38,10 +38,7 @@ impl FeatureExtraction {
     }
 
     /// Extract features from audit records.
-    pub fn extract(
-        records: &[AuditRecord],
-        config: &FeatureConfig,
-    ) -> FeatureExtractionResult {
+    pub fn extract(records: &[AuditRecord], config: &FeatureConfig) -> FeatureExtractionResult {
         // Group records by entity
         let mut entity_records: HashMap<String, Vec<&AuditRecord>> = HashMap::new();
         for record in records {
@@ -130,16 +127,12 @@ impl FeatureExtraction {
         names.push("total_count".to_string());
 
         // Total amount
-        let total_amount: f64 = records.iter()
-            .filter_map(|r| r.amount)
-            .sum();
+        let total_amount: f64 = records.iter().filter_map(|r| r.amount).sum();
         features.push(total_amount);
         names.push("total_amount".to_string());
 
         // Average amount
-        let amounts: Vec<f64> = records.iter()
-            .filter_map(|r| r.amount)
-            .collect();
+        let amounts: Vec<f64> = records.iter().filter_map(|r| r.amount).collect();
         let avg_amount = if !amounts.is_empty() {
             total_amount / amounts.len() as f64
         } else {
@@ -189,14 +182,17 @@ impl FeatureExtraction {
         let mut names = Vec::new();
 
         if records.is_empty() {
-            return (vec![0.0; 6], vec![
-                "time_span_days".to_string(),
-                "avg_interval_hours".to_string(),
-                "activity_ratio".to_string(),
-                "weekend_ratio".to_string(),
-                "month_end_ratio".to_string(),
-                "off_hours_ratio".to_string(),
-            ]);
+            return (
+                vec![0.0; 6],
+                vec![
+                    "time_span_days".to_string(),
+                    "avg_interval_hours".to_string(),
+                    "activity_ratio".to_string(),
+                    "weekend_ratio".to_string(),
+                    "month_end_ratio".to_string(),
+                    "off_hours_ratio".to_string(),
+                ],
+            );
         }
 
         // Time span
@@ -211,7 +207,8 @@ impl FeatureExtraction {
         let mut sorted_ts = timestamps.clone();
         sorted_ts.sort();
         let avg_interval = if sorted_ts.len() > 1 {
-            let intervals: Vec<f64> = sorted_ts.windows(2)
+            let intervals: Vec<f64> = sorted_ts
+                .windows(2)
                 .map(|w| (w[1] - w[0]) as f64 / 3600.0)
                 .collect();
             intervals.iter().sum::<f64>() / intervals.len() as f64
@@ -222,9 +219,7 @@ impl FeatureExtraction {
         names.push("avg_interval_hours".to_string());
 
         // Activity concentration
-        let unique_days: HashSet<u64> = timestamps.iter()
-            .map(|t| t / 86400)
-            .collect();
+        let unique_days: HashSet<u64> = timestamps.iter().map(|t| t / 86400).collect();
         let activity_ratio = if time_span_days > 0.0 {
             unique_days.len() as f64 / time_span_days.max(1.0)
         } else {
@@ -234,17 +229,19 @@ impl FeatureExtraction {
         names.push("activity_ratio".to_string());
 
         // Weekend activity ratio
-        let weekend_count = timestamps.iter()
+        let weekend_count = timestamps
+            .iter()
             .filter(|t| {
                 let day_of_week = (*t / 86400) % 7;
-                day_of_week == 5 || day_of_week == 6  // Simplified weekend check
+                day_of_week == 5 || day_of_week == 6 // Simplified weekend check
             })
             .count();
         features.push(weekend_count as f64 / records.len() as f64);
         names.push("weekend_ratio".to_string());
 
         // Month-end activity ratio (last 5 days of month, simplified)
-        let month_end_count = timestamps.iter()
+        let month_end_count = timestamps
+            .iter()
             .filter(|t| {
                 let day_of_month = ((*t / 86400) % 30) as u32;
                 day_of_month >= 25
@@ -254,10 +251,11 @@ impl FeatureExtraction {
         names.push("month_end_ratio".to_string());
 
         // Off-hours activity (outside 9-17, simplified)
-        let off_hours_count = timestamps.iter()
+        let off_hours_count = timestamps
+            .iter()
             .filter(|t| {
                 let hour = ((*t / 3600) % 24) as u32;
-                hour < 9 || hour >= 17
+                !(9..17).contains(&hour)
             })
             .count();
         features.push(off_hours_count as f64 / records.len() as f64);
@@ -271,17 +269,18 @@ impl FeatureExtraction {
         let mut features = Vec::new();
         let mut names = Vec::new();
 
-        let amounts: Vec<f64> = records.iter()
-            .filter_map(|r| r.amount)
-            .collect();
+        let amounts: Vec<f64> = records.iter().filter_map(|r| r.amount).collect();
 
         if amounts.is_empty() {
-            return (vec![0.0; 4], vec![
-                "amount_skewness".to_string(),
-                "amount_kurtosis".to_string(),
-                "round_number_ratio".to_string(),
-                "category_concentration".to_string(),
-            ]);
+            return (
+                vec![0.0; 4],
+                vec![
+                    "amount_skewness".to_string(),
+                    "amount_kurtosis".to_string(),
+                    "round_number_ratio".to_string(),
+                    "category_concentration".to_string(),
+                ],
+            );
         }
 
         // Skewness
@@ -295,7 +294,8 @@ impl FeatureExtraction {
         names.push("amount_kurtosis".to_string());
 
         // Round number ratio
-        let round_count = amounts.iter()
+        let round_count = amounts
+            .iter()
             .filter(|a| (**a % 100.0).abs() < 0.01 || (**a % 1000.0).abs() < 0.01)
             .count();
         features.push(round_count as f64 / amounts.len() as f64);
@@ -307,7 +307,8 @@ impl FeatureExtraction {
             *category_counts.entry(&record.category).or_insert(0) += 1;
         }
         let total = records.len() as f64;
-        let hhi: f64 = category_counts.values()
+        let hhi: f64 = category_counts
+            .values()
             .map(|c| (*c as f64 / total).powi(2))
             .sum();
         features.push(hhi);
@@ -322,14 +323,16 @@ impl FeatureExtraction {
         let mut names = Vec::new();
 
         // Unique accounts
-        let unique_accounts: HashSet<&str> = records.iter()
+        let unique_accounts: HashSet<&str> = records
+            .iter()
             .filter_map(|r| r.account.as_deref())
             .collect();
         features.push(unique_accounts.len() as f64);
         names.push("unique_accounts".to_string());
 
         // Unique counterparties
-        let unique_counterparties: HashSet<&str> = records.iter()
+        let unique_counterparties: HashSet<&str> = records
+            .iter()
             .filter_map(|r| r.counter_party.as_deref())
             .collect();
         features.push(unique_counterparties.len() as f64);
@@ -344,7 +347,8 @@ impl FeatureExtraction {
         }
         let total_with_cp = cp_counts.values().sum::<usize>() as f64;
         let cp_hhi: f64 = if total_with_cp > 0.0 {
-            cp_counts.values()
+            cp_counts
+                .values()
                 .map(|c| (*c as f64 / total_with_cp).powi(2))
                 .sum()
         } else {
@@ -354,11 +358,9 @@ impl FeatureExtraction {
         names.push("counterparty_concentration".to_string());
 
         // Self-transactions ratio
-        let self_tx_count = records.iter()
-            .filter(|r| {
-                r.account.as_ref() == r.counter_party.as_ref()
-                    && r.account.is_some()
-            })
+        let self_tx_count = records
+            .iter()
+            .filter(|r| r.account.as_ref() == r.counter_party.as_ref() && r.account.is_some())
             .count();
         features.push(self_tx_count as f64 / records.len().max(1) as f64);
         names.push("self_transaction_ratio".to_string());
@@ -409,7 +411,8 @@ impl FeatureExtraction {
 
         FeatureStats {
             entity_count,
-            record_count: entity_features.iter()
+            record_count: entity_features
+                .iter()
                 .map(|ef| ef.features.first().map(|f| *f as usize).unwrap_or(0))
                 .sum(),
             means,
@@ -451,9 +454,7 @@ impl FeatureExtraction {
             return 0.0;
         }
         let mean = values.iter().sum::<f64>() / values.len() as f64;
-        let variance = values.iter()
-            .map(|v| (v - mean).powi(2))
-            .sum::<f64>() / values.len() as f64;
+        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
         variance.sqrt()
     }
 
@@ -468,9 +469,11 @@ impl FeatureExtraction {
             return 0.0;
         }
         let n = values.len() as f64;
-        values.iter()
+        values
+            .iter()
             .map(|v| ((v - mean) / std).powi(3))
-            .sum::<f64>() / n
+            .sum::<f64>()
+            / n
     }
 
     /// Calculate kurtosis.
@@ -484,9 +487,12 @@ impl FeatureExtraction {
             return 0.0;
         }
         let n = values.len() as f64;
-        values.iter()
+        values
+            .iter()
             .map(|v| ((v - mean) / std).powi(4))
-            .sum::<f64>() / n - 3.0  // Excess kurtosis
+            .sum::<f64>()
+            / n
+            - 3.0 // Excess kurtosis
     }
 
     /// Get feature vector for a specific entity.
@@ -494,16 +500,17 @@ impl FeatureExtraction {
         result: &'a FeatureExtractionResult,
         entity_id: &str,
     ) -> Option<&'a EntityFeatureVector> {
-        result.entity_features.iter()
+        result
+            .entity_features
+            .iter()
             .find(|ef| ef.entity_id == entity_id)
     }
 
     /// Get top anomalous entities.
-    pub fn top_anomalies(
-        result: &FeatureExtractionResult,
-        limit: usize,
-    ) -> Vec<(String, f64)> {
-        let mut anomalies: Vec<_> = result.anomaly_scores.iter()
+    pub fn top_anomalies(result: &FeatureExtractionResult, limit: usize) -> Vec<(String, f64)> {
+        let mut anomalies: Vec<_> = result
+            .anomaly_scores
+            .iter()
             .map(|(k, v)| (k.clone(), *v))
             .collect();
         anomalies.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -744,7 +751,9 @@ mod tests {
         let result_all = FeatureExtraction::extract(&records, &config_all);
 
         // All features should have more features
-        assert!(result_all.entity_features[0].features.len()
-            > result_vol.entity_features[0].features.len());
+        assert!(
+            result_all.entity_features[0].features.len()
+                > result_vol.entity_features[0].features.len()
+        );
     }
 }

@@ -6,11 +6,7 @@
 //! - Label propagation (fast approximate community detection)
 
 use crate::types::{CommunityResult, CsrGraph};
-use rustkernel_core::{
-    domain::Domain,
-    kernel::KernelMetadata,
-    traits::GpuKernel,
-};
+use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -51,9 +47,7 @@ impl ModularityScore {
         let two_m = 2.0 * m;
 
         // Precompute degrees
-        let degrees: Vec<f64> = (0..n)
-            .map(|i| graph.out_degree(i as u64) as f64)
-            .collect();
+        let degrees: Vec<f64> = (0..n).map(|i| graph.out_degree(i as u64) as f64).collect();
 
         let mut q = 0.0;
 
@@ -107,8 +101,14 @@ impl ModularityScore {
             }
         }
 
-        let sigma_old = community_degrees.get(&old_community).copied().unwrap_or(0.0);
-        let sigma_new = community_degrees.get(&new_community).copied().unwrap_or(0.0);
+        let sigma_old = community_degrees
+            .get(&old_community)
+            .copied()
+            .unwrap_or(0.0);
+        let sigma_new = community_degrees
+            .get(&new_community)
+            .copied()
+            .unwrap_or(0.0);
 
         // Delta Q = [edges_to_new - sigma_new * ki / 2m] - [edges_to_old - (sigma_old - ki) * ki / 2m]
         let delta = (edges_to_new - sigma_new * ki / two_m)
@@ -227,8 +227,14 @@ impl LouvainCommunity {
                     }
 
                     let sigma_comm = community_degrees.get(&comm).copied().unwrap_or(0.0);
-                    let sigma_current = community_degrees.get(&current_community).copied().unwrap_or(0.0);
-                    let edges_to_current = neighbor_communities.get(&current_community).copied().unwrap_or(0.0);
+                    let sigma_current = community_degrees
+                        .get(&current_community)
+                        .copied()
+                        .unwrap_or(0.0);
+                    let edges_to_current = neighbor_communities
+                        .get(&current_community)
+                        .copied()
+                        .unwrap_or(0.0);
 
                     // Delta Q for moving node from current_community to comm
                     let gain = (edges_to_comm - edges_to_current)
@@ -249,12 +255,20 @@ impl LouvainCommunity {
                     *community_degrees.entry(best_community).or_insert(0.0) += node_degree;
 
                     // Update internal edges
-                    let edges_to_current = neighbor_communities.get(&current_community).copied().unwrap_or(0.0);
+                    let edges_to_current = neighbor_communities
+                        .get(&current_community)
+                        .copied()
+                        .unwrap_or(0.0);
                     if let Some(e) = community_internal_edges.get_mut(&current_community) {
                         *e -= edges_to_current;
                     }
-                    let edges_to_best = neighbor_communities.get(&best_community).copied().unwrap_or(0.0);
-                    *community_internal_edges.entry(best_community).or_insert(0.0) += edges_to_best;
+                    let edges_to_best = neighbor_communities
+                        .get(&best_community)
+                        .copied()
+                        .unwrap_or(0.0);
+                    *community_internal_edges
+                        .entry(best_community)
+                        .or_insert(0.0) += edges_to_best;
 
                     communities[node] = best_community;
                     improved = true;
@@ -360,7 +374,8 @@ impl LabelPropagation {
                 }
 
                 // Find most frequent label
-                if let Some((&best_label, _)) = label_counts.iter().max_by_key(|(_, count)| *count) {
+                if let Some((&best_label, _)) = label_counts.iter().max_by_key(|(_, count)| *count)
+                {
                     if labels[node] != best_label {
                         labels[node] = best_label;
                         changed = true;
@@ -417,14 +432,28 @@ mod tests {
         // Clique 1: nodes 0, 1, 2 (fully connected)
         // Clique 2: nodes 3, 4, 5 (fully connected)
         // Bridge: 2 - 3
-        CsrGraph::from_edges(6, &[
-            // Clique 1
-            (0, 1), (1, 0), (0, 2), (2, 0), (1, 2), (2, 1),
-            // Clique 2
-            (3, 4), (4, 3), (3, 5), (5, 3), (4, 5), (5, 4),
-            // Bridge
-            (2, 3), (3, 2),
-        ])
+        CsrGraph::from_edges(
+            6,
+            &[
+                // Clique 1
+                (0, 1),
+                (1, 0),
+                (0, 2),
+                (2, 0),
+                (1, 2),
+                (2, 1),
+                // Clique 2
+                (3, 4),
+                (4, 3),
+                (3, 5),
+                (5, 3),
+                (4, 5),
+                (5, 4),
+                // Bridge
+                (2, 3),
+                (3, 2),
+            ],
+        )
     }
 
     #[test]
@@ -460,9 +489,18 @@ mod tests {
 
         // Both should produce valid modularity values
         // (The exact comparison depends on algorithm interpretation)
-        assert!(q_single.is_finite(), "Single community modularity should be finite");
-        assert!(q_perfect.is_finite(), "Perfect partition modularity should be finite");
-        assert!(q_perfect > 0.0, "Perfect partition should have positive modularity");
+        assert!(
+            q_single.is_finite(),
+            "Single community modularity should be finite"
+        );
+        assert!(
+            q_perfect.is_finite(),
+            "Perfect partition modularity should be finite"
+        );
+        assert!(
+            q_perfect > 0.0,
+            "Perfect partition should have positive modularity"
+        );
     }
 
     #[test]
@@ -471,7 +509,11 @@ mod tests {
         let result = LouvainCommunity::compute(&graph, 100, 1e-6);
 
         // Should find 2 communities
-        assert_eq!(result.num_communities, 2, "Expected 2 communities, got {}", result.num_communities);
+        assert_eq!(
+            result.num_communities, 2,
+            "Expected 2 communities, got {}",
+            result.num_communities
+        );
 
         // Nodes in same clique should be in same community
         assert_eq!(result.assignments[0], result.assignments[1]);
@@ -495,8 +537,11 @@ mod tests {
         // Note: Label propagation is a heuristic and may merge communities
         // when there are bridge edges between them. The key property we test
         // is that nodes within a clique stay together.
-        assert!(result.num_communities >= 1 && result.num_communities <= 2,
-            "Expected 1-2 communities, got {}", result.num_communities);
+        assert!(
+            result.num_communities >= 1 && result.num_communities <= 2,
+            "Expected 1-2 communities, got {}",
+            result.num_communities
+        );
 
         // Nodes within each clique should be in same community
         assert_eq!(result.assignments[0], result.assignments[1]);

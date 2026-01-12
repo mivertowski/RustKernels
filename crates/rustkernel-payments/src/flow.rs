@@ -68,7 +68,9 @@ impl FlowAnalysis {
         let mut flow_map: HashMap<(String, String), (f64, usize)> = HashMap::new();
 
         for payment in payments {
-            if payment.status == PaymentStatus::Completed || payment.status == PaymentStatus::Processing {
+            if payment.status == PaymentStatus::Completed
+                || payment.status == PaymentStatus::Processing
+            {
                 let key = (payment.payer_account.clone(), payment.payee_account.clone());
                 let entry = flow_map.entry(key).or_insert((0.0, 0));
                 entry.0 += payment.amount;
@@ -149,7 +151,9 @@ impl FlowAnalysis {
     ) -> OverallMetrics {
         let completed: Vec<_> = payments
             .iter()
-            .filter(|p| p.status == PaymentStatus::Completed || p.status == PaymentStatus::Processing)
+            .filter(|p| {
+                p.status == PaymentStatus::Completed || p.status == PaymentStatus::Processing
+            })
             .collect();
 
         let total_volume: f64 = completed.iter().map(|p| p.amount).sum();
@@ -205,7 +209,8 @@ impl FlowAnalysis {
         let mut anomalies = Vec::new();
 
         // Detect unusual volume
-        let avg_volume: f64 = flows.iter().map(|f| f.volume).sum::<f64>() / flows.len().max(1) as f64;
+        let avg_volume: f64 =
+            flows.iter().map(|f| f.volume).sum::<f64>() / flows.len().max(1) as f64;
         let std_volume = Self::calculate_std(&flows.iter().map(|f| f.volume).collect::<Vec<_>>());
 
         for flow in flows {
@@ -224,7 +229,8 @@ impl FlowAnalysis {
         }
 
         // Detect unusual frequency
-        let avg_count: f64 = flows.iter().map(|f| f.count as f64).sum::<f64>() / flows.len().max(1) as f64;
+        let avg_count: f64 =
+            flows.iter().map(|f| f.count as f64).sum::<f64>() / flows.len().max(1) as f64;
         for flow in flows {
             if flow.count as f64 > avg_count * config.frequency_threshold_multiple {
                 anomalies.push(FlowAnomaly {
@@ -262,10 +268,7 @@ impl FlowAnalysis {
         // Build adjacency list
         let mut graph: HashMap<&str, HashSet<&str>> = HashMap::new();
         for flow in flows {
-            graph
-                .entry(&flow.source)
-                .or_default()
-                .insert(&flow.target);
+            graph.entry(&flow.source).or_default().insert(&flow.target);
         }
 
         // Check for direct cycles (A->B->A)
@@ -292,7 +295,7 @@ impl FlowAnalysis {
             let key = if a.entity.contains("<->") {
                 let parts: Vec<&str> = a.entity.split("<->").collect();
                 if parts.len() == 2 {
-                    let mut sorted = vec![parts[0], parts[1]];
+                    let mut sorted = [parts[0], parts[1]];
                     sorted.sort();
                     format!("{}<->{}", sorted[0], sorted[1])
                 } else {
@@ -308,9 +311,7 @@ impl FlowAnalysis {
     }
 
     /// Detect rapid money movement.
-    fn detect_rapid_movement(
-        node_metrics: &HashMap<String, NodeMetrics>,
-    ) -> Vec<FlowAnomaly> {
+    fn detect_rapid_movement(node_metrics: &HashMap<String, NodeMetrics>) -> Vec<FlowAnomaly> {
         let mut anomalies = Vec::new();
 
         // Find accounts that are pass-through (high inflow and outflow, low net)
@@ -321,7 +322,10 @@ impl FlowAnalysis {
                     metrics.total_inflow.min(metrics.total_outflow) / (total_flow / 2.0);
 
                 // If >80% of money flows through (in ~= out), it's suspicious
-                if pass_through_ratio > 0.8 && metrics.inbound_count >= 2 && metrics.outbound_count >= 2 {
+                if pass_through_ratio > 0.8
+                    && metrics.inbound_count >= 2
+                    && metrics.outbound_count >= 2
+                {
                     anomalies.push(FlowAnomaly {
                         anomaly_type: FlowAnomalyType::RapidMovement,
                         entity: node_id.clone(),
@@ -354,7 +358,11 @@ impl FlowAnalysis {
     /// Get top flows by volume.
     pub fn top_flows_by_volume(payments: &[Payment], limit: usize) -> Vec<PaymentFlow> {
         let mut flows = Self::build_flows(payments);
-        flows.sort_by(|a, b| b.volume.partial_cmp(&a.volume).unwrap_or(std::cmp::Ordering::Equal));
+        flows.sort_by(|a, b| {
+            b.volume
+                .partial_cmp(&a.volume)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         flows.truncate(limit);
         flows
     }
@@ -387,7 +395,9 @@ impl FlowAnalysis {
         // Payment type breakdown
         let mut type_breakdown: HashMap<PaymentType, (usize, f64)> = HashMap::new();
         for payment in inbound.iter().chain(outbound.iter()) {
-            let entry = type_breakdown.entry(payment.payment_type).or_insert((0, 0.0));
+            let entry = type_breakdown
+                .entry(payment.payment_type)
+                .or_insert((0, 0.0));
             entry.0 += 1;
             entry.1 += payment.amount;
         }
@@ -518,7 +528,10 @@ mod tests {
 
         assert_eq!(flows.len(), 4); // A->B, B->C, C->A, A->C
 
-        let ab_flow = flows.iter().find(|f| f.source == "A" && f.target == "B").unwrap();
+        let ab_flow = flows
+            .iter()
+            .find(|f| f.source == "A" && f.target == "B")
+            .unwrap();
         assert_eq!(ab_flow.volume, 1500.0);
         assert_eq!(ab_flow.count, 2);
         assert_eq!(ab_flow.avg_amount, 750.0);
@@ -683,8 +696,16 @@ mod tests {
         let analysis = FlowAnalysis::analyze_account(&payments, "A");
 
         // A has 2 ACH outbound and 1 Wire inbound
-        assert!(analysis.payment_type_breakdown.contains_key(&PaymentType::ACH));
-        assert!(analysis.payment_type_breakdown.contains_key(&PaymentType::Wire));
+        assert!(
+            analysis
+                .payment_type_breakdown
+                .contains_key(&PaymentType::ACH)
+        );
+        assert!(
+            analysis
+                .payment_type_breakdown
+                .contains_key(&PaymentType::Wire)
+        );
         assert_eq!(analysis.payment_type_breakdown[&PaymentType::ACH].0, 2);
     }
 

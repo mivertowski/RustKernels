@@ -5,9 +5,7 @@
 //! - Reduce gross obligations to net obligations
 //! - Calculate netting efficiency
 
-use crate::types::{
-    NetPosition, NettingConfig, NettingResult, PartySummary, Trade, TradeStatus,
-};
+use crate::types::{NetPosition, NettingConfig, NettingResult, PartySummary, Trade, TradeStatus};
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::HashMap;
 
@@ -70,23 +68,39 @@ impl NettingCalculation {
                 key.push_str(&format!(":{}", trade.settlement_date));
             }
             if config.net_by_currency {
-                // Assume USD for now, could be extracted from trade attributes
-                key.push_str(":USD");
+                // Extract currency from trade attributes, default to USD
+                let currency = trade
+                    .attributes
+                    .get("currency")
+                    .map(|s| s.as_str())
+                    .unwrap_or("USD");
+                key.push_str(&format!(":{}", currency));
             }
             key
+        };
+
+        // Helper to extract currency from trade
+        let get_currency = |trade: &Trade| -> String {
+            trade
+                .attributes
+                .get("currency")
+                .cloned()
+                .unwrap_or_else(|| "USD".to_string())
         };
 
         // Calculate net positions
         let mut positions_map: HashMap<String, NetPositionBuilder> = HashMap::new();
 
         for trade in &eligible_trades {
+            let currency = get_currency(trade);
+
             // Buyer receives securities, pays money
             let buyer_key = get_key(trade, &trade.buyer_id);
             let buyer_pos = positions_map.entry(buyer_key).or_insert_with(|| {
                 NetPositionBuilder::new(
                     trade.buyer_id.clone(),
                     trade.security_id.clone(),
-                    "USD".to_string(),
+                    currency.clone(),
                 )
             });
             buyer_pos.add_receive(trade.quantity, trade.value(), trade.id);
@@ -97,7 +111,7 @@ impl NettingCalculation {
                 NetPositionBuilder::new(
                     trade.seller_id.clone(),
                     trade.security_id.clone(),
-                    "USD".to_string(),
+                    currency,
                 )
             });
             seller_pos.add_deliver(trade.quantity, trade.value(), trade.id);
@@ -194,15 +208,16 @@ impl NettingCalculation {
         let mut stats: HashMap<String, SecurityNettingStats> = HashMap::new();
 
         for pos in &result.positions {
-            let stat = stats.entry(pos.security_id.clone()).or_insert_with(|| {
-                SecurityNettingStats {
-                    security_id: pos.security_id.clone(),
-                    total_net_positions: 0,
-                    total_trades: 0,
-                    net_quantity: 0,
-                    gross_volume: 0,
-                }
-            });
+            let stat =
+                stats
+                    .entry(pos.security_id.clone())
+                    .or_insert_with(|| SecurityNettingStats {
+                        security_id: pos.security_id.clone(),
+                        total_net_positions: 0,
+                        total_trades: 0,
+                        net_quantity: 0,
+                        gross_volume: 0,
+                    });
 
             stat.total_net_positions += 1;
             stat.total_trades += pos.trade_ids.len() as u64;
@@ -310,10 +325,46 @@ mod tests {
 
     fn create_test_trades() -> Vec<Trade> {
         vec![
-            Trade::new(1, "AAPL".to_string(), "A".to_string(), "B".to_string(), 100, 150, 1700000000, 1700172800),
-            Trade::new(2, "AAPL".to_string(), "B".to_string(), "A".to_string(), 50, 151, 1700000100, 1700172800),
-            Trade::new(3, "AAPL".to_string(), "A".to_string(), "C".to_string(), 30, 149, 1700000200, 1700172800),
-            Trade::new(4, "MSFT".to_string(), "A".to_string(), "B".to_string(), 200, 300, 1700000300, 1700172800),
+            Trade::new(
+                1,
+                "AAPL".to_string(),
+                "A".to_string(),
+                "B".to_string(),
+                100,
+                150,
+                1700000000,
+                1700172800,
+            ),
+            Trade::new(
+                2,
+                "AAPL".to_string(),
+                "B".to_string(),
+                "A".to_string(),
+                50,
+                151,
+                1700000100,
+                1700172800,
+            ),
+            Trade::new(
+                3,
+                "AAPL".to_string(),
+                "A".to_string(),
+                "C".to_string(),
+                30,
+                149,
+                1700000200,
+                1700172800,
+            ),
+            Trade::new(
+                4,
+                "MSFT".to_string(),
+                "A".to_string(),
+                "B".to_string(),
+                200,
+                300,
+                1700000300,
+                1700172800,
+            ),
         ]
     }
 
@@ -339,8 +390,26 @@ mod tests {
     #[test]
     fn test_net_positions() {
         let trades = vec![
-            Trade::new(1, "AAPL".to_string(), "A".to_string(), "B".to_string(), 100, 150, 1700000000, 1700172800),
-            Trade::new(2, "AAPL".to_string(), "B".to_string(), "A".to_string(), 100, 150, 1700000100, 1700172800),
+            Trade::new(
+                1,
+                "AAPL".to_string(),
+                "A".to_string(),
+                "B".to_string(),
+                100,
+                150,
+                1700000000,
+                1700172800,
+            ),
+            Trade::new(
+                2,
+                "AAPL".to_string(),
+                "B".to_string(),
+                "A".to_string(),
+                100,
+                150,
+                1700000100,
+                1700172800,
+            ),
         ];
         let config = NettingConfig::default();
 
@@ -374,10 +443,46 @@ mod tests {
     fn test_netting_efficiency() {
         // Create trades that will net down significantly
         let trades = vec![
-            Trade::new(1, "AAPL".to_string(), "A".to_string(), "B".to_string(), 100, 150, 1700000000, 1700172800),
-            Trade::new(2, "AAPL".to_string(), "B".to_string(), "A".to_string(), 100, 150, 1700000100, 1700172800),
-            Trade::new(3, "AAPL".to_string(), "A".to_string(), "B".to_string(), 100, 150, 1700000200, 1700172800),
-            Trade::new(4, "AAPL".to_string(), "B".to_string(), "A".to_string(), 100, 150, 1700000300, 1700172800),
+            Trade::new(
+                1,
+                "AAPL".to_string(),
+                "A".to_string(),
+                "B".to_string(),
+                100,
+                150,
+                1700000000,
+                1700172800,
+            ),
+            Trade::new(
+                2,
+                "AAPL".to_string(),
+                "B".to_string(),
+                "A".to_string(),
+                100,
+                150,
+                1700000100,
+                1700172800,
+            ),
+            Trade::new(
+                3,
+                "AAPL".to_string(),
+                "A".to_string(),
+                "B".to_string(),
+                100,
+                150,
+                1700000200,
+                1700172800,
+            ),
+            Trade::new(
+                4,
+                "AAPL".to_string(),
+                "B".to_string(),
+                "A".to_string(),
+                100,
+                150,
+                1700000300,
+                1700172800,
+            ),
         ];
         let config = NettingConfig::default();
 

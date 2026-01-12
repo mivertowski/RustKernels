@@ -221,22 +221,73 @@ impl FXHedging {
         let spot = rate.map(|r| r.rate).unwrap_or(1.0);
         let volatility = config.implied_volatility;
         let days = config.hedge_horizon_days as f64;
-
-        // Simplified Black-Scholes approximation
         let time = days / 365.0;
-        let atm_premium = spot * volatility * time.sqrt() * 0.4; // Approximation
 
-        // OTM strike for cheaper premium
+        // OTM strike based on configuration
         let strike = if is_call {
             spot * (1.0 + config.option_otm_offset)
         } else {
             spot * (1.0 - config.option_otm_offset)
         };
 
-        let moneyness_adj = ((spot / strike).ln().abs() / (volatility * time.sqrt())).exp();
-        let premium = notional * atm_premium / moneyness_adj;
+        // Full Black-Scholes formula
+        // Assuming risk-free rate of 2% for FX options
+        let r = 0.02;
+        let premium =
+            Self::black_scholes(spot, strike, time, r, volatility, is_call) * notional / spot;
 
         (premium, strike)
+    }
+
+    /// Black-Scholes option pricing formula.
+    ///
+    /// # Arguments
+    /// * `spot` - Current spot price
+    /// * `strike` - Strike price
+    /// * `time` - Time to expiration in years
+    /// * `rate` - Risk-free interest rate
+    /// * `vol` - Implied volatility
+    /// * `is_call` - True for call, false for put
+    fn black_scholes(spot: f64, strike: f64, time: f64, rate: f64, vol: f64, is_call: bool) -> f64 {
+        if time <= 0.0 || vol <= 0.0 {
+            // Expired or invalid - return intrinsic value
+            return if is_call {
+                (spot - strike).max(0.0)
+            } else {
+                (strike - spot).max(0.0)
+            };
+        }
+
+        let sqrt_t = time.sqrt();
+        let d1 = ((spot / strike).ln() + (rate + vol * vol / 2.0) * time) / (vol * sqrt_t);
+        let d2 = d1 - vol * sqrt_t;
+
+        let discount = (-rate * time).exp();
+
+        if is_call {
+            spot * Self::norm_cdf(d1) - strike * discount * Self::norm_cdf(d2)
+        } else {
+            strike * discount * Self::norm_cdf(-d2) - spot * Self::norm_cdf(-d1)
+        }
+    }
+
+    /// Standard normal CDF approximation (Abramowitz and Stegun).
+    fn norm_cdf(x: f64) -> f64 {
+        let a1 = 0.254829592;
+        let a2 = -0.284496736;
+        let a3 = 1.421413741;
+        let a4 = -1.453152027;
+        let a5 = 1.061405429;
+        let p = 0.3275911;
+
+        let sign = if x < 0.0 { -1.0 } else { 1.0 };
+        let x_abs = x.abs();
+
+        let t = 1.0 / (1.0 + p * x_abs);
+        let y = 1.0
+            - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * (-x_abs * x_abs / 2.0).exp();
+
+        0.5 * (1.0 + sign * y)
     }
 
     /// Calculate collar cost.
@@ -245,7 +296,7 @@ impl FXHedging {
         rate: Option<&&FXRate>,
         config: &HedgingConfig,
     ) -> (f64, f64) {
-        let spot = rate.map(|r| r.rate).unwrap_or(1.0);
+        let _spot = rate.map(|r| r.rate).unwrap_or(1.0);
 
         // Zero-cost collar approximation
         // Buy put, sell call at symmetric strikes
@@ -258,7 +309,12 @@ impl FXHedging {
         (net_cost, put_strike)
     }
 
-    /// Estimate VaR reduction from hedging.
+    /// Estimate VaR reduction from hedging using delta-gamma VaR model.
+    ///
+    /// This calculates VaR reduction considering:
+    /// - Linear hedge delta for forwards
+    /// - Option delta for option hedges
+    /// - Gamma effects for large moves
     fn estimate_var_reduction(
         hedges: &[FXHedge],
         exposures: &[CurrencyExposure],
@@ -268,27 +324,78 @@ impl FXHedging {
             return 0.0;
         }
 
-        // Simplified VaR model: VaR = exposure * volatility * confidence_factor
-        let confidence_factor = 1.645; // 95% confidence
+        let confidence_factor = 1.645; // 95% confidence (z-score)
         let days = config.hedge_horizon_days as f64;
+        let time = days / 365.0;
         let volatility = config.implied_volatility;
+        let sqrt_time = (days / 252.0).sqrt();
 
+        // Calculate unhedged VaR
         let unhedged_var: f64 = exposures
             .iter()
-            .map(|e| e.base_equivalent.abs() * volatility * (days / 252.0).sqrt() * confidence_factor)
+            .map(|e| e.base_equivalent.abs() * volatility * sqrt_time * confidence_factor)
             .sum();
 
-        let hedged_exposure: f64 = hedges.iter().map(|h| h.notional).sum();
+        // Calculate delta-equivalent hedge coverage
+        let mut total_hedge_delta = 0.0;
+
+        for hedge in hedges {
+            use crate::types::HedgeType;
+            let delta = match hedge.hedge_type {
+                HedgeType::Forward | HedgeType::Swap => 1.0, // Forward/swap has delta = 1
+                HedgeType::Call => {
+                    // Call option delta using N(d1)
+                    let d1 =
+                        (0.02 + volatility * volatility / 2.0) * time / (volatility * time.sqrt());
+                    Self::norm_cdf(d1)
+                }
+                HedgeType::Put => {
+                    // Put option delta = N(d1) - 1
+                    let d1 =
+                        (0.02 + volatility * volatility / 2.0) * time / (volatility * time.sqrt());
+                    Self::norm_cdf(d1) - 1.0
+                }
+                HedgeType::Collar => {
+                    // Collar has partial delta (long put + short call effectively)
+                    // Net delta depends on strikes but typically 0.5-0.8
+                    0.7
+                }
+            };
+            total_hedge_delta += hedge.notional * delta.abs();
+        }
+
         let total_exposure: f64 = exposures.iter().map(|e| e.net_position.abs()).sum();
 
+        // Calculate hedge effectiveness using delta
         let hedge_effectiveness = if total_exposure > 0.0 {
-            hedged_exposure / total_exposure
+            (total_hedge_delta / total_exposure).min(1.0)
         } else {
             0.0
         };
 
-        // VaR reduction proportional to hedge effectiveness
-        unhedged_var * hedge_effectiveness * 0.95 // 95% hedge effectiveness
+        // Include gamma adjustment for options (reduces VaR benefit for large moves)
+        let has_options = hedges.iter().any(|h| {
+            use crate::types::HedgeType;
+            matches!(
+                h.hedge_type,
+                HedgeType::Put | HedgeType::Call | HedgeType::Collar
+            )
+        });
+        let gamma_adjustment = if has_options {
+            // Gamma reduces hedge effectiveness for larger moves
+            // At 95% confidence, expected move is ~1.645 std devs
+            // Gamma effect reduces delta linearly with move size
+            let expected_move = confidence_factor * volatility * sqrt_time;
+            1.0 - expected_move * 0.3 // Approximate gamma decay
+        } else {
+            1.0
+        };
+
+        // Basis risk adjustment (hedges may not perfectly track exposure)
+        let basis_risk_factor = 0.95;
+
+        // Final VaR reduction
+        unhedged_var * hedge_effectiveness * gamma_adjustment * basis_risk_factor
     }
 
     /// Calculate net exposure after hedges.
@@ -482,7 +589,12 @@ mod tests {
         assert!(result.total_cost > 0.0);
 
         // All hedges should be forwards
-        assert!(result.hedges.iter().all(|h| h.hedge_type == HedgeType::Forward));
+        assert!(
+            result
+                .hedges
+                .iter()
+                .all(|h| h.hedge_type == HedgeType::Forward)
+        );
     }
 
     #[test]
@@ -502,7 +614,10 @@ mod tests {
         assert!(!result.hedges.is_empty());
 
         // Should have put options for long exposures
-        let eur_hedge = result.hedges.iter().find(|h| h.currency_pair.starts_with("EUR"));
+        let eur_hedge = result
+            .hedges
+            .iter()
+            .find(|h| h.currency_pair.starts_with("EUR"));
         assert!(eur_hedge.is_some());
         assert_eq!(eur_hedge.unwrap().hedge_type, HedgeType::Put);
     }
@@ -603,7 +718,12 @@ mod tests {
         let result = FXHedging::recommend_hedges(&exposures, &rates, &config);
 
         // Should have collar hedges
-        assert!(result.hedges.iter().all(|h| h.hedge_type == HedgeType::Collar));
+        assert!(
+            result
+                .hedges
+                .iter()
+                .all(|h| h.hedge_type == HedgeType::Collar)
+        );
 
         // Collar cost should typically be low (zero-cost structure)
         assert!(result.total_cost < result.hedges.iter().map(|h| h.notional * 0.05).sum::<f64>());

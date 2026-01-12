@@ -46,8 +46,41 @@ pub use types::{
 
 /// Register all process intelligence kernels with a registry.
 pub fn register_all(
-    _registry: &rustkernel_core::registry::KernelRegistry,
+    registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
+    use rustkernel_core::traits::GpuKernel;
+
     tracing::info!("Registering process intelligence kernels");
+
+    // DFG kernel (1)
+    registry.register_metadata(dfg::DFGConstruction::new().metadata().clone())?;
+
+    // Partial order kernel (1)
+    registry.register_metadata(
+        partial_order::PartialOrderAnalysis::new()
+            .metadata()
+            .clone(),
+    )?;
+
+    // Conformance kernel (1)
+    registry.register_metadata(conformance::ConformanceChecking::new().metadata().clone())?;
+
+    // OCPM kernel (1)
+    registry.register_metadata(ocpm::OCPMPatternMatching::new().metadata().clone())?;
+
+    tracing::info!("Registered 4 process intelligence kernels");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustkernel_core::registry::KernelRegistry;
+
+    #[test]
+    fn test_register_all() {
+        let registry = KernelRegistry::new();
+        register_all(&registry).expect("Failed to register procint kernels");
+        assert_eq!(registry.total_count(), 4);
+    }
 }

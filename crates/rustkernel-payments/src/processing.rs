@@ -211,12 +211,55 @@ impl PaymentProcessing {
             return true;
         }
 
-        // Check processing hours (simplified)
-        config.process_outside_hours
+        // If process_outside_hours is true, always allow processing
+        if config.process_outside_hours {
+            return true;
+        }
+
+        // Get current time - use payment submission timestamp if available,
+        // otherwise use current system time
+        let timestamp = payment
+            .attributes
+            .get("submission_time")
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or_else(|| {
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0)
+            });
+
+        // Extract hour and day of week from timestamp
+        // UTC-based calculation, adjusted by timezone offset if configured
+        let adjusted_timestamp = timestamp as i64 + config.timezone_offset_seconds;
+        let seconds_in_day = 86400i64;
+        let seconds_since_epoch_start = adjusted_timestamp;
+
+        // Unix epoch (1970-01-01) was a Thursday (day 4)
+        // Calculate day of week (0 = Sunday, 6 = Saturday)
+        let days_since_epoch = seconds_since_epoch_start / seconds_in_day;
+        let day_of_week = ((days_since_epoch + 4) % 7) as u8;
+
+        // Calculate hour of day (0-23)
+        let seconds_into_day = (seconds_since_epoch_start % seconds_in_day) as u32;
+        let hour = (seconds_into_day / 3600) as u8;
+
+        // Check if it's a weekday (Monday=1 through Friday=5)
+        let is_weekday = (1..=5).contains(&day_of_week);
+
+        // Check if within business hours
+        let is_business_hours =
+            hour >= config.business_hours_start && hour < config.business_hours_end;
+
+        // Must be a weekday within business hours
+        is_weekday && is_business_hours
     }
 
     /// Run fraud checks on a payment.
-    fn fraud_check(payment: &Payment, config: &ProcessingConfig) -> std::result::Result<(), String> {
+    fn fraud_check(
+        payment: &Payment,
+        config: &ProcessingConfig,
+    ) -> std::result::Result<(), String> {
         // Check velocity limits
         if let Some(velocity_limit) = config.velocity_limit {
             // In a real implementation, this would check recent transaction count
@@ -281,15 +324,22 @@ impl PaymentProcessing {
     pub fn get_routing(payment: &Payment) -> PaymentRouting {
         let (rail, estimated_settlement) = match payment.payment_type {
             PaymentType::RealTime => ("RTP".to_string(), 0),
-            PaymentType::Wire => ("FEDWIRE".to_string(), if payment.priority >= PaymentPriority::High { 0 } else { 1 }),
+            PaymentType::Wire => (
+                "FEDWIRE".to_string(),
+                if payment.priority >= PaymentPriority::High {
+                    0
+                } else {
+                    1
+                },
+            ),
             PaymentType::ACH => ("ACH".to_string(), 2),
             PaymentType::Internal => ("INTERNAL".to_string(), 0),
             PaymentType::Check => ("CHECK".to_string(), 5),
             PaymentType::Card => ("CARD_NETWORK".to_string(), 1),
         };
 
-        let requires_approval = payment.amount > 10000.0
-            || payment.priority >= PaymentPriority::Urgent;
+        let requires_approval =
+            payment.amount > 10000.0 || payment.priority >= PaymentPriority::Urgent;
 
         PaymentRouting {
             payment_id: payment.id.clone(),
@@ -390,6 +440,12 @@ pub struct ProcessingConfig {
     pub process_outside_hours: bool,
     /// Batch mode (queue non-urgent payments).
     pub batch_mode: bool,
+    /// Business hours start (hour of day, 0-23).
+    pub business_hours_start: u8,
+    /// Business hours end (hour of day, 0-23).
+    pub business_hours_end: u8,
+    /// Timezone offset in seconds from UTC (e.g., -18000 for EST/UTC-5).
+    pub timezone_offset_seconds: i64,
 }
 
 impl Default for ProcessingConfig {
@@ -410,6 +466,9 @@ impl Default for ProcessingConfig {
             large_payment_threshold: Some(50_000.0),
             process_outside_hours: true,
             batch_mode: false,
+            business_hours_start: 9,    // 9 AM
+            business_hours_end: 17,     // 5 PM
+            timezone_offset_seconds: 0, // UTC by default
         }
     }
 }
@@ -521,9 +580,12 @@ mod tests {
         let result = PaymentProcessing::process_payments(&payments, &accounts, &config);
 
         assert_eq!(result.stats.failed_count, 1);
-        assert!(result.failed.iter().any(|(id, reason)| {
-            id == "P001" && reason.contains("Insufficient funds")
-        }));
+        assert!(
+            result
+                .failed
+                .iter()
+                .any(|(id, reason)| { id == "P001" && reason.contains("Insufficient funds") })
+        );
     }
 
     #[test]
@@ -535,9 +597,12 @@ mod tests {
         let result = PaymentProcessing::process_payments(&payments, &accounts, &config);
 
         assert_eq!(result.stats.failed_count, 1);
-        assert!(result.failed.iter().any(|(id, reason)| {
-            id == "P001" && reason.contains("not active")
-        }));
+        assert!(
+            result
+                .failed
+                .iter()
+                .any(|(id, reason)| { id == "P001" && reason.contains("not active") })
+        );
     }
 
     #[test]
@@ -553,9 +618,12 @@ mod tests {
         let result = PaymentProcessing::process_payments(&payments, &accounts, &config);
 
         assert_eq!(result.stats.failed_count, 1);
-        assert!(result.failed.iter().any(|(id, reason)| {
-            id == "P001" && reason.contains("Daily limit")
-        }));
+        assert!(
+            result
+                .failed
+                .iter()
+                .any(|(id, reason)| { id == "P001" && reason.contains("Daily limit") })
+        );
     }
 
     #[test]
@@ -567,9 +635,12 @@ mod tests {
         let result = PaymentProcessing::process_payments(&payments, &accounts, &config);
 
         assert_eq!(result.stats.failed_count, 1);
-        assert!(result.failed.iter().any(|(_, reason)| {
-            reason.contains("not found")
-        }));
+        assert!(
+            result
+                .failed
+                .iter()
+                .any(|(_, reason)| { reason.contains("not found") })
+        );
     }
 
     #[test]
@@ -691,9 +762,12 @@ mod tests {
         let result = PaymentProcessing::process_payments(&payments, &accounts, &config);
 
         assert_eq!(result.stats.failed_count, 1);
-        assert!(result.failed.iter().any(|(_, reason)| {
-            reason.contains("manual review")
-        }));
+        assert!(
+            result
+                .failed
+                .iter()
+                .any(|(_, reason)| { reason.contains("manual review") })
+        );
     }
 
     #[test]
@@ -709,9 +783,12 @@ mod tests {
         let result = PaymentProcessing::process_payments(&payments, &accounts, &config);
 
         assert_eq!(result.stats.failed_count, 1);
-        assert!(result.failed.iter().any(|(_, reason)| {
-            reason.contains("not enabled")
-        }));
+        assert!(
+            result
+                .failed
+                .iter()
+                .any(|(_, reason)| { reason.contains("not enabled") })
+        );
     }
 
     #[test]
@@ -724,11 +801,21 @@ mod tests {
         // Test below minimum
         let p1 = create_test_payment("P001", "ACC001", "ACC002", 5.0);
         let result = PaymentProcessing::process_payments(&[p1], &accounts, &config);
-        assert!(result.failed.iter().any(|(_, r)| r.contains("below minimum")));
+        assert!(
+            result
+                .failed
+                .iter()
+                .any(|(_, r)| r.contains("below minimum"))
+        );
 
         // Test above maximum
         let p2 = create_test_payment("P002", "ACC001", "ACC002", 2000.0);
         let result = PaymentProcessing::process_payments(&[p2], &accounts, &config);
-        assert!(result.failed.iter().any(|(_, r)| r.contains("exceeds maximum")));
+        assert!(
+            result
+                .failed
+                .iter()
+                .any(|(_, r)| r.contains("exceeds maximum"))
+        );
     }
 }

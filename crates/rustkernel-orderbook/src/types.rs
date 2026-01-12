@@ -93,10 +93,7 @@ impl Order {
 
     /// Check if order is active.
     pub fn is_active(&self) -> bool {
-        matches!(
-            self.status,
-            OrderStatus::New | OrderStatus::PartiallyFilled
-        )
+        matches!(self.status, OrderStatus::New | OrderStatus::PartiallyFilled)
     }
 }
 
@@ -318,7 +315,13 @@ impl OrderBook {
 
     /// Get depth at N levels.
     pub fn depth_at_levels(&self, n: usize) -> (Quantity, Quantity) {
-        let bid_depth: u64 = self.bids.values().rev().take(n).map(|l| l.total_quantity.0).sum();
+        let bid_depth: u64 = self
+            .bids
+            .values()
+            .rev()
+            .take(n)
+            .map(|l| l.total_quantity.0)
+            .sum();
         let ask_depth: u64 = self.asks.values().take(n).map(|l| l.total_quantity.0).sum();
         (Quantity(bid_depth), Quantity(ask_depth))
     }

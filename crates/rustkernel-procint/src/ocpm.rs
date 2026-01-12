@@ -119,8 +119,16 @@ impl OCPMPatternMatching {
         for ((obj1, obj2), event_ids) in interaction_counts {
             if event_ids.len() >= 2 {
                 // Get object types
-                let type1 = log.objects.get(&obj1).map(|o| o.object_type.as_str()).unwrap_or("unknown");
-                let type2 = log.objects.get(&obj2).map(|o| o.object_type.as_str()).unwrap_or("unknown");
+                let type1 = log
+                    .objects
+                    .get(&obj1)
+                    .map(|o| o.object_type.as_str())
+                    .unwrap_or("unknown");
+                let type2 = log
+                    .objects
+                    .get(&obj2)
+                    .map(|o| o.object_type.as_str())
+                    .unwrap_or("unknown");
 
                 patterns.push(OCPMPatternResult {
                     pattern_name: format!("{}_{}_interaction", type1, type2),
@@ -129,7 +137,9 @@ impl OCPMPatternMatching {
                     score: event_ids.len() as f64 / log.events.len().max(1) as f64,
                     description: format!(
                         "Objects {} and {} interact in {} events",
-                        obj1, obj2, event_ids.len()
+                        obj1,
+                        obj2,
+                        event_ids.len()
                     ),
                 });
             }
@@ -163,7 +173,8 @@ impl OCPMPatternMatching {
                     score: objects.len() as f64 / 10.0, // Normalize by assumed max
                     description: format!(
                         "Convergence point at '{}' with {} objects",
-                        event.activity, objects.len()
+                        event.activity,
+                        objects.len()
                     ),
                 });
             }
@@ -181,7 +192,8 @@ impl OCPMPatternMatching {
 
         for event in &log.events {
             for obj_id in &event.objects {
-                object_first_seen.entry(obj_id.clone())
+                object_first_seen
+                    .entry(obj_id.clone())
                     .or_insert((event.id, event.timestamp));
             }
         }
@@ -190,7 +202,10 @@ impl OCPMPatternMatching {
         let mut spawn_events: HashMap<u64, Vec<String>> = HashMap::new();
 
         for (obj_id, (event_id, _)) in &object_first_seen {
-            spawn_events.entry(*event_id).or_default().push(obj_id.clone());
+            spawn_events
+                .entry(*event_id)
+                .or_default()
+                .push(obj_id.clone());
         }
 
         for (event_id, new_objects) in spawn_events {
@@ -204,7 +219,8 @@ impl OCPMPatternMatching {
                         score: new_objects.len() as f64 / 10.0,
                         description: format!(
                             "Divergence point at '{}' creating {} objects",
-                            event.activity, new_objects.len()
+                            event.activity,
+                            new_objects.len()
                         ),
                     });
                 }
@@ -234,7 +250,9 @@ impl OCPMPatternMatching {
                 }
 
                 // Check if events share any objects
-                let shared: HashSet<_> = event_j.objects.iter()
+                let shared: HashSet<_> = event_j
+                    .objects
+                    .iter()
                     .filter(|o| sync_objects.contains(*o))
                     .cloned()
                     .collect();
@@ -253,7 +271,8 @@ impl OCPMPatternMatching {
                     score: sync_group.len() as f64 / 10.0,
                     description: format!(
                         "Synchronization of {} events within {}ms window",
-                        sync_group.len(), time_window_ms
+                        sync_group.len(),
+                        time_window_ms
                     ),
                 });
             }
@@ -280,7 +299,9 @@ impl OCPMPatternMatching {
         }
 
         for obj in log.objects.values() {
-            *object_type_counts.entry(obj.object_type.clone()).or_insert(0) += 1;
+            *object_type_counts
+                .entry(obj.object_type.clone())
+                .or_insert(0) += 1;
         }
 
         let avg_events_per_object = if !object_event_counts.is_empty() {
@@ -290,13 +311,21 @@ impl OCPMPatternMatching {
         };
 
         let avg_objects_per_activity = if !activity_object_counts.is_empty() {
-            activity_object_counts.values().map(|s| s.len() as f64).sum::<f64>()
+            activity_object_counts
+                .values()
+                .map(|s| s.len() as f64)
+                .sum::<f64>()
                 / activity_object_counts.len() as f64
         } else {
             0.0
         };
 
-        let max_objects_per_event = log.events.iter().map(|e| e.objects.len()).max().unwrap_or(0);
+        let max_objects_per_event = log
+            .events
+            .iter()
+            .map(|e| e.objects.len())
+            .max()
+            .unwrap_or(0);
 
         ObjectFlowMetrics {
             object_count: log.objects.len(),
@@ -339,7 +368,8 @@ impl OCPMPatternMatching {
                         score: current_batch.len() as f64 / 10.0,
                         description: format!(
                             "Batch of {} objects in activity '{}'",
-                            current_batch.len(), current_activity
+                            current_batch.len(),
+                            current_activity
                         ),
                     });
                 }
@@ -363,7 +393,8 @@ impl OCPMPatternMatching {
                 score: current_batch.len() as f64 / 10.0,
                 description: format!(
                     "Batch of {} objects in activity '{}'",
-                    current_batch.len(), current_activity
+                    current_batch.len(),
+                    current_activity
                 ),
             });
         }
@@ -547,7 +578,9 @@ mod tests {
         assert!(!patterns.is_empty());
 
         // order1 should have a full lifecycle
-        let order1_pattern = patterns.iter().find(|p| p.matched_objects.contains(&"order1".to_string()));
+        let order1_pattern = patterns
+            .iter()
+            .find(|p| p.matched_objects.contains(&"order1".to_string()));
         assert!(order1_pattern.is_some());
     }
 
@@ -630,11 +663,7 @@ mod tests {
             id: 1,
             activity: "Split".to_string(),
             timestamp: 1000,
-            objects: vec![
-                "new1".to_string(),
-                "new2".to_string(),
-                "new3".to_string(),
-            ],
+            objects: vec!["new1".to_string(), "new2".to_string(), "new3".to_string()],
             attributes: HashMap::new(),
         });
 

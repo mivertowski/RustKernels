@@ -35,13 +35,10 @@ impl BehavioralProfiling {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            metadata: KernelMetadata::ring(
-                "behavioral/profiling",
-                Domain::BehavioralAnalytics,
-            )
-            .with_description("Behavioral feature extraction and profiling")
-            .with_throughput(100_000)
-            .with_latency_us(50.0),
+            metadata: KernelMetadata::ring("behavioral/profiling", Domain::BehavioralAnalytics)
+                .with_description("Behavioral feature extraction and profiling")
+                .with_throughput(100_000)
+                .with_latency_us(50.0),
         }
     }
 
@@ -150,9 +147,12 @@ impl BehavioralProfiling {
         ));
 
         // Night activity ratio (22-6)
-        let night_hours: u32 = hour_counts[22..24].iter().sum::<u32>()
-            + hour_counts[0..6].iter().sum::<u32>();
-        features.push(("night_activity_ratio".to_string(), night_hours as f64 / total));
+        let night_hours: u32 =
+            hour_counts[22..24].iter().sum::<u32>() + hour_counts[0..6].iter().sum::<u32>();
+        features.push((
+            "night_activity_ratio".to_string(),
+            night_hours as f64 / total,
+        ));
 
         // Weekend ratio
         let weekend_events = events
@@ -284,11 +284,12 @@ impl BehavioralProfiling {
         let mut features = Vec::new();
 
         // Count unique devices
-        let unique_devices: std::collections::HashSet<_> = events
-            .iter()
-            .filter_map(|e| e.device_id.as_ref())
-            .collect();
-        features.push(("unique_device_count".to_string(), unique_devices.len() as f64));
+        let unique_devices: std::collections::HashSet<_> =
+            events.iter().filter_map(|e| e.device_id.as_ref()).collect();
+        features.push((
+            "unique_device_count".to_string(),
+            unique_devices.len() as f64,
+        ));
 
         // Count unique locations
         let unique_locations: std::collections::HashSet<_> =
@@ -302,7 +303,7 @@ impl BehavioralProfiling {
         let device_switches = Self::count_switches(
             &events
                 .iter()
-                .filter_map(|e| e.device_id.as_ref().map(|d| d.as_str()))
+                .filter_map(|e| e.device_id.as_deref())
                 .collect::<Vec<_>>(),
         );
         features.push((
@@ -314,7 +315,7 @@ impl BehavioralProfiling {
         let location_switches = Self::count_switches(
             &events
                 .iter()
-                .filter_map(|e| e.location.as_ref().map(|l| l.as_str()))
+                .filter_map(|e| e.location.as_deref())
                 .collect::<Vec<_>>(),
         );
         features.push((
@@ -487,7 +488,9 @@ impl AnomalyProfiling {
         // Check temporal anomaly
         let hour = ((event.timestamp / 3600) % 24) as f64;
         if let Some(expected_hour) = profile.get_feature("peak_hour") {
-            let hour_diff = (hour - expected_hour).abs().min(24.0 - (hour - expected_hour).abs());
+            let hour_diff = (hour - expected_hour)
+                .abs()
+                .min(24.0 - (hour - expected_hour).abs());
             let hour_score = (hour_diff / 12.0) * 100.0;
 
             if hour_score > 30.0 {
@@ -792,7 +795,10 @@ mod tests {
 
         // Should detect device anomaly
         assert!(
-            anomaly.deviations.iter().any(|d| d.feature_name == "device"),
+            anomaly
+                .deviations
+                .iter()
+                .any(|d| d.feature_name == "device"),
             "Should detect device deviation"
         );
     }

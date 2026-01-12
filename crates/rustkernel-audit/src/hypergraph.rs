@@ -38,10 +38,7 @@ impl HypergraphConstruction {
     }
 
     /// Construct hypergraph from audit records.
-    pub fn construct(
-        records: &[AuditRecord],
-        config: &HypergraphConfig,
-    ) -> HypergraphResult {
+    pub fn construct(records: &[AuditRecord], config: &HypergraphConfig) -> HypergraphResult {
         // Build nodes
         let nodes = Self::build_nodes(records, config);
 
@@ -93,54 +90,64 @@ impl HypergraphConstruction {
             // Entity node
             if config.include_entity_nodes {
                 let entity_id = format!("entity:{}", record.entity_id);
-                nodes.entry(entity_id.clone()).or_insert_with(|| HypergraphNode {
-                    id: entity_id,
-                    node_type: NodeType::Entity,
-                    attributes: HashMap::new(),
-                });
+                nodes
+                    .entry(entity_id.clone())
+                    .or_insert_with(|| HypergraphNode {
+                        id: entity_id,
+                        node_type: NodeType::Entity,
+                        attributes: HashMap::new(),
+                    });
             }
 
             // Account node
             if config.include_account_nodes {
                 if let Some(account) = &record.account {
                     let account_id = format!("account:{}", account);
-                    nodes.entry(account_id.clone()).or_insert_with(|| HypergraphNode {
-                        id: account_id,
-                        node_type: NodeType::Account,
-                        attributes: HashMap::new(),
-                    });
+                    nodes
+                        .entry(account_id.clone())
+                        .or_insert_with(|| HypergraphNode {
+                            id: account_id,
+                            node_type: NodeType::Account,
+                            attributes: HashMap::new(),
+                        });
                 }
             }
 
             // Transaction node (optional - each record as a node)
             if config.include_transaction_nodes {
                 let tx_id = format!("tx:{}", record.id);
-                nodes.entry(tx_id.clone()).or_insert_with(|| HypergraphNode {
-                    id: tx_id,
-                    node_type: NodeType::Transaction,
-                    attributes: HashMap::new(),
-                });
+                nodes
+                    .entry(tx_id.clone())
+                    .or_insert_with(|| HypergraphNode {
+                        id: tx_id,
+                        node_type: NodeType::Transaction,
+                        attributes: HashMap::new(),
+                    });
             }
 
             // Category node
             if config.include_category_nodes {
                 let cat_id = format!("category:{}", record.category);
-                nodes.entry(cat_id.clone()).or_insert_with(|| HypergraphNode {
-                    id: cat_id,
-                    node_type: NodeType::Category,
-                    attributes: HashMap::new(),
-                });
+                nodes
+                    .entry(cat_id.clone())
+                    .or_insert_with(|| HypergraphNode {
+                        id: cat_id,
+                        node_type: NodeType::Category,
+                        attributes: HashMap::new(),
+                    });
             }
 
             // Time period node (bucket by day)
             if config.include_time_nodes {
                 let day = record.timestamp / 86400;
                 let time_id = format!("day:{}", day);
-                nodes.entry(time_id.clone()).or_insert_with(|| HypergraphNode {
-                    id: time_id,
-                    node_type: NodeType::TimePeriod,
-                    attributes: HashMap::new(),
-                });
+                nodes
+                    .entry(time_id.clone())
+                    .or_insert_with(|| HypergraphNode {
+                        id: time_id,
+                        node_type: NodeType::TimePeriod,
+                        attributes: HashMap::new(),
+                    });
             }
         }
 
@@ -220,8 +227,12 @@ impl HypergraphConstruction {
         match record.record_type {
             AuditRecordType::Payment | AuditRecordType::Transfer => HyperedgeType::Transaction,
             AuditRecordType::Invoice | AuditRecordType::Receipt => HyperedgeType::DocumentRef,
-            AuditRecordType::JournalEntry | AuditRecordType::Adjustment => HyperedgeType::AccountRel,
-            AuditRecordType::Expense | AuditRecordType::Revenue => HyperedgeType::CategoryMembership,
+            AuditRecordType::JournalEntry | AuditRecordType::Adjustment => {
+                HyperedgeType::AccountRel
+            }
+            AuditRecordType::Expense | AuditRecordType::Revenue => {
+                HyperedgeType::CategoryMembership
+            }
         }
     }
 
@@ -248,8 +259,9 @@ impl HypergraphConstruction {
         // Degree centrality based on number of edges containing each node
         let total_edges = hypergraph.edges.len() as f64;
 
-        for (node_id, _) in &hypergraph.nodes {
-            let edge_count = hypergraph.node_edges
+        for node_id in hypergraph.nodes.keys() {
+            let edge_count = hypergraph
+                .node_edges
                 .get(node_id)
                 .map(|e| e.len())
                 .unwrap_or(0) as f64;
@@ -268,11 +280,15 @@ impl HypergraphConstruction {
 
     /// Calculate edge weights (normalized).
     fn calculate_edge_weights(hypergraph: &Hypergraph) -> HashMap<String, f64> {
-        let max_weight = hypergraph.edges.iter()
+        let max_weight = hypergraph
+            .edges
+            .iter()
             .map(|e| e.weight)
             .fold(0.0, f64::max);
 
-        hypergraph.edges.iter()
+        hypergraph
+            .edges
+            .iter()
             .map(|e| {
                 let normalized = if max_weight > 0.0 {
                     e.weight / max_weight
@@ -303,7 +319,8 @@ impl HypergraphConstruction {
                     id: format!("pattern:{}", pattern_id),
                     pattern_type: PatternType::HighCentralityHub,
                     nodes: vec![node_id.clone()],
-                    edges: hypergraph.node_edges
+                    edges: hypergraph
+                        .node_edges
                         .get(node_id)
                         .cloned()
                         .unwrap_or_default(),
@@ -330,7 +347,8 @@ impl HypergraphConstruction {
                         confidence: 0.8,
                         description: format!(
                             "Isolated component {} with {} nodes",
-                            i + 1, component.len()
+                            i + 1,
+                            component.len()
                         ),
                     });
                 }
@@ -342,7 +360,8 @@ impl HypergraphConstruction {
         for (nodes, density) in dense {
             if density > 0.5 {
                 pattern_id += 1;
-                let related_edges: Vec<String> = nodes.iter()
+                let related_edges: Vec<String> = nodes
+                    .iter()
                     .flat_map(|n| hypergraph.node_edges.get(n).cloned().unwrap_or_default())
                     .collect::<HashSet<_>>()
                     .into_iter()
@@ -410,7 +429,9 @@ impl HypergraphConstruction {
         let mut dense_subgraphs = Vec::new();
 
         // For each node type, check density
-        let entity_nodes: Vec<&String> = hypergraph.nodes.iter()
+        let entity_nodes: Vec<&String> = hypergraph
+            .nodes
+            .iter()
             .filter(|(_, n)| n.node_type == NodeType::Entity)
             .map(|(id, _)| id)
             .collect();
@@ -446,7 +467,8 @@ impl HypergraphConstruction {
             };
 
             if avg_shared > 1.0 {
-                let high_shared: Vec<_> = shared_counts.iter()
+                let high_shared: Vec<_> = shared_counts
+                    .iter()
                     .filter(|&(_, &count)| count as f64 > avg_shared * 1.5)
                     .collect();
 
@@ -459,7 +481,8 @@ impl HypergraphConstruction {
 
                     let nodes: Vec<String> = nodes_in_dense.into_iter().collect();
                     let max_edges = nodes.len() * (nodes.len() - 1) / 2;
-                    let actual_edges = shared_counts.iter()
+                    let actual_edges = shared_counts
+                        .iter()
                         .filter(|((a, b), _)| nodes.contains(*a) && nodes.contains(*b))
                         .count();
                     let density = if max_edges > 0 {
@@ -482,17 +505,23 @@ impl HypergraphConstruction {
         let edge_count = hypergraph.edges.len();
 
         let avg_edge_size = if edge_count > 0 {
-            hypergraph.edges.iter()
+            hypergraph
+                .edges
+                .iter()
                 .map(|e| e.nodes.len() as f64)
-                .sum::<f64>() / edge_count as f64
+                .sum::<f64>()
+                / edge_count as f64
         } else {
             0.0
         };
 
         let avg_node_degree = if node_count > 0 {
-            hypergraph.node_edges.values()
+            hypergraph
+                .node_edges
+                .values()
                 .map(|e| e.len() as f64)
-                .sum::<f64>() / node_count as f64
+                .sum::<f64>()
+                / node_count as f64
         } else {
             0.0
         };
@@ -524,25 +553,34 @@ impl HypergraphConstruction {
             return 0.0;
         }
         let mean = values.iter().sum::<f64>() / values.len() as f64;
-        let variance = values.iter()
-            .map(|v| (v - mean).powi(2))
-            .sum::<f64>() / values.len() as f64;
+        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
         variance.sqrt()
     }
 
     /// Get nodes by type.
-    pub fn get_nodes_by_type(result: &HypergraphResult, node_type: NodeType) -> Vec<&HypergraphNode> {
-        result.hypergraph.nodes.values()
+    pub fn get_nodes_by_type(
+        result: &HypergraphResult,
+        node_type: NodeType,
+    ) -> Vec<&HypergraphNode> {
+        result
+            .hypergraph
+            .nodes
+            .values()
             .filter(|n| n.node_type == node_type)
             .collect()
     }
 
     /// Get edges containing a node.
     pub fn get_node_edges<'a>(result: &'a HypergraphResult, node_id: &str) -> Vec<&'a Hyperedge> {
-        result.hypergraph.node_edges
+        result
+            .hypergraph
+            .node_edges
             .get(node_id)
             .map(|edge_ids| {
-                result.hypergraph.edges.iter()
+                result
+                    .hypergraph
+                    .edges
+                    .iter()
                     .filter(|e| edge_ids.contains(&e.id))
                     .collect()
             })
@@ -625,11 +663,46 @@ mod tests {
 
     fn create_test_records() -> Vec<AuditRecord> {
         vec![
-            create_test_record("R001", "E001", AuditRecordType::Payment, 1000.0, 1000000, "Operating"),
-            create_test_record("R002", "E001", AuditRecordType::Invoice, 1500.0, 1000100, "Operating"),
-            create_test_record("R003", "E002", AuditRecordType::Payment, 500.0, 1000200, "Operating"),
-            create_test_record("R004", "E002", AuditRecordType::Revenue, 10000.0, 1000300, "Sales"),
-            create_test_record("R005", "E003", AuditRecordType::Expense, 3000.0, 1000400, "Operating"),
+            create_test_record(
+                "R001",
+                "E001",
+                AuditRecordType::Payment,
+                1000.0,
+                1000000,
+                "Operating",
+            ),
+            create_test_record(
+                "R002",
+                "E001",
+                AuditRecordType::Invoice,
+                1500.0,
+                1000100,
+                "Operating",
+            ),
+            create_test_record(
+                "R003",
+                "E002",
+                AuditRecordType::Payment,
+                500.0,
+                1000200,
+                "Operating",
+            ),
+            create_test_record(
+                "R004",
+                "E002",
+                AuditRecordType::Revenue,
+                10000.0,
+                1000300,
+                "Sales",
+            ),
+            create_test_record(
+                "R005",
+                "E003",
+                AuditRecordType::Expense,
+                3000.0,
+                1000400,
+                "Operating",
+            ),
         ]
     }
 
@@ -766,7 +839,12 @@ mod tests {
         }
 
         // At least one edge should have weight 1.0 (the max)
-        assert!(result.edge_weights.values().any(|w| (*w - 1.0).abs() < 0.01));
+        assert!(
+            result
+                .edge_weights
+                .values()
+                .any(|w| (*w - 1.0).abs() < 0.01)
+        );
     }
 
     #[test]

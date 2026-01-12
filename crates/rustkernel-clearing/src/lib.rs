@@ -52,8 +52,40 @@ pub use types::{
 
 /// Register all clearing kernels with a registry.
 pub fn register_all(
-    _registry: &rustkernel_core::registry::KernelRegistry,
+    registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
+    use rustkernel_core::traits::GpuKernel;
+
     tracing::info!("Registering clearing kernels");
+
+    // Validation kernel (1)
+    registry.register_metadata(validation::ClearingValidation::new().metadata().clone())?;
+
+    // DVP kernel (1)
+    registry.register_metadata(dvp::DVPMatching::new().metadata().clone())?;
+
+    // Netting kernel (1)
+    registry.register_metadata(netting::NettingCalculation::new().metadata().clone())?;
+
+    // Settlement kernel (1)
+    registry.register_metadata(settlement::SettlementExecution::new().metadata().clone())?;
+
+    // Efficiency kernel (1)
+    registry.register_metadata(efficiency::ZeroBalanceFrequency::new().metadata().clone())?;
+
+    tracing::info!("Registered 5 clearing kernels");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustkernel_core::registry::KernelRegistry;
+
+    #[test]
+    fn test_register_all() {
+        let registry = KernelRegistry::new();
+        register_all(&registry).expect("Failed to register clearing kernels");
+        assert_eq!(registry.total_count(), 5);
+    }
 }

@@ -88,7 +88,8 @@ impl StressTesting {
                 .unwrap_or_default();
 
             for (factor_name, shock) in &scenario.shocks {
-                let factor_impact = Self::calculate_factor_impact(factor_name, *shock, value, &sens);
+                let factor_impact =
+                    Self::calculate_factor_impact(factor_name, *shock, value, &sens);
                 asset_pnl += factor_impact;
             }
 
@@ -107,7 +108,8 @@ impl StressTesting {
                         .and_then(|s| s.get(i))
                         .cloned()
                         .unwrap_or_default();
-                    factor_total += Self::calculate_factor_impact(factor_name, *shock, value, &sens);
+                    factor_total +=
+                        Self::calculate_factor_impact(factor_name, *shock, value, &sens);
                 }
                 (factor_name.clone(), factor_total)
             })
@@ -172,9 +174,7 @@ impl StressTesting {
                 // Credit spread sensitivity (negative impact for spread widening)
                 -sens.delta * value * shock
             }
-            "commodity" => {
-                sens.delta * value * shock
-            }
+            "commodity" => sens.delta * value * shock,
             _ => {
                 // Default: linear sensitivity
                 sens.delta * value * shock
@@ -206,7 +206,7 @@ impl StressTesting {
                 0.02,
             ),
             StressScenario::equity_crash(-0.20),
-            StressScenario::rate_shock(200.0), // +200bps
+            StressScenario::rate_shock(200.0),  // +200bps
             StressScenario::rate_shock(-100.0), // -100bps
             StressScenario::credit_spread_widening(100.0),
             StressScenario::new(
@@ -316,11 +316,7 @@ mod tests {
             vec![100_000.0, 50_000.0, 25_000.0],
             vec![0.08, 0.10, 0.06],
             vec![0.20, 0.25, 0.15],
-            vec![
-                1.0, 0.6, 0.4,
-                0.6, 1.0, 0.5,
-                0.4, 0.5, 1.0,
-            ],
+            vec![1.0, 0.6, 0.4, 0.6, 1.0, 0.5, 0.4, 0.5, 1.0],
         )
     }
 
@@ -434,9 +430,11 @@ mod tests {
         let scenarios = StressTesting::standard_scenarios();
 
         assert!(!scenarios.is_empty());
-        assert!(scenarios
-            .iter()
-            .any(|s| s.name.contains("2008") || s.name.contains("Financial")));
+        assert!(
+            scenarios
+                .iter()
+                .any(|s| s.name.contains("2008") || s.name.contains("Financial"))
+        );
         assert!(scenarios.iter().any(|s| s.name.contains("COVID")));
     }
 
@@ -462,7 +460,12 @@ mod tests {
     fn test_expected_stress_loss() {
         let portfolio = create_equity_portfolio();
         let scenarios = vec![
-            StressScenario::new("Mild", "Mild downturn", vec![("equity".to_string(), -0.10)], 0.10),
+            StressScenario::new(
+                "Mild",
+                "Mild downturn",
+                vec![("equity".to_string(), -0.10)],
+                0.10,
+            ),
             StressScenario::new(
                 "Severe",
                 "Severe crash",
@@ -527,14 +530,18 @@ mod tests {
         let result = StressTesting::compute(&portfolio, &scenario, Some(&sensitivities));
 
         assert_eq!(result.factor_impacts.len(), 2);
-        assert!(result
-            .factor_impacts
-            .iter()
-            .any(|(name, _)| name == "equity"));
-        assert!(result
-            .factor_impacts
-            .iter()
-            .any(|(name, _)| name == "volatility"));
+        assert!(
+            result
+                .factor_impacts
+                .iter()
+                .any(|(name, _)| name == "equity")
+        );
+        assert!(
+            result
+                .factor_impacts
+                .iter()
+                .any(|(name, _)| name == "volatility")
+        );
     }
 
     #[test]

@@ -40,15 +40,41 @@ pub use stress::StressTesting;
 
 // Re-export key types
 pub use types::{
-    CreditExposure, CreditFactors, CreditRiskResult, Portfolio, PortfolioRiskResult,
-    RiskFactor, RiskFactorType, Sensitivity, StressScenario, StressTestResult, VaRParams,
-    VaRResult,
+    CreditExposure, CreditFactors, CreditRiskResult, Portfolio, PortfolioRiskResult, RiskFactor,
+    RiskFactorType, Sensitivity, StressScenario, StressTestResult, VaRParams, VaRResult,
 };
 
 /// Register all risk kernels with a registry.
 pub fn register_all(
-    _registry: &rustkernel_core::registry::KernelRegistry,
+    registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
+    use rustkernel_core::traits::GpuKernel;
+
     tracing::info!("Registering risk analytics kernels");
+
+    // Credit kernel (1)
+    registry.register_metadata(credit::CreditRiskScoring::new().metadata().clone())?;
+
+    // Market kernels (2)
+    registry.register_metadata(market::MonteCarloVaR::new().metadata().clone())?;
+    registry.register_metadata(market::PortfolioRiskAggregation::new().metadata().clone())?;
+
+    // Stress kernel (1)
+    registry.register_metadata(stress::StressTesting::new().metadata().clone())?;
+
+    tracing::info!("Registered 4 risk analytics kernels");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustkernel_core::registry::KernelRegistry;
+
+    #[test]
+    fn test_register_all() {
+        let registry = KernelRegistry::new();
+        register_all(&registry).expect("Failed to register risk kernels");
+        assert_eq!(registry.total_count(), 4);
+    }
 }

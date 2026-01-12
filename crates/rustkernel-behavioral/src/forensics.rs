@@ -99,14 +99,8 @@ impl ForensicQueryExecution {
     }
 
     /// Execute multiple queries in batch.
-    pub fn compute_batch(
-        queries: &[ForensicQuery],
-        events: &[UserEvent],
-    ) -> Vec<ForensicResult> {
-        queries
-            .iter()
-            .map(|q| Self::compute(q, events))
-            .collect()
+    pub fn compute_batch(queries: &[ForensicQuery], events: &[UserEvent]) -> Vec<ForensicResult> {
+        queries.iter().map(|q| Self::compute(q, events)).collect()
     }
 
     /// Pattern search query.
@@ -199,10 +193,8 @@ impl ForensicQueryExecution {
             summary.insert("unique_users".to_string(), unique_users.len() as f64);
 
             // Count unique sessions
-            let unique_sessions: std::collections::HashSet<_> = sorted
-                .iter()
-                .filter_map(|e| e.session_id)
-                .collect();
+            let unique_sessions: std::collections::HashSet<_> =
+                sorted.iter().filter_map(|e| e.session_id).collect();
             summary.insert("unique_sessions".to_string(), unique_sessions.len() as f64);
         }
 
@@ -261,17 +253,16 @@ impl ForensicQueryExecution {
         }
 
         // Location distribution
-        let unique_locations: std::collections::HashSet<_> = events
-            .iter()
-            .filter_map(|e| e.location.as_ref())
-            .collect();
-        summary.insert("unique_locations".to_string(), unique_locations.len() as f64);
+        let unique_locations: std::collections::HashSet<_> =
+            events.iter().filter_map(|e| e.location.as_ref()).collect();
+        summary.insert(
+            "unique_locations".to_string(),
+            unique_locations.len() as f64,
+        );
 
         // Device distribution
-        let unique_devices: std::collections::HashSet<_> = events
-            .iter()
-            .filter_map(|e| e.device_id.as_ref())
-            .collect();
+        let unique_devices: std::collections::HashSet<_> =
+            events.iter().filter_map(|e| e.device_id.as_ref()).collect();
         summary.insert("unique_devices".to_string(), unique_devices.len() as f64);
 
         summary.insert("total_events".to_string(), total);
@@ -295,11 +286,7 @@ impl ForensicQueryExecution {
 
         let _time_anomaly_hours: Vec<u8> = filters
             .get("unusual_hours")
-            .map(|h| {
-                h.split(',')
-                    .filter_map(|s| s.trim().parse().ok())
-                    .collect()
-            })
+            .map(|h| h.split(',').filter_map(|s| s.trim().parse().ok()).collect())
             .unwrap_or_else(|| vec![0, 1, 2, 3, 4, 5]);
 
         // Calculate baseline statistics per user
@@ -345,11 +332,12 @@ impl ForensicQueryExecution {
 
             // Location anomaly (if user typically has few locations)
             if let Some(ref location) = event.location {
-                if stats.unique_locations.len() > 1 && stats.unique_locations.len() < 3 {
-                    if !stats.location_counts.contains_key(location.as_str()) {
-                        is_anomaly = true;
-                        location_anomalies += 1;
-                    }
+                if stats.unique_locations.len() > 1
+                    && stats.unique_locations.len() < 3
+                    && !stats.location_counts.contains_key(location.as_str())
+                {
+                    is_anomaly = true;
+                    location_anomalies += 1;
                 }
             }
 
@@ -580,12 +568,8 @@ mod tests {
     #[test]
     fn test_pattern_search() {
         let events = create_test_events();
-        let query = ForensicQueryExecution::pattern_search_query(
-            1,
-            1700000000,
-            1700000500,
-            "login",
-        );
+        let query =
+            ForensicQueryExecution::pattern_search_query(1, 1700000000, 1700000500, "login");
 
         let result = ForensicQueryExecution::compute(&query, &events);
 

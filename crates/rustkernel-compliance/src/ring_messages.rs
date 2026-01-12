@@ -716,7 +716,7 @@ mod tests {
             id: MessageId(6),
             source_kernel: 111,
             entity_id: 999,
-            reason: 1, // sanctions match
+            reason: 1,        // sanctions match
             duration_secs: 0, // indefinite
             timestamp: 1234567890,
         };

@@ -5,8 +5,8 @@
 //! - Local Outlier Factor (k-NN density-based)
 
 use crate::types::{AnomalyResult, DataMatrix, DistanceMetric};
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use rand::prelude::*;
+use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 
 // ============================================================================
 // Isolation Forest Kernel
@@ -216,8 +216,20 @@ impl IsolationTree {
         IsolationTreeNode::Internal {
             feature,
             threshold,
-            left: Box::new(Self::build_node(&left_data, n_features, depth + 1, max_depth, rng)),
-            right: Box::new(Self::build_node(&right_data, n_features, depth + 1, max_depth, rng)),
+            left: Box::new(Self::build_node(
+                &left_data,
+                n_features,
+                depth + 1,
+                max_depth,
+                rng,
+            )),
+            right: Box::new(Self::build_node(
+                &right_data,
+                n_features,
+                depth + 1,
+                max_depth,
+                rng,
+            )),
         }
     }
 

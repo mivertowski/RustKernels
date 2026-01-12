@@ -179,9 +179,16 @@ pub enum SignaturePattern {
     /// Event with specific attributes.
     EventAttributes(String, HashMap<String, EventValue>),
     /// Time-based pattern (events within time window).
-    TimeWindow { events: Vec<String>, window_secs: u64 },
+    TimeWindow {
+        events: Vec<String>,
+        window_secs: u64,
+    },
     /// Count-based pattern.
-    CountThreshold { event_type: String, count: u32, window_secs: u64 },
+    CountThreshold {
+        event_type: String,
+        count: u32,
+        window_secs: u64,
+    },
     /// Regex pattern on event data.
     Regex(String),
 }

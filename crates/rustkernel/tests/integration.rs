@@ -41,11 +41,23 @@ fn test_enabled_domains() {
     let enabled = rustkernel::catalog::enabled_domains();
 
     // Default features should include P1 domains
-    assert!(enabled.contains(&"graph"), "graph should be enabled by default");
+    assert!(
+        enabled.contains(&"graph"),
+        "graph should be enabled by default"
+    );
     assert!(enabled.contains(&"ml"), "ml should be enabled by default");
-    assert!(enabled.contains(&"compliance"), "compliance should be enabled by default");
-    assert!(enabled.contains(&"temporal"), "temporal should be enabled by default");
-    assert!(enabled.contains(&"risk"), "risk should be enabled by default");
+    assert!(
+        enabled.contains(&"compliance"),
+        "compliance should be enabled by default"
+    );
+    assert!(
+        enabled.contains(&"temporal"),
+        "temporal should be enabled by default"
+    );
+    assert!(
+        enabled.contains(&"risk"),
+        "risk should be enabled by default"
+    );
 }
 
 #[test]
@@ -54,9 +66,19 @@ fn test_domain_info_complete() {
 
     for domain in &domains {
         assert!(!domain.name.is_empty(), "Domain name should not be empty");
-        assert!(!domain.description.is_empty(), "Domain description should not be empty");
-        assert!(!domain.feature.is_empty(), "Domain feature flag should not be empty");
-        assert!(domain.kernel_count > 0, "Domain {} should have at least 1 kernel", domain.name);
+        assert!(
+            !domain.description.is_empty(),
+            "Domain description should not be empty"
+        );
+        assert!(
+            !domain.feature.is_empty(),
+            "Domain feature flag should not be empty"
+        );
+        assert!(
+            domain.kernel_count > 0,
+            "Domain {} should have at least 1 kernel",
+            domain.name
+        );
     }
 }
 
@@ -66,27 +88,33 @@ fn test_domain_info_complete() {
 
 #[test]
 fn test_development_license() {
-    use rustkernel::core::license::{DevelopmentLicense, LicenseTier, LicenseValidator};
     use rustkernel::core::domain::Domain;
+    use rustkernel::core::license::{DevelopmentLicense, LicenseTier, LicenseValidator};
 
     let license = DevelopmentLicense;
 
     // Development license allows all domains
     for domain in Domain::ALL {
-        assert!(license.validate_domain(*domain).is_ok(),
-            "Development license should allow domain {:?}", domain);
+        assert!(
+            license.validate_domain(*domain).is_ok(),
+            "Development license should allow domain {:?}",
+            domain
+        );
     }
 
     // Development license allows GPU-native
     assert!(license.gpu_native_enabled());
     assert_eq!(license.tier(), LicenseTier::Development);
-    assert!(license.max_kernels().is_none(), "Dev license should have unlimited kernels");
+    assert!(
+        license.max_kernels().is_none(),
+        "Dev license should have unlimited kernels"
+    );
 }
 
 #[test]
 fn test_community_license_restrictions() {
-    use rustkernel::core::license::{License, LicenseValidator, StandardLicenseValidator};
     use rustkernel::core::domain::Domain;
+    use rustkernel::core::license::{License, LicenseValidator, StandardLicenseValidator};
 
     let license = License::community("Test User");
     let validator = StandardLicenseValidator::new(license);
@@ -107,16 +135,19 @@ fn test_community_license_restrictions() {
 
 #[test]
 fn test_enterprise_license() {
-    use rustkernel::core::license::{License, LicenseValidator, StandardLicenseValidator};
     use rustkernel::core::domain::Domain;
+    use rustkernel::core::license::{License, LicenseValidator, StandardLicenseValidator};
 
     let license = License::enterprise("Enterprise Corp", None);
     let validator = StandardLicenseValidator::new(license);
 
     // Enterprise allows all domains
     for domain in Domain::ALL {
-        assert!(validator.validate_domain(*domain).is_ok(),
-            "Enterprise license should allow domain {:?}", domain);
+        assert!(
+            validator.validate_domain(*domain).is_ok(),
+            "Enterprise license should allow domain {:?}",
+            domain
+        );
     }
 
     // Enterprise supports GPU-native
@@ -125,8 +156,8 @@ fn test_enterprise_license() {
 
 #[test]
 fn test_license_guard() {
-    use rustkernel::core::license::{DevelopmentLicense, LicenseGuard, LicenseValidator};
     use rustkernel::core::domain::Domain;
+    use rustkernel::core::license::{DevelopmentLicense, LicenseGuard, LicenseValidator};
 
     let validator = DevelopmentLicense;
     let guard = LicenseGuard::new(&validator, Domain::GraphAnalytics);
@@ -157,16 +188,19 @@ fn test_registry_creation() {
 
 #[cfg(feature = "graph")]
 mod graph_tests {
-    use rustkernel::graph::centrality::PageRank;
-    use rustkernel::core::traits::GpuKernel;
     use rustkernel::core::domain::Domain;
+    use rustkernel::core::traits::GpuKernel;
+    use rustkernel::graph::centrality::PageRank;
 
     #[test]
     fn test_pagerank_metadata() {
         let kernel = PageRank::new();
         let metadata = kernel.metadata();
 
-        assert!(metadata.id.contains("pagerank"), "ID should contain 'pagerank'");
+        assert!(
+            metadata.id.contains("pagerank"),
+            "ID should contain 'pagerank'"
+        );
         assert_eq!(metadata.domain, Domain::GraphAnalytics);
     }
 }
@@ -177,9 +211,9 @@ mod graph_tests {
 
 #[cfg(feature = "ml")]
 mod ml_tests {
-    use rustkernel::ml::clustering::KMeans;
-    use rustkernel::core::traits::GpuKernel;
     use rustkernel::core::domain::Domain;
+    use rustkernel::core::traits::GpuKernel;
+    use rustkernel::ml::clustering::KMeans;
 
     #[test]
     fn test_kmeans_metadata() {
@@ -198,15 +232,18 @@ mod ml_tests {
 #[cfg(feature = "compliance")]
 mod compliance_tests {
     use rustkernel::compliance::aml::CircularFlowRatio;
-    use rustkernel::core::traits::GpuKernel;
     use rustkernel::core::domain::Domain;
+    use rustkernel::core::traits::GpuKernel;
 
     #[test]
     fn test_circular_flow_metadata() {
         let kernel = CircularFlowRatio::new();
         let metadata = kernel.metadata();
 
-        assert!(metadata.id.contains("circular"), "ID should contain 'circular'");
+        assert!(
+            metadata.id.contains("circular"),
+            "ID should contain 'circular'"
+        );
         assert_eq!(metadata.domain, Domain::Compliance);
     }
 }
@@ -217,9 +254,9 @@ mod compliance_tests {
 
 #[cfg(feature = "temporal")]
 mod temporal_tests {
-    use rustkernel::temporal::forecasting::ARIMAForecast;
-    use rustkernel::core::traits::GpuKernel;
     use rustkernel::core::domain::Domain;
+    use rustkernel::core::traits::GpuKernel;
+    use rustkernel::temporal::forecasting::ARIMAForecast;
 
     #[test]
     fn test_arima_metadata() {
@@ -237,17 +274,19 @@ mod temporal_tests {
 
 #[cfg(feature = "risk")]
 mod risk_tests {
-    use rustkernel::risk::market::MonteCarloVaR;
-    use rustkernel::core::traits::GpuKernel;
     use rustkernel::core::domain::Domain;
+    use rustkernel::core::traits::GpuKernel;
+    use rustkernel::risk::market::MonteCarloVaR;
 
     #[test]
     fn test_monte_carlo_var_metadata() {
         let kernel = MonteCarloVaR::new();
         let metadata = kernel.metadata();
 
-        assert!(metadata.id.contains("monte") || metadata.id.contains("var"),
-            "ID should contain 'monte' or 'var'");
+        assert!(
+            metadata.id.contains("monte") || metadata.id.contains("var"),
+            "ID should contain 'monte' or 'var'"
+        );
         assert_eq!(metadata.domain, Domain::RiskAnalytics);
     }
 }
@@ -299,7 +338,10 @@ mod batch_kernel_graph_tests {
             params: CentralityParams::PageRank { damping: 0.85 },
         };
 
-        let result: CentralityOutput = kernel.execute(input).await.expect("PageRank should execute");
+        let result: CentralityOutput = kernel
+            .execute(input)
+            .await
+            .expect("PageRank should execute");
 
         assert!(!result.result.scores.is_empty(), "Should have scores");
         assert!(result.compute_time_us > 0, "Should record compute time");
@@ -308,7 +350,10 @@ mod batch_kernel_graph_tests {
         let scores: Vec<f64> = result.result.scores.iter().map(|ns| ns.score).collect();
         let mean = scores.iter().sum::<f64>() / scores.len() as f64;
         for score in &scores {
-            assert!((score - mean).abs() < 0.1, "Scores in cycle should be similar");
+            assert!(
+                (score - mean).abs() < 0.1,
+                "Scores in cycle should be similar"
+            );
         }
     }
 }
@@ -349,7 +394,10 @@ mod batch_kernel_ml_tests {
         assert_eq!(result.result.labels[1], result.result.labels[2]);
         assert_eq!(result.result.labels[3], result.result.labels[4]);
         assert_eq!(result.result.labels[4], result.result.labels[5]);
-        assert_ne!(result.result.labels[0], result.result.labels[3], "Clusters should be different");
+        assert_ne!(
+            result.result.labels[0], result.result.labels[3],
+            "Clusters should be different"
+        );
     }
 }
 
@@ -378,7 +426,10 @@ mod batch_kernel_risk_tests {
 
         let input = CreditRiskScoringInput::new(factors, 100_000.0, 5.0);
 
-        let result: CreditRiskScoringOutput = kernel.execute(input).await.expect("CreditRisk should execute");
+        let result: CreditRiskScoringOutput = kernel
+            .execute(input)
+            .await
+            .expect("CreditRisk should execute");
 
         // Verify PD is in valid range [0, 1]
         assert!(result.result.pd >= 0.0);
@@ -407,13 +458,16 @@ mod batch_kernel_temporal_tests {
         let kernel = ARIMAForecast::new();
 
         // Create simple time series data
-        let values: Vec<f64> = (0..100).map(|i| 10.0 + 0.1 * i as f64 + (i as f64 * 0.1).sin()).collect();
+        let values: Vec<f64> = (0..100)
+            .map(|i| 10.0 + 0.1 * i as f64 + (i as f64 * 0.1).sin())
+            .collect();
         let series = TimeSeries::new(values);
         let params = ARIMAParams::new(1, 1, 1);
 
         let input = ARIMAForecastInput::new(series, params, 10);
 
-        let result: ARIMAForecastOutput = kernel.execute(input).await.expect("ARIMA should execute");
+        let result: ARIMAForecastOutput =
+            kernel.execute(input).await.expect("ARIMA should execute");
 
         assert_eq!(result.result.forecast.len(), 10, "Should have 10 forecasts");
         assert!(result.compute_time_us > 0, "Should record compute time");
@@ -424,14 +478,24 @@ mod batch_kernel_temporal_tests {
 mod batch_kernel_orderbook_tests {
     use rustkernel::core::traits::BatchKernel;
     use rustkernel::orderbook::matching::OrderMatchingEngine;
-    use rustkernel::orderbook::messages::{SubmitOrderInput, SubmitOrderOutput, BatchOrderInput, BatchOrderOutput};
-    use rustkernel::orderbook::types::{Order, Side, Price, Quantity, OrderStatus};
+    use rustkernel::orderbook::messages::{
+        BatchOrderInput, BatchOrderOutput, SubmitOrderInput, SubmitOrderOutput,
+    };
+    use rustkernel::orderbook::types::{Order, OrderStatus, Price, Quantity, Side};
 
     #[tokio::test]
     async fn test_order_matching_single_order() {
         let engine = OrderMatchingEngine::new();
 
-        let order = Order::limit(1, 1, Side::Buy, Price::from_f64(100.0), Quantity::from_f64(10.0), 100, 1);
+        let order = Order::limit(
+            1,
+            1,
+            Side::Buy,
+            Price::from_f64(100.0),
+            Quantity::from_f64(10.0),
+            100,
+            1,
+        );
         let input = SubmitOrderInput::new(order);
 
         let result: SubmitOrderOutput = engine.execute(input).await.expect("Submit should execute");
@@ -447,8 +511,24 @@ mod batch_kernel_orderbook_tests {
         let engine = OrderMatchingEngine::new();
 
         // Submit a buy and matching sell
-        let buy = Order::limit(1, 1, Side::Buy, Price::from_f64(100.0), Quantity::from_f64(10.0), 100, 1);
-        let sell = Order::limit(2, 1, Side::Sell, Price::from_f64(100.0), Quantity::from_f64(10.0), 200, 2);
+        let buy = Order::limit(
+            1,
+            1,
+            Side::Buy,
+            Price::from_f64(100.0),
+            Quantity::from_f64(10.0),
+            100,
+            1,
+        );
+        let sell = Order::limit(
+            2,
+            1,
+            Side::Sell,
+            Price::from_f64(100.0),
+            Quantity::from_f64(10.0),
+            200,
+            2,
+        );
 
         let input = BatchOrderInput::new(vec![buy, sell]);
 
@@ -462,10 +542,10 @@ mod batch_kernel_orderbook_tests {
 
 #[cfg(feature = "compliance")]
 mod batch_kernel_compliance_tests {
-    use rustkernel::core::traits::BatchKernel;
     use rustkernel::compliance::aml::CircularFlowRatio;
     use rustkernel::compliance::messages::{CircularFlowInput, CircularFlowOutput};
     use rustkernel::compliance::types::Transaction;
+    use rustkernel::core::traits::BatchKernel;
 
     #[tokio::test]
     async fn test_circular_flow_detection() {
@@ -504,11 +584,20 @@ mod batch_kernel_compliance_tests {
 
         let input = CircularFlowInput::new(transactions, 100.0);
 
-        let result: CircularFlowOutput = kernel.execute(input).await.expect("CircularFlow should execute");
+        let result: CircularFlowOutput = kernel
+            .execute(input)
+            .await
+            .expect("CircularFlow should execute");
 
         // Should detect the cycle
-        assert!(result.result.circular_ratio > 0.0, "Should detect circular flow");
-        assert!(!result.result.sccs.is_empty(), "Should find strongly connected components");
+        assert!(
+            result.result.circular_ratio > 0.0,
+            "Should detect circular flow"
+        );
+        assert!(
+            !result.result.sccs.is_empty(),
+            "Should find strongly connected components"
+        );
         assert!(result.compute_time_us > 0, "Should record compute time");
     }
 }

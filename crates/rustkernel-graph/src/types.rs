@@ -127,7 +127,11 @@ impl CentralityResult {
     #[must_use]
     pub fn top_k(&self, k: usize) -> Vec<NodeScore> {
         let mut sorted = self.scores.clone();
-        sorted.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        sorted.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         sorted.truncate(k);
         sorted
     }

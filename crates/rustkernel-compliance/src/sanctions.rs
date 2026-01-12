@@ -88,7 +88,11 @@ impl SanctionsScreening {
             .collect();
 
         // Sort by score descending
-        matches.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        matches.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         matches.truncate(max_matches);
 
         let is_hit = matches.iter().any(|m| m.score >= 0.85);
@@ -171,7 +175,12 @@ impl GpuKernel for SanctionsScreening {
 impl BatchKernel<SanctionsScreeningInput, SanctionsScreeningOutput> for SanctionsScreening {
     async fn execute(&self, input: SanctionsScreeningInput) -> Result<SanctionsScreeningOutput> {
         let start = Instant::now();
-        let result = Self::compute(&input.name, &input.sanctions_list, input.min_score, input.max_matches);
+        let result = Self::compute(
+            &input.name,
+            &input.sanctions_list,
+            input.min_score,
+            input.max_matches,
+        );
         Ok(SanctionsScreeningOutput {
             result,
             compute_time_us: start.elapsed().as_micros() as u64,
@@ -251,11 +260,9 @@ impl PEPScreening {
             .collect();
 
         // Sort by score descending, then by level (higher risk first)
-        matches.sort_by(|a, b| {
-            match b.score.partial_cmp(&a.score) {
-                Some(std::cmp::Ordering::Equal) => a.level.cmp(&b.level),
-                other => other.unwrap_or(std::cmp::Ordering::Equal),
-            }
+        matches.sort_by(|a, b| match b.score.partial_cmp(&a.score) {
+            Some(std::cmp::Ordering::Equal) => a.level.cmp(&b.level),
+            other => other.unwrap_or(std::cmp::Ordering::Equal),
         });
         matches.truncate(max_matches);
 
@@ -292,7 +299,12 @@ impl GpuKernel for PEPScreening {
 impl BatchKernel<PEPScreeningInput, PEPScreeningOutput> for PEPScreening {
     async fn execute(&self, input: PEPScreeningInput) -> Result<PEPScreeningOutput> {
         let start = Instant::now();
-        let result = Self::compute(&input.name, &input.pep_list, input.min_score, input.max_matches);
+        let result = Self::compute(
+            &input.name,
+            &input.pep_list,
+            input.min_score,
+            input.max_matches,
+        );
         Ok(PEPScreeningOutput {
             result,
             compute_time_us: start.elapsed().as_micros() as u64,

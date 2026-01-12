@@ -30,22 +30,26 @@ pub use ringkernel_core::{
 };
 
 // Re-export types from specific modules
-pub use ringkernel_core::k2k::{K2KBroker, K2KEndpoint, K2KMessage};
-pub use ringkernel_core::runtime::{KernelHandle, KernelId, KernelState, LaunchOptions, RingKernelRuntime};
 pub use ringkernel_core::hlc::HlcClock;
+pub use ringkernel_core::k2k::{K2KBroker, K2KEndpoint, K2KMessage};
 pub use ringkernel_core::message::MessageEnvelope;
+pub use ringkernel_core::runtime::{
+    KernelHandle, KernelId, KernelState, LaunchOptions, RingKernelRuntime,
+};
 
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::domain::Domain;
     pub use crate::error::{KernelError, Result};
     pub use crate::k2k::{
-        kernel_id_to_u64, FanOutTracker, IterativeConvergenceSummary, IterativeState,
-        K2KControlMessage, K2KPriority, K2KWorkerResult, PipelineTracker, ScatterGatherState,
+        FanOutTracker, IterativeConvergenceSummary, IterativeState, K2KControlMessage, K2KPriority,
+        K2KWorkerResult, PipelineTracker, ScatterGatherState, kernel_id_to_u64,
     };
     pub use crate::kernel::{KernelMetadata, KernelMode};
     pub use crate::license::{DevelopmentLicense, License, LicenseError, LicenseValidator};
-    pub use crate::messages::{CorrelationId, KernelRequest, KernelResponse, KernelResult};
+    pub use crate::messages::{
+        BatchMessage, CorrelationId, KernelRequest, KernelResponse, KernelResult,
+    };
     pub use crate::registry::{KernelRegistry, RegistryStats};
     pub use crate::slo::{SLOResult, SLOValidator};
     pub use crate::test_kernels::{EchoKernel, MatMul, ReduceSum, VectorAdd};

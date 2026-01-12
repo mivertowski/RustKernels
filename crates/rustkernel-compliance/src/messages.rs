@@ -8,7 +8,6 @@ use crate::types::{
     MonitoringResult, MonitoringRule, PEPEntry, PEPResult, RapidMovementResult, ReciprocityResult,
     SanctionsEntry, SanctionsResult, TimeWindow, Transaction,
 };
-use rustkernel_core::messages::CorrelationId;
 use serde::{Deserialize, Serialize};
 
 // ============================================================================
@@ -306,7 +305,11 @@ pub struct TransactionMonitoringInput {
 
 impl TransactionMonitoringInput {
     /// Create a new transaction monitoring input.
-    pub fn new(transactions: Vec<Transaction>, rules: Vec<MonitoringRule>, current_time: u64) -> Self {
+    pub fn new(
+        transactions: Vec<Transaction>,
+        rules: Vec<MonitoringRule>,
+        current_time: u64,
+    ) -> Self {
         Self {
             transactions,
             rules,

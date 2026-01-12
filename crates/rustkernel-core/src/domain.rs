@@ -282,7 +282,10 @@ mod tests {
 
     #[test]
     fn test_domain_from_str() {
-        assert_eq!(Domain::from_str("GraphAnalytics"), Some(Domain::GraphAnalytics));
+        assert_eq!(
+            Domain::from_str("GraphAnalytics"),
+            Some(Domain::GraphAnalytics)
+        );
         assert_eq!(Domain::from_str("Unknown"), None);
     }
 

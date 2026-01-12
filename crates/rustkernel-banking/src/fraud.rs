@@ -69,7 +69,9 @@ impl FraudPatternMatch {
         let acct_profile = profile.unwrap_or(&default_profile);
 
         for pattern in patterns {
-            if let Some(match_result) = Self::check_pattern(transaction, history, pattern, acct_profile) {
+            if let Some(match_result) =
+                Self::check_pattern(transaction, history, pattern, acct_profile)
+            {
                 total_score += match_result.score * pattern.risk_weight / 100.0;
                 for &tx_id in &match_result.evidence {
                     related_transactions.insert(tx_id);
@@ -103,7 +105,10 @@ impl FraudPatternMatch {
         transactions
             .iter()
             .map(|tx| {
-                let history = history_map.get(&tx.source_account).map(|h| h.as_slice()).unwrap_or(&[]);
+                let history = history_map
+                    .get(&tx.source_account)
+                    .map(|h| h.as_slice())
+                    .unwrap_or(&[]);
                 let profile = profiles.get(&tx.source_account);
                 Self::compute(tx, history, patterns, profile)
             })
@@ -118,15 +123,31 @@ impl FraudPatternMatch {
         profile: &AccountProfile,
     ) -> Option<PatternMatch> {
         match pattern.pattern_type {
-            FraudPatternType::RapidSplit => Self::check_rapid_split(transaction, history, &pattern.params),
-            FraudPatternType::CircularFlow => Self::check_circular_flow(transaction, history, &pattern.params),
-            FraudPatternType::VelocityAnomaly => Self::check_velocity(transaction, history, profile, &pattern.params),
-            FraudPatternType::AmountAnomaly => Self::check_amount_anomaly(transaction, profile, &pattern.params),
-            FraudPatternType::GeoAnomaly => Self::check_geo_anomaly(transaction, history, profile, &pattern.params),
+            FraudPatternType::RapidSplit => {
+                Self::check_rapid_split(transaction, history, &pattern.params)
+            }
+            FraudPatternType::CircularFlow => {
+                Self::check_circular_flow(transaction, history, &pattern.params)
+            }
+            FraudPatternType::VelocityAnomaly => {
+                Self::check_velocity(transaction, history, profile, &pattern.params)
+            }
+            FraudPatternType::AmountAnomaly => {
+                Self::check_amount_anomaly(transaction, profile, &pattern.params)
+            }
+            FraudPatternType::GeoAnomaly => {
+                Self::check_geo_anomaly(transaction, history, profile, &pattern.params)
+            }
             FraudPatternType::TimeAnomaly => Self::check_time_anomaly(transaction, profile),
-            FraudPatternType::AccountTakeover => Self::check_account_takeover(transaction, history, profile),
-            FraudPatternType::MuleAccount => Self::check_mule_account(transaction, history, &pattern.params),
-            FraudPatternType::Layering => Self::check_layering(transaction, history, &pattern.params),
+            FraudPatternType::AccountTakeover => {
+                Self::check_account_takeover(transaction, history, profile)
+            }
+            FraudPatternType::MuleAccount => {
+                Self::check_mule_account(transaction, history, &pattern.params)
+            }
+            FraudPatternType::Layering => {
+                Self::check_layering(transaction, history, &pattern.params)
+            }
         }
         .map(|(score, details, evidence)| PatternMatch {
             pattern_id: pattern.id,
@@ -192,17 +213,22 @@ impl FraudPatternMatch {
         params: &PatternParams,
     ) -> Option<(f64, String, Vec<u64>)> {
         let time_window = params.time_window;
-        let min_chain_length = params.custom.get("min_chain_length").copied().unwrap_or(3.0) as usize;
+        let min_chain_length = params
+            .custom
+            .get("min_chain_length")
+            .copied()
+            .unwrap_or(3.0) as usize;
 
         // Build transaction graph
         let mut graph: HashMap<u64, Vec<(u64, u64, f64)>> = HashMap::new(); // account -> [(dest, tx_id, amount)]
 
         for tx in history.iter().chain(std::iter::once(transaction)) {
             if transaction.timestamp.saturating_sub(time_window) <= tx.timestamp {
-                graph
-                    .entry(tx.source_account)
-                    .or_default()
-                    .push((tx.dest_account, tx.id, tx.amount));
+                graph.entry(tx.source_account).or_default().push((
+                    tx.dest_account,
+                    tx.id,
+                    tx.amount,
+                ));
             }
         }
 
@@ -212,7 +238,15 @@ impl FraudPatternMatch {
         let mut path = vec![(start, transaction.id)];
         let mut cycle_evidence = Vec::new();
 
-        if Self::find_cycle(&graph, start, start, &mut visited, &mut path, &mut cycle_evidence, min_chain_length) {
+        if Self::find_cycle(
+            &graph,
+            start,
+            start,
+            &mut visited,
+            &mut path,
+            &mut cycle_evidence,
+            min_chain_length,
+        ) {
             let score = 90.0;
             Some((
                 score,
@@ -275,7 +309,8 @@ impl FraudPatternMatch {
                 tx.source_account == transaction.source_account
                     && transaction.timestamp.saturating_sub(time_window) <= tx.timestamp
             })
-            .count() + 1; // Include current transaction
+            .count()
+            + 1; // Include current transaction
 
         // Expected count based on profile (scaled to time window)
         let expected = profile.avg_daily_count * (time_window as f64 / 86400.0);
@@ -336,7 +371,11 @@ impl FraudPatternMatch {
         }
 
         // Check for impossible travel (different country within short time)
-        let time_window = params.custom.get("travel_window").copied().unwrap_or(3600.0) as u64;
+        let time_window = params
+            .custom
+            .get("travel_window")
+            .copied()
+            .unwrap_or(3600.0) as u64;
 
         let recent_diff_location = history.iter().find(|tx| {
             tx.source_account == transaction.source_account
@@ -535,7 +574,9 @@ impl FraudPatternMatch {
                 risk_weight: 90.0,
                 params: PatternParams {
                     time_window: 604800, // 1 week
-                    custom: [("min_chain_length".to_string(), 3.0)].into_iter().collect(),
+                    custom: [("min_chain_length".to_string(), 3.0)]
+                        .into_iter()
+                        .collect(),
                     ..Default::default()
                 },
             },
@@ -562,7 +603,9 @@ impl FraudPatternMatch {
                 pattern_type: FraudPatternType::GeoAnomaly,
                 risk_weight: 70.0,
                 params: PatternParams {
-                    custom: [("travel_window".to_string(), 7200.0)].into_iter().collect(), // 2 hours
+                    custom: [("travel_window".to_string(), 7200.0)]
+                        .into_iter()
+                        .collect(), // 2 hours
                     ..Default::default()
                 },
             },
@@ -591,7 +634,13 @@ mod tests {
     use super::*;
     use crate::types::{Channel, TransactionType};
 
-    fn create_transaction(id: u64, source: u64, dest: u64, amount: f64, timestamp: u64) -> BankTransaction {
+    fn create_transaction(
+        id: u64,
+        source: u64,
+        dest: u64,
+        amount: f64,
+        timestamp: u64,
+    ) -> BankTransaction {
         BankTransaction {
             id,
             source_account: source,
@@ -653,7 +702,10 @@ mod tests {
 
         let result = FraudPatternMatch::compute(&current, &history, &patterns, None);
 
-        assert!(!result.matched_patterns.is_empty(), "Should detect rapid split");
+        assert!(
+            !result.matched_patterns.is_empty(),
+            "Should detect rapid split"
+        );
         assert!(result.fraud_score > 30.0);
     }
 
@@ -663,7 +715,7 @@ mod tests {
 
         // Create circular flow: A -> B -> C -> A
         let history = vec![
-            create_transaction(1, 100, 200, 5000.0, base_time),      // A -> B
+            create_transaction(1, 100, 200, 5000.0, base_time), // A -> B
             create_transaction(2, 200, 300, 4800.0, base_time + 100), // B -> C
             create_transaction(3, 300, 100, 4600.0, base_time + 200), // C -> A (completing cycle)
         ];
@@ -677,7 +729,9 @@ mod tests {
             risk_weight: 90.0,
             params: PatternParams {
                 time_window: 86400,
-                custom: [("min_chain_length".to_string(), 3.0)].into_iter().collect(),
+                custom: [("min_chain_length".to_string(), 3.0)]
+                    .into_iter()
+                    .collect(),
                 ..Default::default()
             },
         }];
@@ -685,7 +739,10 @@ mod tests {
         let result = FraudPatternMatch::compute(&current, &history, &patterns, None);
 
         // Should detect circular flow
-        let has_circular = result.matched_patterns.iter().any(|p| p.pattern_name.contains("Circular"));
+        let has_circular = result
+            .matched_patterns
+            .iter()
+            .any(|p| p.pattern_name.contains("Circular"));
         assert!(has_circular, "Should detect circular flow");
     }
 
@@ -719,7 +776,10 @@ mod tests {
 
         let result = FraudPatternMatch::compute(&current, &history, &patterns, Some(&profile));
 
-        let has_velocity = result.matched_patterns.iter().any(|p| p.pattern_name.contains("Velocity"));
+        let has_velocity = result
+            .matched_patterns
+            .iter()
+            .any(|p| p.pattern_name.contains("Velocity"));
         assert!(has_velocity, "Should detect velocity anomaly");
     }
 
@@ -745,7 +805,10 @@ mod tests {
 
         let result = FraudPatternMatch::compute(&tx, &[], &patterns, Some(&profile));
 
-        let has_amount = result.matched_patterns.iter().any(|p| p.pattern_name.contains("Amount"));
+        let has_amount = result
+            .matched_patterns
+            .iter()
+            .any(|p| p.pattern_name.contains("Amount"));
         assert!(has_amount, "Should detect amount anomaly");
     }
 
@@ -771,14 +834,19 @@ mod tests {
             pattern_type: FraudPatternType::GeoAnomaly,
             risk_weight: 70.0,
             params: PatternParams {
-                custom: [("travel_window".to_string(), 7200.0)].into_iter().collect(),
+                custom: [("travel_window".to_string(), 7200.0)]
+                    .into_iter()
+                    .collect(),
                 ..Default::default()
             },
         }];
 
         let result = FraudPatternMatch::compute(&tx2, &[tx1], &patterns, Some(&profile));
 
-        let has_geo = result.matched_patterns.iter().any(|p| p.pattern_name.contains("Geographic"));
+        let has_geo = result
+            .matched_patterns
+            .iter()
+            .any(|p| p.pattern_name.contains("Geographic"));
         assert!(has_geo, "Should detect geographic anomaly");
     }
 
@@ -788,7 +856,7 @@ mod tests {
 
         // Pattern: receive money, quickly send most of it out
         let history = vec![
-            create_transaction(1, 200, 100, 10000.0, base_time),      // Receive
+            create_transaction(1, 200, 100, 10000.0, base_time), // Receive
             create_transaction(2, 100, 300, 3000.0, base_time + 100), // Send out
             create_transaction(3, 100, 301, 3000.0, base_time + 200), // Send out
             create_transaction(4, 100, 302, 3000.0, base_time + 300), // Send out
@@ -809,7 +877,10 @@ mod tests {
 
         let result = FraudPatternMatch::compute(&current, &history, &patterns, None);
 
-        let has_mule = result.matched_patterns.iter().any(|p| p.pattern_name.contains("Mule"));
+        let has_mule = result
+            .matched_patterns
+            .iter()
+            .any(|p| p.pattern_name.contains("Mule"));
         assert!(has_mule, "Should detect mule account behavior");
     }
 
@@ -818,8 +889,16 @@ mod tests {
         let patterns = FraudPatternMatch::standard_patterns();
 
         assert!(!patterns.is_empty());
-        assert!(patterns.iter().any(|p| p.pattern_type == FraudPatternType::RapidSplit));
-        assert!(patterns.iter().any(|p| p.pattern_type == FraudPatternType::CircularFlow));
+        assert!(
+            patterns
+                .iter()
+                .any(|p| p.pattern_type == FraudPatternType::RapidSplit)
+        );
+        assert!(
+            patterns
+                .iter()
+                .any(|p| p.pattern_type == FraudPatternType::CircularFlow)
+        );
     }
 
     #[test]

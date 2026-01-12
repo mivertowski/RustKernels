@@ -259,12 +259,7 @@ impl RidgeRegression {
     /// * `y` - Target vector (n_samples)
     /// * `alpha` - Regularization strength
     /// * `fit_intercept` - Whether to fit an intercept term
-    pub fn compute(
-        x: &DataMatrix,
-        y: &[f64],
-        alpha: f64,
-        fit_intercept: bool,
-    ) -> RegressionResult {
+    pub fn compute(x: &DataMatrix, y: &[f64], alpha: f64, fit_intercept: bool) -> RegressionResult {
         let n = x.n_samples;
         let d = x.n_features;
 
@@ -405,7 +400,11 @@ mod tests {
         );
 
         // R² should be 1.0 for perfect linear data
-        assert!(result.r2_score > 0.99, "Expected R² ≈ 1.0, got {}", result.r2_score);
+        assert!(
+            result.r2_score > 0.99,
+            "Expected R² ≈ 1.0, got {}",
+            result.r2_score
+        );
     }
 
     #[test]
@@ -433,7 +432,11 @@ mod tests {
             result.coefficients[1]
         );
 
-        assert!(result.r2_score > 0.95, "Expected high R², got {}", result.r2_score);
+        assert!(
+            result.r2_score > 0.95,
+            "Expected high R², got {}",
+            result.r2_score
+        );
     }
 
     #[test]

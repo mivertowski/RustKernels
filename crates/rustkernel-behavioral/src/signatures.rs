@@ -3,9 +3,7 @@
 //! This module provides pattern-based fraud detection using
 //! predefined fraud signatures.
 
-use crate::types::{
-    EventValue, FraudSignature, SignatureMatch, SignaturePattern, UserEvent,
-};
+use crate::types::{EventValue, FraudSignature, SignatureMatch, SignaturePattern, UserEvent};
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::HashMap;
 
@@ -115,7 +113,8 @@ impl FraudSignatureDetection {
 
             if matched {
                 // Calculate match score based on time compression
-                let time_span = window.last().unwrap().timestamp - window.first().unwrap().timestamp;
+                let time_span =
+                    window.last().unwrap().timestamp - window.first().unwrap().timestamp;
                 let time_score = if time_span < 300 {
                     100.0 // Very rapid sequence
                 } else if time_span < 3600 {
@@ -158,9 +157,10 @@ impl FraudSignatureDetection {
             }
 
             let attrs_match = required_attrs.iter().all(|(key, expected_value)| {
-                event.attributes.get(key).map_or(false, |actual| {
-                    Self::values_match(expected_value, actual)
-                })
+                event
+                    .attributes
+                    .get(key)
+                    .is_some_and(|actual| Self::values_match(expected_value, actual))
             });
 
             if attrs_match {
@@ -172,7 +172,8 @@ impl FraudSignatureDetection {
             return None;
         }
 
-        let score = signature.severity * (matched_events.len() as f64 / events.len() as f64).min(1.0);
+        let score =
+            signature.severity * (matched_events.len() as f64 / events.len() as f64).min(1.0);
 
         Some(SignatureMatch {
             signature_id: signature.id,
@@ -353,7 +354,9 @@ impl FraudSignatureDetection {
             (EventValue::Bool(e), EventValue::Bool(a)) => e == a,
             (EventValue::List(e), EventValue::List(a)) => {
                 e.len() == a.len()
-                    && e.iter().zip(a.iter()).all(|(ev, av)| Self::values_match(ev, av))
+                    && e.iter()
+                        .zip(a.iter())
+                        .all(|(ev, av)| Self::values_match(ev, av))
             }
             _ => false,
         }
@@ -363,7 +366,9 @@ impl FraudSignatureDetection {
     fn value_contains_pattern(value: &EventValue, pattern: &str) -> bool {
         match value {
             EventValue::String(s) => s.contains(pattern),
-            EventValue::List(items) => items.iter().any(|v| Self::value_contains_pattern(v, pattern)),
+            EventValue::List(items) => items
+                .iter()
+                .any(|v| Self::value_contains_pattern(v, pattern)),
             _ => false,
         }
     }
@@ -530,7 +535,10 @@ mod tests {
 
         let matches = FraudSignatureDetection::compute(&events, &signatures);
 
-        assert!(!matches.is_empty(), "Should detect account takeover sequence");
+        assert!(
+            !matches.is_empty(),
+            "Should detect account takeover sequence"
+        );
         assert_eq!(matches[0].signature_id, 2);
         assert_eq!(matches[0].matched_events.len(), 3);
     }

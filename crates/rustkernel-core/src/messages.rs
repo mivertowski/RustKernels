@@ -42,6 +42,48 @@ impl Default for CorrelationId {
     }
 }
 
+/// Trait for batch kernel messages (CPU-orchestrated execution).
+///
+/// This trait provides serialization and type information for messages
+/// used with `BatchKernel` implementations. Unlike `RingMessage` which
+/// uses rkyv for GPU-native serialization, `BatchMessage` uses serde
+/// for JSON serialization suitable for CPU-side orchestration.
+///
+/// Typically derived using `#[derive(KernelMessage)]`:
+///
+/// ```ignore
+/// #[derive(Debug, Clone, Serialize, Deserialize, KernelMessage)]
+/// #[message(type_id = 100, domain = "GraphAnalytics")]
+/// pub struct PageRankInput {
+///     pub graph: CsrGraph,
+///     pub damping: f64,
+/// }
+/// ```
+pub trait BatchMessage:
+    serde::Serialize + for<'de> serde::Deserialize<'de> + Send + Sync + 'static
+{
+    /// Get the message type ID.
+    fn message_type_id() -> u64;
+
+    /// Serialize to JSON bytes.
+    fn to_json(&self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(self)
+    }
+
+    /// Deserialize from JSON bytes.
+    fn from_json(bytes: &[u8]) -> Result<Self, serde_json::Error>
+    where
+        Self: Sized,
+    {
+        serde_json::from_slice(bytes)
+    }
+
+    /// Get the size hint for serialized data.
+    fn size_hint(&self) -> usize {
+        std::mem::size_of::<Self>()
+    }
+}
+
 /// Base trait for kernel request messages.
 pub trait KernelRequest: RingMessage + Send + Sync {
     /// Get the correlation ID for this request.
@@ -238,5 +280,34 @@ mod tests {
         let result: KernelResult<i32> = KernelResult::failure(CorrelationId::new(), "error");
         assert!(!result.is_success());
         assert_eq!(result.into_result(), Err("error".to_string()));
+    }
+
+    #[test]
+    fn test_batch_message_trait() {
+        // Test struct implementing BatchMessage via KernelMessage derive
+        #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+        struct TestMessage {
+            value: i32,
+        }
+
+        // Manual impl to test the trait
+        impl BatchMessage for TestMessage {
+            fn message_type_id() -> u64 {
+                42
+            }
+        }
+
+        let msg = TestMessage { value: 123 };
+
+        // Test message_type_id
+        assert_eq!(TestMessage::message_type_id(), 42);
+
+        // Test JSON serialization
+        let json = msg.to_json().expect("serialization failed");
+        assert!(json.len() > 0);
+
+        // Test JSON deserialization
+        let decoded: TestMessage = TestMessage::from_json(&json).expect("deserialization failed");
+        assert_eq!(decoded.value, 123);
     }
 }

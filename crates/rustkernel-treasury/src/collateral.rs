@@ -81,19 +81,25 @@ impl CollateralOptimization {
                 OptimizationStrategy::CheapestToDeliver => {
                     // Prefer assets with lower quality (highest haircut)
                     eligible_assets.sort_by(|a, b| {
-                        b.haircut.partial_cmp(&a.haircut).unwrap_or(std::cmp::Ordering::Equal)
+                        b.haircut
+                            .partial_cmp(&a.haircut)
+                            .unwrap_or(std::cmp::Ordering::Equal)
                     });
                 }
                 OptimizationStrategy::HighestQuality => {
                     // Prefer assets with highest quality (lowest haircut)
                     eligible_assets.sort_by(|a, b| {
-                        a.haircut.partial_cmp(&b.haircut).unwrap_or(std::cmp::Ordering::Equal)
+                        a.haircut
+                            .partial_cmp(&b.haircut)
+                            .unwrap_or(std::cmp::Ordering::Equal)
                     });
                 }
                 OptimizationStrategy::LargestFirst => {
                     // Prefer largest eligible values
                     eligible_assets.sort_by(|a, b| {
-                        b.eligible_value.partial_cmp(&a.eligible_value).unwrap_or(std::cmp::Ordering::Equal)
+                        b.eligible_value
+                            .partial_cmp(&a.eligible_value)
+                            .unwrap_or(std::cmp::Ordering::Equal)
                     });
                 }
             }
@@ -110,7 +116,8 @@ impl CollateralOptimization {
                 }
 
                 let allocate_value = available_amount.min(remaining);
-                let allocate_quantity = allocate_value / (1.0 - asset.haircut) / (asset.market_value / asset.quantity);
+                let allocate_quantity =
+                    allocate_value / (1.0 - asset.haircut) / (asset.market_value / asset.quantity);
 
                 allocations.push(CollateralAllocation {
                     asset_id: asset.id.clone(),
@@ -174,7 +181,10 @@ impl CollateralOptimization {
             let avg_haircut: f64 = allocations
                 .iter()
                 .filter_map(|alloc| {
-                    assets.iter().find(|a| a.id == alloc.asset_id).map(|a| a.haircut)
+                    assets
+                        .iter()
+                        .find(|a| a.id == alloc.asset_id)
+                        .map(|a| a.haircut)
                 })
                 .sum::<f64>()
                 / allocations.len().max(1) as f64;
@@ -183,7 +193,10 @@ impl CollateralOptimization {
             1.0 - allocations
                 .iter()
                 .filter_map(|alloc| {
-                    assets.iter().find(|a| a.id == alloc.asset_id).map(|a| a.haircut)
+                    assets
+                        .iter()
+                        .find(|a| a.id == alloc.asset_id)
+                        .map(|a| a.haircut)
                 })
                 .sum::<f64>()
                 / allocations.len().max(1) as f64
@@ -192,7 +205,9 @@ impl CollateralOptimization {
         // Concentration factor: penalize over-concentration
         let mut by_counterparty: HashMap<String, f64> = HashMap::new();
         for alloc in allocations {
-            *by_counterparty.entry(alloc.counterparty_id.clone()).or_default() += alloc.value;
+            *by_counterparty
+                .entry(alloc.counterparty_id.clone())
+                .or_default() += alloc.value;
         }
         let concentration = if by_counterparty.len() > 1 {
             1.0 - Self::herfindahl_index(&by_counterparty.values().copied().collect::<Vec<_>>())
@@ -511,14 +526,12 @@ mod tests {
     #[test]
     fn test_utilization_metrics() {
         let assets = create_test_assets();
-        let allocations = vec![
-            CollateralAllocation {
-                asset_id: "CASH_001".to_string(),
-                counterparty_id: "CP_A".to_string(),
-                quantity: 500_000.0,
-                value: 500_000.0,
-            },
-        ];
+        let allocations = vec![CollateralAllocation {
+            asset_id: "CASH_001".to_string(),
+            counterparty_id: "CP_A".to_string(),
+            quantity: 500_000.0,
+            value: 500_000.0,
+        }];
 
         let metrics = CollateralOptimization::utilization_metrics(&assets, &allocations);
 

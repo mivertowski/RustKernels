@@ -43,7 +43,11 @@ impl PartialOrderAnalysis {
 
     /// Analyze partial orders in an event log.
     pub fn analyze(log: &EventLog, config: &PartialOrderConfig) -> PartialOrderResult {
-        let activities: Vec<String> = log.activities().into_iter().map(|s| s.to_string()).collect();
+        let activities: Vec<String> = log
+            .activities()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
 
         if activities.is_empty() {
             return PartialOrderResult {
@@ -64,7 +68,8 @@ impl PartialOrderAnalysis {
             sorted_events.sort_by_key(|e| e.timestamp);
 
             // Activities in this trace
-            let trace_activities: HashSet<_> = sorted_events.iter().map(|e| e.activity.clone()).collect();
+            let trace_activities: HashSet<_> =
+                sorted_events.iter().map(|e| e.activity.clone()).collect();
 
             // Count co-occurrences
             for a1 in &trace_activities {
@@ -101,9 +106,18 @@ impl PartialOrderAnalysis {
                 let a1 = &activities[i];
                 let a2 = &activities[j];
 
-                let co = cooccurrence.get(&(a1.clone(), a2.clone())).copied().unwrap_or(0);
-                let ab = before_count.get(&(a1.clone(), a2.clone())).copied().unwrap_or(0);
-                let ba = before_count.get(&(a2.clone(), a1.clone())).copied().unwrap_or(0);
+                let co = cooccurrence
+                    .get(&(a1.clone(), a2.clone()))
+                    .copied()
+                    .unwrap_or(0);
+                let ab = before_count
+                    .get(&(a1.clone(), a2.clone()))
+                    .copied()
+                    .unwrap_or(0);
+                let ba = before_count
+                    .get(&(a2.clone(), a1.clone()))
+                    .copied()
+                    .unwrap_or(0);
 
                 // Check for exclusivity (never co-occur)
                 if co == 0 && trace_count > 0 {
@@ -160,15 +174,26 @@ impl PartialOrderAnalysis {
 
                 if a1 != a2 {
                     // Check if timestamps are close enough to be concurrent
-                    let time_diff = sorted_events[j].timestamp.saturating_sub(sorted_events[i].timestamp);
+                    let time_diff = sorted_events[j]
+                        .timestamp
+                        .saturating_sub(sorted_events[i].timestamp);
 
                     if time_diff == 0 {
                         // Same timestamp - concurrent
-                        concurrent_with.entry(a1.clone()).or_default().insert(a2.clone());
-                        concurrent_with.entry(a2.clone()).or_default().insert(a1.clone());
+                        concurrent_with
+                            .entry(a1.clone())
+                            .or_default()
+                            .insert(a2.clone());
+                        concurrent_with
+                            .entry(a2.clone())
+                            .or_default()
+                            .insert(a1.clone());
                     } else {
                         // Sequential
-                        ordering_graph.entry(a1.clone()).or_default().insert(a2.clone());
+                        ordering_graph
+                            .entry(a1.clone())
+                            .or_default()
+                            .insert(a2.clone());
                     }
                 }
             }
@@ -188,7 +213,8 @@ impl PartialOrderAnalysis {
             let mut sorted_events: Vec<_> = trace.events.iter().collect();
             sorted_events.sort_by_key(|e| e.timestamp);
 
-            let activities: Vec<String> = sorted_events.iter().map(|e| e.activity.clone()).collect();
+            let activities: Vec<String> =
+                sorted_events.iter().map(|e| e.activity.clone()).collect();
 
             // Find repeated subsequences
             for window_size in 2..=activities.len().min(5) {
@@ -198,7 +224,8 @@ impl PartialOrderAnalysis {
                     // Check if pattern repeats
                     let next_start = start + window_size;
                     if next_start + window_size <= activities.len() {
-                        let next_pattern: Vec<String> = activities[next_start..next_start + window_size].to_vec();
+                        let next_pattern: Vec<String> =
+                            activities[next_start..next_start + window_size].to_vec();
                         if pattern == next_pattern {
                             *loop_patterns.entry(pattern).or_insert(0) += 1;
                         }
@@ -219,7 +246,11 @@ impl PartialOrderAnalysis {
 
     /// Calculate activity independence scores.
     pub fn calculate_independence(log: &EventLog) -> HashMap<(String, String), f64> {
-        let activities: Vec<String> = log.activities().into_iter().map(|s| s.to_string()).collect();
+        let activities: Vec<String> = log
+            .activities()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
         let mut independence_scores: HashMap<(String, String), f64> = HashMap::new();
 
         if activities.is_empty() || log.trace_count() == 0 {
@@ -231,7 +262,8 @@ impl PartialOrderAnalysis {
         let mut activity_count: HashMap<String, u64> = HashMap::new();
 
         for trace in log.traces.values() {
-            let trace_activities: HashSet<_> = trace.events.iter().map(|e| e.activity.clone()).collect();
+            let trace_activities: HashSet<_> =
+                trace.events.iter().map(|e| e.activity.clone()).collect();
 
             for activity in &trace_activities {
                 *activity_count.entry(activity.clone()).or_insert(0) += 1;
@@ -240,7 +272,9 @@ impl PartialOrderAnalysis {
             for a1 in &trace_activities {
                 for a2 in &trace_activities {
                     if a1 < a2 {
-                        *cooccurrence_count.entry((a1.clone(), a2.clone())).or_insert(0) += 1;
+                        *cooccurrence_count
+                            .entry((a1.clone(), a2.clone()))
+                            .or_insert(0) += 1;
                     }
                 }
             }
@@ -254,11 +288,16 @@ impl PartialOrderAnalysis {
                 let a1 = &activities[i];
                 let a2 = &activities[j];
 
-                let key = if a1 < a2 { (a1.clone(), a2.clone()) } else { (a2.clone(), a1.clone()) };
+                let key = if a1 < a2 {
+                    (a1.clone(), a2.clone())
+                } else {
+                    (a2.clone(), a1.clone())
+                };
 
                 let p_a1 = activity_count.get(a1).copied().unwrap_or(0) as f64 / trace_count;
                 let p_a2 = activity_count.get(a2).copied().unwrap_or(0) as f64 / trace_count;
-                let p_joint = cooccurrence_count.get(&key).copied().unwrap_or(0) as f64 / trace_count;
+                let p_joint =
+                    cooccurrence_count.get(&key).copied().unwrap_or(0) as f64 / trace_count;
 
                 // Independence score: how different from expected co-occurrence
                 let expected = p_a1 * p_a2;
@@ -413,9 +452,10 @@ mod tests {
         let result = PartialOrderAnalysis::analyze(&log, &config);
 
         // B and C should be detected as concurrent (appear in both orders)
-        let bc_concurrent = result.concurrent_pairs.iter().any(|(a, b)| {
-            (a == "B" && b == "C") || (a == "C" && b == "B")
-        });
+        let bc_concurrent = result
+            .concurrent_pairs
+            .iter()
+            .any(|(a, b)| (a == "B" && b == "C") || (a == "C" && b == "B"));
         assert!(bc_concurrent, "B and C should be concurrent");
     }
 
@@ -426,7 +466,10 @@ mod tests {
         let result = PartialOrderAnalysis::analyze(&log, &config);
 
         // A should be before B, C, D in all traces
-        let a_before_d = result.sequential_pairs.iter().any(|(a, b)| a == "A" && b == "D");
+        let a_before_d = result
+            .sequential_pairs
+            .iter()
+            .any(|(a, b)| a == "A" && b == "D");
         assert!(a_before_d, "A should be sequential before D");
     }
 
@@ -437,9 +480,10 @@ mod tests {
         let result = PartialOrderAnalysis::analyze(&log, &config);
 
         // B and D should be exclusive (never in same trace)
-        let bd_exclusive = result.exclusive_pairs.iter().any(|(a, b)| {
-            (a == "B" && b == "D") || (a == "D" && b == "B")
-        });
+        let bd_exclusive = result
+            .exclusive_pairs
+            .iter()
+            .any(|(a, b)| (a == "B" && b == "D") || (a == "D" && b == "B"));
         assert!(bd_exclusive, "B and D should be exclusive");
     }
 
@@ -501,8 +545,18 @@ mod tests {
         let result = PartialOrderAnalysis::analyze_trace(&trace);
 
         // A should come before B and C
-        assert!(result.ordering_graph.get("A").map_or(false, |s| s.contains("B")));
-        assert!(result.ordering_graph.get("A").map_or(false, |s| s.contains("C")));
+        assert!(
+            result
+                .ordering_graph
+                .get("A")
+                .map_or(false, |s| s.contains("B"))
+        );
+        assert!(
+            result
+                .ordering_graph
+                .get("A")
+                .map_or(false, |s| s.contains("C"))
+        );
     }
 
     #[test]

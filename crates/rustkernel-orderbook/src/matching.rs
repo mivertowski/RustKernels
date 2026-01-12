@@ -219,10 +219,11 @@ impl OrderMatchingEngine {
         }
 
         // Check price tick size for limit orders
-        if order.order_type == OrderType::Limit && self.config.tick_size.0 > 0 {
-            if order.price.0 % self.config.tick_size.0 != 0 {
-                return Err(OrderStatus::Rejected);
-            }
+        if order.order_type == OrderType::Limit
+            && self.config.tick_size.0 > 0
+            && order.price.0 % self.config.tick_size.0 != 0
+        {
+            return Err(OrderStatus::Rejected);
         }
 
         Ok(())
@@ -281,9 +282,7 @@ impl OrderMatchingEngine {
                 };
 
                 // Self-trade prevention
-                if self.config.self_trade_prevention
-                    && order.trader_id == resting_order.trader_id
-                {
+                if self.config.self_trade_prevention && order.trader_id == resting_order.trader_id {
                     continue;
                 }
 
@@ -411,10 +410,7 @@ impl OrderMatchingEngine {
 
     /// Process a batch of orders.
     pub fn process_batch(&mut self, orders: Vec<Order>) -> Vec<MatchResult> {
-        orders
-            .into_iter()
-            .map(|o| self.submit_order(o))
-            .collect()
+        orders.into_iter().map(|o| self.submit_order(o)).collect()
     }
 
     /// Clear the engine (for testing).
@@ -522,7 +518,6 @@ use crate::ring_messages::{
     CancelOrderResponse, CancelOrderRing, QueryBookResponse, QueryBookRing, RingOrderStatus,
     RingString, SubmitOrderResponse, SubmitOrderRing,
 };
-use ringkernel_core::message::CorrelationId;
 use ringkernel_core::RingContext;
 use rustkernel_core::traits::RingKernelHandler;
 

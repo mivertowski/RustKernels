@@ -153,7 +153,7 @@ impl EventCorrelationKernel {
             + config.weights.session
             + config.weights.device
             + config.weights.location;
-        score = score / max_possible;
+        score /= max_possible;
 
         if score < config.min_score {
             return None;
@@ -244,7 +244,10 @@ impl EventCorrelationKernel {
         // Build high-score correlation edges
         // For each correlation, union the correlated events
         for (i, e1) in all_events.iter().enumerate() {
-            for corr in correlations.iter().filter(|c| c.score >= config.cluster_threshold) {
+            for corr in correlations
+                .iter()
+                .filter(|c| c.score >= config.cluster_threshold)
+            {
                 if let Some(&idx2) = id_to_idx.get(&corr.correlated_event_id) {
                     // Check if e1 could be the source of this correlation
                     // by checking if their IDs are related
@@ -402,8 +405,7 @@ impl EventCorrelationKernel {
                     let matched = match req_type {
                         CorrelationType::User => e1.user_id == e2.user_id,
                         CorrelationType::Session => {
-                            e1.session_id.is_some()
-                                && e1.session_id == e2.session_id
+                            e1.session_id.is_some() && e1.session_id == e2.session_id
                         }
                         CorrelationType::Device => {
                             e1.device_id.is_some() && e1.device_id == e2.device_id
@@ -420,8 +422,8 @@ impl EventCorrelationKernel {
                 }
 
                 if matches.iter().all(|&m| m) {
-                    let score = matches.iter().filter(|&&m| m).count() as f64
-                        / required_types.len() as f64;
+                    let score =
+                        matches.iter().filter(|&&m| m).count() as f64 / required_types.len() as f64;
                     pairs.push((e1.id, e2.id, score));
                 }
             }
@@ -573,10 +575,7 @@ mod tests {
         let result = EventCorrelationKernel::compute(&events[0], &events, &config);
 
         // Should find correlations with events 2 and 3 (same user, session, device)
-        assert!(
-            !result.correlations.is_empty(),
-            "Should find correlations"
-        );
+        assert!(!result.correlations.is_empty(), "Should find correlations");
 
         // Highest correlation should be with same-session events
         let same_user_corrs: Vec<_> = result
@@ -679,7 +678,10 @@ mod tests {
 
         // May or may not have clusters depending on correlations
         for cluster in &result.clusters {
-            assert!(cluster.event_ids.len() >= 2, "Clusters should have 2+ events");
+            assert!(
+                cluster.event_ids.len() >= 2,
+                "Clusters should have 2+ events"
+            );
             assert!(cluster.coherence >= 0.0 && cluster.coherence <= 1.0);
         }
     }
@@ -740,7 +742,11 @@ mod tests {
         );
 
         // All should be marked as causal
-        assert!(causal.iter().all(|c| c.correlation_type == CorrelationType::Causal));
+        assert!(
+            causal
+                .iter()
+                .all(|c| c.correlation_type == CorrelationType::Causal)
+        );
     }
 
     #[test]

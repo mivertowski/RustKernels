@@ -7,9 +7,7 @@
 use crate::messages::{
     EntityResolutionInput, EntityResolutionOutput, KYCScoringInput, KYCScoringOutput,
 };
-use crate::types::{
-    Entity, EntityMatch, EntityResolutionResult, KYCFactors, KYCResult, RiskTier,
-};
+use crate::types::{Entity, EntityMatch, EntityResolutionResult, KYCFactors, KYCResult, RiskTier};
 use async_trait::async_trait;
 use rustkernel_core::error::Result;
 use rustkernel_core::traits::BatchKernel;
@@ -70,7 +68,10 @@ impl KYCScoring {
         let industry_contribution = factors.industry_risk * w.industry;
         weighted_sum += industry_contribution;
         total_weight += w.industry;
-        contributions.push(("Industry Risk".to_string(), industry_contribution / w.industry));
+        contributions.push((
+            "Industry Risk".to_string(),
+            industry_contribution / w.industry,
+        ));
 
         // Product risk
         let product_contribution = factors.product_risk * w.product;
@@ -82,14 +83,20 @@ impl KYCScoring {
         let tx_contribution = factors.transaction_risk * w.transaction;
         weighted_sum += tx_contribution;
         total_weight += w.transaction;
-        contributions.push(("Transaction Risk".to_string(), tx_contribution / w.transaction));
+        contributions.push((
+            "Transaction Risk".to_string(),
+            tx_contribution / w.transaction,
+        ));
 
         // Documentation (inverse - higher is better)
         let doc_risk = 100.0 - factors.documentation_score;
         let doc_contribution = doc_risk * w.documentation;
         weighted_sum += doc_contribution;
         total_weight += w.documentation;
-        contributions.push(("Documentation Gap".to_string(), doc_contribution / w.documentation));
+        contributions.push((
+            "Documentation Gap".to_string(),
+            doc_contribution / w.documentation,
+        ));
 
         // Tenure (inverse - longer is better)
         let tenure_risk = (10.0 - factors.tenure_years.min(10.0)) * 10.0;
@@ -249,7 +256,11 @@ impl EntityResolution {
             .collect();
 
         // Sort by score descending
-        matches.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        matches.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Take top matches
         matches.truncate(max_matches);
@@ -436,7 +447,12 @@ impl GpuKernel for EntityResolution {
 impl BatchKernel<EntityResolutionInput, EntityResolutionOutput> for EntityResolution {
     async fn execute(&self, input: EntityResolutionInput) -> Result<EntityResolutionOutput> {
         let start = Instant::now();
-        let result = Self::compute(&input.query, &input.candidates, input.min_score, input.max_matches);
+        let result = Self::compute(
+            &input.query,
+            &input.candidates,
+            input.min_score,
+            input.max_matches,
+        );
         Ok(EntityResolutionOutput {
             result,
             compute_time_us: start.elapsed().as_micros() as u64,

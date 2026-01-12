@@ -80,12 +80,8 @@ impl GLReconciliation {
         for (account, sources) in &source_by_account {
             if let Some(targets) = target_by_account.get(account) {
                 for (source_idx, source_item) in sources {
-                    let best_match = Self::find_best_match(
-                        source_item,
-                        targets,
-                        &used_targets,
-                        config,
-                    );
+                    let best_match =
+                        Self::find_best_match(source_item, targets, &used_targets, config);
 
                     match best_match {
                         Some((target_idx, confidence, variance, match_type)) => {
@@ -283,10 +279,7 @@ impl GLReconciliation {
                     exceptions.push(ReconciliationException {
                         item_id: target.id.clone(),
                         exception_type: ExceptionType::AmountVariance,
-                        description: format!(
-                            "Sum variance of {} exceeds tolerance",
-                            variance
-                        ),
+                        description: format!("Sum variance of {} exceeds tolerance", variance),
                         suggested_action: None,
                     });
                 }
@@ -359,7 +352,11 @@ impl GLReconciliation {
     }
 
     /// Check if two items are duplicates.
-    fn check_duplicate(a: &ReconciliationItem, b: &ReconciliationItem, config: &DuplicateConfig) -> bool {
+    fn check_duplicate(
+        a: &ReconciliationItem,
+        b: &ReconciliationItem,
+        config: &DuplicateConfig,
+    ) -> bool {
         // Same account
         if a.account_code != b.account_code {
             return false;
@@ -538,7 +535,11 @@ mod tests {
         let result = GLReconciliation::reconcile(&source, &target, &config);
 
         // First pair should be exact match
-        let first_match = result.matched_pairs.iter().find(|p| p.source_id == "S1").unwrap();
+        let first_match = result
+            .matched_pairs
+            .iter()
+            .find(|p| p.source_id == "S1")
+            .unwrap();
         assert_eq!(first_match.match_type, MatchType::Exact);
         assert!((first_match.confidence - 1.0).abs() < 0.001);
     }
@@ -555,7 +556,11 @@ mod tests {
         let result = GLReconciliation::reconcile(&source, &target, &config);
 
         // Second pair should be tolerance match
-        let second_match = result.matched_pairs.iter().find(|p| p.source_id == "S2").unwrap();
+        let second_match = result
+            .matched_pairs
+            .iter()
+            .find(|p| p.source_id == "S2")
+            .unwrap();
         assert_eq!(second_match.match_type, MatchType::Tolerance);
         assert!((second_match.variance - (-0.5)).abs() < 0.01);
     }
@@ -619,7 +624,12 @@ mod tests {
 
         let result = GLReconciliation::reconcile(&source, &target, &config);
 
-        assert!(result.exceptions.iter().any(|e| e.exception_type == ExceptionType::AmountVariance));
+        assert!(
+            result
+                .exceptions
+                .iter()
+                .any(|e| e.exception_type == ExceptionType::AmountVariance)
+        );
     }
 
     #[test]
@@ -665,7 +675,12 @@ mod tests {
         let result = GLReconciliation::reconcile_many_to_one(&source, &target, &config);
 
         assert_eq!(result.matched_pairs.len(), 2);
-        assert!(result.matched_pairs.iter().all(|p| p.match_type == MatchType::ManyToOne));
+        assert!(
+            result
+                .matched_pairs
+                .iter()
+                .all(|p| p.match_type == MatchType::ManyToOne)
+        );
     }
 
     #[test]

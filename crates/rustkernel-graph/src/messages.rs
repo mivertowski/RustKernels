@@ -4,7 +4,7 @@
 //! persistent actor communication.
 
 use crate::motif::MotifResult;
-use crate::types::{CentralityResult, CommunityResult, CsrGraph, SimilarityResult, SimilarityScore};
+use crate::types::{CentralityResult, CommunityResult, CsrGraph, SimilarityResult};
 use rustkernel_core::messages::CorrelationId;
 use serde::{Deserialize, Serialize};
 
@@ -116,7 +116,11 @@ impl PageRankResponse {
     }
 
     /// Create a convergence response with full result.
-    pub fn converged(correlation_id: CorrelationId, result: CentralityResult, iteration: u32) -> Self {
+    pub fn converged(
+        correlation_id: CorrelationId,
+        result: CentralityResult,
+        iteration: u32,
+    ) -> Self {
         Self {
             correlation_id,
             score: None,

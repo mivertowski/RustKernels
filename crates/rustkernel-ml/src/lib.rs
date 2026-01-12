@@ -42,7 +42,42 @@ pub mod prelude {
 }
 
 /// Register all ML kernels with a registry.
-pub fn register_all(registry: &rustkernel_core::registry::KernelRegistry) -> rustkernel_core::error::Result<()> {
+pub fn register_all(
+    registry: &rustkernel_core::registry::KernelRegistry,
+) -> rustkernel_core::error::Result<()> {
+    use rustkernel_core::traits::GpuKernel;
+
     tracing::info!("Registering statistical ML kernels");
+
+    // Clustering kernels (3)
+    registry.register_metadata(clustering::KMeans::new().metadata().clone())?;
+    registry.register_metadata(clustering::DBSCAN::new().metadata().clone())?;
+    registry.register_metadata(clustering::HierarchicalClustering::new().metadata().clone())?;
+
+    // Anomaly detection kernels (2)
+    registry.register_metadata(anomaly::IsolationForest::new().metadata().clone())?;
+    registry.register_metadata(anomaly::LocalOutlierFactor::new().metadata().clone())?;
+
+    // Ensemble kernel (1)
+    registry.register_metadata(ensemble::EnsembleVoting::new().metadata().clone())?;
+
+    // Regression kernels (2)
+    registry.register_metadata(regression::LinearRegression::new().metadata().clone())?;
+    registry.register_metadata(regression::RidgeRegression::new().metadata().clone())?;
+
+    tracing::info!("Registered 8 statistical ML kernels");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustkernel_core::registry::KernelRegistry;
+
+    #[test]
+    fn test_register_all() {
+        let registry = KernelRegistry::new();
+        register_all(&registry).expect("Failed to register ML kernels");
+        assert_eq!(registry.total_count(), 8);
+    }
 }

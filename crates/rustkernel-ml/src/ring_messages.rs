@@ -266,7 +266,11 @@ pub fn pack_coordinates(coords: &[f64], output: &mut [i64; 8]) {
 
 /// Unpack coordinates from fixed-point array.
 pub fn unpack_coordinates(input: &[i64; 8], n_dims: usize) -> Vec<f64> {
-    input.iter().take(n_dims).map(|&fp| from_fixed_point(fp)).collect()
+    input
+        .iter()
+        .take(n_dims)
+        .map(|&fp| from_fixed_point(fp))
+        .collect()
 }
 
 #[cfg(test)]

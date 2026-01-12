@@ -89,10 +89,7 @@ impl EnsembleVoting {
     /// * `probabilities` - 3D matrix: (n_classifiers, n_samples, n_classes)
     ///   Outer vec: classifiers, middle vec: samples, inner vec: class probabilities
     /// * `weights` - Optional classifier weights (defaults to equal)
-    pub fn soft_vote(
-        probabilities: &[Vec<Vec<f64>>],
-        weights: Option<&[f64]>,
-    ) -> Vec<usize> {
+    pub fn soft_vote(probabilities: &[Vec<Vec<f64>>], weights: Option<&[f64]>) -> Vec<usize> {
         if probabilities.is_empty() || probabilities[0].is_empty() {
             return Vec::new();
         }
@@ -222,10 +219,7 @@ mod tests {
 
     #[test]
     fn test_hard_vote_weighted() {
-        let predictions = vec![
-            vec![0, 0, 0],
-            vec![1, 1, 1],
-        ];
+        let predictions = vec![vec![0, 0, 0], vec![1, 1, 1]];
 
         // Give second classifier higher weight
         let weights = vec![0.3, 0.7];

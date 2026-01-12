@@ -168,14 +168,17 @@ impl ConformanceChecking {
 
         for (i, event) in events.iter().enumerate() {
             // Find transition for this activity
-            let transition = net.transitions.iter().find(|t| {
-                t.label.as_ref().map_or(false, |l| l == &event.activity)
-            });
+            let transition = net
+                .transitions
+                .iter()
+                .find(|t| t.label.as_ref() == Some(&event.activity));
 
             match transition {
                 Some(t) => {
                     // Check if transition is enabled
-                    let enabled = net.arcs.iter()
+                    let enabled = net
+                        .arcs
+                        .iter()
                         .filter(|a| a.target == t.id)
                         .all(|a| marking.get(&a.source).copied().unwrap_or(0) >= a.weight);
 
@@ -234,9 +237,10 @@ impl ConformanceChecking {
         }
 
         // Check if we reached final marking
-        let reached_final = net.final_marking.iter().all(|(place, &tokens)| {
-            marking.get(place).copied().unwrap_or(0) >= tokens
-        });
+        let reached_final = net
+            .final_marking
+            .iter()
+            .all(|(place, &tokens)| marking.get(place).copied().unwrap_or(0) >= tokens);
 
         if !reached_final && !net.final_marking.is_empty() {
             // Need model moves to reach final marking
@@ -284,7 +288,9 @@ impl ConformanceChecking {
             }
 
             for deviation in result.deviations {
-                *deviation_counts.entry(deviation.deviation_type).or_insert(0) += 1;
+                *deviation_counts
+                    .entry(deviation.deviation_type)
+                    .or_insert(0) += 1;
             }
         }
 
@@ -310,7 +316,10 @@ impl ConformanceChecking {
     }
 
     /// Calculate DFG precision for a trace.
-    fn calculate_dfg_precision(events: &[&crate::types::ProcessEvent], dfg: &DirectlyFollowsGraph) -> f64 {
+    fn calculate_dfg_precision(
+        events: &[&crate::types::ProcessEvent],
+        dfg: &DirectlyFollowsGraph,
+    ) -> f64 {
         if events.len() < 2 {
             return 1.0;
         }
@@ -362,10 +371,7 @@ impl ConformanceChecking {
         for trace in log.traces.values() {
             let result = Self::check_dfg(trace, dfg);
             for deviation in result.deviations {
-                let pattern = format!(
-                    "{:?}:{}",
-                    deviation.deviation_type, deviation.activity
-                );
+                let pattern = format!("{:?}:{}", deviation.deviation_type, deviation.activity);
                 *deviation_patterns.entry(pattern).or_insert(0) += 1;
             }
         }
@@ -377,11 +383,7 @@ impl ConformanceChecking {
             .into_iter()
             .take(top_n)
             .map(|(pattern, count)| {
-                let activity = pattern
-                    .split(':')
-                    .nth(1)
-                    .unwrap_or("")
-                    .to_string();
+                let activity = pattern.split(':').nth(1).unwrap_or("").to_string();
                 CommonDeviation {
                     pattern,
                     activity,

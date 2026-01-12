@@ -4,7 +4,6 @@
 //! persistent actor communication for machine learning algorithms.
 
 use crate::types::{ClusteringResult, DataMatrix, DistanceMetric};
-use rustkernel_core::messages::CorrelationId;
 use serde::{Deserialize, Serialize};
 
 // ============================================================================
@@ -301,7 +300,9 @@ mod tests {
     #[test]
     fn test_kmeans_input_builder() {
         let data = DataMatrix::from_rows(&[&[1.0, 2.0], &[3.0, 4.0]]);
-        let input = KMeansInput::new(data, 2).with_max_iterations(50).with_tolerance(1e-6);
+        let input = KMeansInput::new(data, 2)
+            .with_max_iterations(50)
+            .with_tolerance(1e-6);
         assert_eq!(input.k, 2);
         assert_eq!(input.max_iterations, 50);
     }

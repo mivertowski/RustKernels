@@ -54,10 +54,8 @@ impl JournalTransformation {
         let mut total_credit = 0.0;
 
         // Build mapping lookup
-        let mapping_lookup: HashMap<String, Vec<&MappedAccount>> = mapping
-            .mapped
-            .iter()
-            .fold(HashMap::new(), |mut acc, m| {
+        let mapping_lookup: HashMap<String, Vec<&MappedAccount>> =
+            mapping.mapped.iter().fold(HashMap::new(), |mut acc, m| {
                 acc.entry(m.source_code.clone()).or_default().push(m);
                 acc
             });
@@ -261,7 +259,8 @@ impl JournalTransformation {
 
         // Count distinct entries per account
         for entry in entries {
-            let mut seen_accounts: std::collections::HashSet<&str> = std::collections::HashSet::new();
+            let mut seen_accounts: std::collections::HashSet<&str> =
+                std::collections::HashSet::new();
             for line in &entry.lines {
                 if seen_accounts.insert(&line.account_code) {
                     if let Some(summary) = summaries.get_mut(&line.account_code) {
@@ -504,7 +503,12 @@ mod tests {
 
         // Should preserve unmapped 4000 account
         assert_eq!(result.stats.transformed_count, 1);
-        assert!(result.entries[0].lines.iter().any(|l| l.account_code == "4000"));
+        assert!(
+            result.entries[0]
+                .lines
+                .iter()
+                .any(|l| l.account_code == "4000")
+        );
     }
 
     #[test]
@@ -541,12 +545,17 @@ mod tests {
             },
         };
 
-        let result = JournalTransformation::transform(&entries, &mapping, &TransformConfig::default());
+        let result =
+            JournalTransformation::transform(&entries, &mapping, &TransformConfig::default());
 
         // Should have 3 lines (1000 split to 2, 4000 to 1)
         assert_eq!(result.entries[0].lines.len(), 3);
 
-        let a1001_line = result.entries[0].lines.iter().find(|l| l.account_code == "A1001").unwrap();
+        let a1001_line = result.entries[0]
+            .lines
+            .iter()
+            .find(|l| l.account_code == "A1001")
+            .unwrap();
         assert!((a1001_line.debit - 600.0).abs() < 0.01);
     }
 

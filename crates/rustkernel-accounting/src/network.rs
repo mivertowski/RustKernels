@@ -6,9 +6,8 @@
 //! - Generate elimination entries
 
 use crate::types::{
-    CircularReference, EliminationEntry, EntityBalance, EntityRelationship,
-    IntercompanyStatus, IntercompanyTransaction, IntercompanyType, NetworkAnalysisResult,
-    NetworkStats,
+    CircularReference, EliminationEntry, EntityBalance, EntityRelationship, IntercompanyStatus,
+    IntercompanyTransaction, IntercompanyType, NetworkAnalysisResult, NetworkStats,
 };
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::{HashMap, HashSet};
@@ -94,27 +93,29 @@ impl NetworkAnalysis {
             }
 
             // From entity has a receivable
-            let from_balance = balances.entry(txn.from_entity.clone()).or_insert_with(|| {
-                EntityBalance {
-                    entity_id: txn.from_entity.clone(),
-                    total_receivables: 0.0,
-                    total_payables: 0.0,
-                    net_position: 0.0,
-                    counterparty_count: 0,
-                }
-            });
+            let from_balance =
+                balances
+                    .entry(txn.from_entity.clone())
+                    .or_insert_with(|| EntityBalance {
+                        entity_id: txn.from_entity.clone(),
+                        total_receivables: 0.0,
+                        total_payables: 0.0,
+                        net_position: 0.0,
+                        counterparty_count: 0,
+                    });
             from_balance.total_receivables += txn.amount;
 
             // To entity has a payable
-            let to_balance = balances.entry(txn.to_entity.clone()).or_insert_with(|| {
-                EntityBalance {
-                    entity_id: txn.to_entity.clone(),
-                    total_receivables: 0.0,
-                    total_payables: 0.0,
-                    net_position: 0.0,
-                    counterparty_count: 0,
-                }
-            });
+            let to_balance =
+                balances
+                    .entry(txn.to_entity.clone())
+                    .or_insert_with(|| EntityBalance {
+                        entity_id: txn.to_entity.clone(),
+                        total_receivables: 0.0,
+                        total_payables: 0.0,
+                        net_position: 0.0,
+                        counterparty_count: 0,
+                    });
             to_balance.total_payables += txn.amount;
         }
 
@@ -166,15 +167,15 @@ impl NetworkAnalysis {
                 (txn.to_entity.clone(), txn.from_entity.clone())
             };
 
-            let rel = relationships.entry(key.clone()).or_insert_with(|| {
-                EntityRelationship {
+            let rel = relationships
+                .entry(key.clone())
+                .or_insert_with(|| EntityRelationship {
                     from_entity: key.0.clone(),
                     to_entity: key.1.clone(),
                     total_volume: 0.0,
                     transaction_count: 0,
                     net_balance: 0.0,
-                }
-            });
+                });
 
             rel.total_volume += txn.amount;
             rel.transaction_count += 1;
@@ -259,7 +260,10 @@ impl NetworkAnalysis {
                         .windows(2)
                         .filter_map(|w| {
                             graph.get(&w[0]).and_then(|edges| {
-                                edges.iter().find(|(to, _)| to == &w[1]).map(|(_, amt)| *amt)
+                                edges
+                                    .iter()
+                                    .find(|(to, _)| to == &w[1])
+                                    .map(|(_, amt)| *amt)
                             })
                         })
                         .sum();
@@ -298,7 +302,8 @@ impl NetworkAnalysis {
                 continue;
             }
 
-            let (debit_account, credit_account) = Self::get_elimination_accounts(&txn.transaction_type);
+            let (debit_account, credit_account) =
+                Self::get_elimination_accounts(&txn.transaction_type);
 
             eliminations.push(EliminationEntry {
                 id: format!("ELIM{:05}", entry_id),
@@ -320,18 +325,30 @@ impl NetworkAnalysis {
     fn get_elimination_accounts(txn_type: &IntercompanyType) -> (String, String) {
         match txn_type {
             IntercompanyType::Trade => ("IC_PAYABLES".to_string(), "IC_RECEIVABLES".to_string()),
-            IntercompanyType::Loan => ("IC_LOAN_PAYABLE".to_string(), "IC_LOAN_RECEIVABLE".to_string()),
-            IntercompanyType::Dividend => ("DIVIDEND_INCOME".to_string(), "DIVIDEND_EXPENSE".to_string()),
-            IntercompanyType::ManagementFee => ("MGMT_FEE_INCOME".to_string(), "MGMT_FEE_EXPENSE".to_string()),
-            IntercompanyType::Royalty => ("ROYALTY_INCOME".to_string(), "ROYALTY_EXPENSE".to_string()),
-            IntercompanyType::Other => ("IC_OTHER_PAYABLE".to_string(), "IC_OTHER_RECEIVABLE".to_string()),
+            IntercompanyType::Loan => (
+                "IC_LOAN_PAYABLE".to_string(),
+                "IC_LOAN_RECEIVABLE".to_string(),
+            ),
+            IntercompanyType::Dividend => (
+                "DIVIDEND_INCOME".to_string(),
+                "DIVIDEND_EXPENSE".to_string(),
+            ),
+            IntercompanyType::ManagementFee => (
+                "MGMT_FEE_INCOME".to_string(),
+                "MGMT_FEE_EXPENSE".to_string(),
+            ),
+            IntercompanyType::Royalty => {
+                ("ROYALTY_INCOME".to_string(), "ROYALTY_EXPENSE".to_string())
+            }
+            IntercompanyType::Other => (
+                "IC_OTHER_PAYABLE".to_string(),
+                "IC_OTHER_RECEIVABLE".to_string(),
+            ),
         }
     }
 
     /// Calculate netting opportunities.
-    pub fn calculate_netting(
-        transactions: &[IntercompanyTransaction],
-    ) -> Vec<NettingOpportunity> {
+    pub fn calculate_netting(transactions: &[IntercompanyTransaction]) -> Vec<NettingOpportunity> {
         let mut opportunities = Vec::new();
 
         // Find bilateral netting opportunities
@@ -550,9 +567,10 @@ mod tests {
         assert!(!result.elimination_entries.is_empty());
 
         // Check trade elimination
-        let trade_elim = result.elimination_entries.iter().find(|e| {
-            e.from_entity == "CORP_A" && e.to_entity == "CORP_B"
-        });
+        let trade_elim = result
+            .elimination_entries
+            .iter()
+            .find(|e| e.from_entity == "CORP_A" && e.to_entity == "CORP_B");
         assert!(trade_elim.is_some());
     }
 

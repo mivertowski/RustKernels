@@ -5,7 +5,9 @@
 //! - Settlement timing metrics
 //! - Party efficiency scoring
 
-use crate::types::{SettlementEfficiency, SettlementInstruction, SettlementStatus, ZeroBalanceMetrics};
+use crate::types::{
+    SettlementEfficiency, SettlementInstruction, SettlementStatus, ZeroBalanceMetrics,
+};
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::HashMap;
 
@@ -40,10 +42,7 @@ impl ZeroBalanceFrequency {
     }
 
     /// Calculate zero balance metrics for a party.
-    pub fn calculate_zbf(
-        activity: &[DailyActivity],
-        party_id: &str,
-    ) -> ZeroBalanceMetrics {
+    pub fn calculate_zbf(activity: &[DailyActivity], party_id: &str) -> ZeroBalanceMetrics {
         if activity.is_empty() {
             return ZeroBalanceMetrics {
                 party_id: party_id.to_string(),
@@ -60,8 +59,8 @@ impl ZeroBalanceFrequency {
         let zero_balance_days = activity.iter().filter(|a| a.eod_position == 0).count() as u32;
         let frequency = zero_balance_days as f64 / total_days as f64;
 
-        let avg_eod_position = activity.iter().map(|a| a.eod_position as f64).sum::<f64>()
-            / total_days as f64;
+        let avg_eod_position =
+            activity.iter().map(|a| a.eod_position as f64).sum::<f64>() / total_days as f64;
 
         let peak_position = activity
             .iter()
@@ -69,7 +68,10 @@ impl ZeroBalanceFrequency {
             .max()
             .unwrap_or(0);
 
-        let avg_intraday_turnover = activity.iter().map(|a| a.intraday_turnover as f64).sum::<f64>()
+        let avg_intraday_turnover = activity
+            .iter()
+            .map(|a| a.intraday_turnover as f64)
+            .sum::<f64>()
             / total_days as f64;
 
         ZeroBalanceMetrics {
@@ -185,7 +187,10 @@ impl ZeroBalanceFrequency {
             };
         }
 
-        let total_value: u64 = settled.iter().map(|i| i.payment_amount.unsigned_abs()).sum();
+        let total_value: u64 = settled
+            .iter()
+            .map(|i| i.payment_amount.unsigned_abs())
+            .sum();
         let total_securities: u64 = settled.iter().map(|i| i.quantity.unsigned_abs()).sum();
 
         let instructions_per_second = settled.len() as f64 / period_seconds as f64;
@@ -204,9 +209,7 @@ impl ZeroBalanceFrequency {
     }
 
     /// Score parties by settlement efficiency.
-    pub fn score_parties(
-        instructions: &[SettlementInstruction],
-    ) -> Vec<PartyEfficiencyScore> {
+    pub fn score_parties(instructions: &[SettlementInstruction]) -> Vec<PartyEfficiencyScore> {
         let mut party_stats: HashMap<String, PartyStats> = HashMap::new();
 
         for instr in instructions {

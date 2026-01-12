@@ -71,7 +71,11 @@ pub enum MappingTransformation {
     /// Aggregation.
     Aggregate,
     /// Conditional mapping.
-    Conditional { condition: String, if_true: String, if_false: String },
+    Conditional {
+        condition: String,
+        if_true: String,
+        if_false: String,
+    },
 }
 
 /// Mapping result.

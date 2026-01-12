@@ -344,6 +344,6 @@ mod tests {
         let msg = SetGARCHCoefficientsRing::new(1, 0.00001, 0.1, 0.85);
         assert_eq!(msg.asset_id, 1);
         assert_eq!(msg.alpha, 1000); // 0.1 * 10000
-        assert_eq!(msg.beta, 8500);  // 0.85 * 10000
+        assert_eq!(msg.beta, 8500); // 0.85 * 10000
     }
 }

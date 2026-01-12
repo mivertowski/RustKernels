@@ -46,8 +46,49 @@ pub use types::{
 
 /// Register all behavioral kernels with a registry.
 pub fn register_all(
-    _registry: &rustkernel_core::registry::KernelRegistry,
+    registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
+    use rustkernel_core::traits::GpuKernel;
+
     tracing::info!("Registering behavioral analytics kernels");
+
+    // Profiling kernels (2)
+    registry.register_metadata(profiling::BehavioralProfiling::new().metadata().clone())?;
+    registry.register_metadata(profiling::AnomalyProfiling::new().metadata().clone())?;
+
+    // Signature detection kernel (1)
+    registry.register_metadata(
+        signatures::FraudSignatureDetection::new()
+            .metadata()
+            .clone(),
+    )?;
+
+    // Causal kernel (1)
+    registry.register_metadata(causal::CausalGraphConstruction::new().metadata().clone())?;
+
+    // Forensics kernel (1)
+    registry.register_metadata(forensics::ForensicQueryExecution::new().metadata().clone())?;
+
+    // Correlation kernel (1)
+    registry.register_metadata(
+        correlation::EventCorrelationKernel::new()
+            .metadata()
+            .clone(),
+    )?;
+
+    tracing::info!("Registered 6 behavioral analytics kernels");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustkernel_core::registry::KernelRegistry;
+
+    #[test]
+    fn test_register_all() {
+        let registry = KernelRegistry::new();
+        register_all(&registry).expect("Failed to register behavioral kernels");
+        assert_eq!(registry.total_count(), 6);
+    }
 }

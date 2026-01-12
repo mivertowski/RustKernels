@@ -56,8 +56,48 @@ pub use types::{
 
 /// Register all temporal kernels with a registry.
 pub fn register_all(
-    _registry: &rustkernel_core::registry::KernelRegistry,
+    registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
+    use rustkernel_core::traits::GpuKernel;
+
     tracing::info!("Registering temporal analysis kernels");
+
+    // Forecasting kernels (2)
+    registry.register_metadata(forecasting::ARIMAForecast::new().metadata().clone())?;
+    registry.register_metadata(forecasting::ProphetDecomposition::new().metadata().clone())?;
+
+    // Detection kernels (2)
+    registry.register_metadata(detection::ChangePointDetection::new().metadata().clone())?;
+    registry.register_metadata(
+        detection::TimeSeriesAnomalyDetection::new()
+            .metadata()
+            .clone(),
+    )?;
+
+    // Decomposition kernels (2)
+    registry.register_metadata(
+        decomposition::SeasonalDecomposition::new()
+            .metadata()
+            .clone(),
+    )?;
+    registry.register_metadata(decomposition::TrendExtraction::new().metadata().clone())?;
+
+    // Volatility kernel (1)
+    registry.register_metadata(volatility::VolatilityAnalysis::new().metadata().clone())?;
+
+    tracing::info!("Registered 7 temporal analysis kernels");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustkernel_core::registry::KernelRegistry;
+
+    #[test]
+    fn test_register_all() {
+        let registry = KernelRegistry::new();
+        register_all(&registry).expect("Failed to register temporal kernels");
+        assert_eq!(registry.total_count(), 7);
+    }
 }

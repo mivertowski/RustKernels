@@ -7,8 +7,7 @@
 
 use crate::types::{
     LCRResult, LiquidityAction, LiquidityActionType, LiquidityAssetType,
-    LiquidityOptimizationResult, LiquidityOutflow, LiquidityPosition, NSFRResult,
-    OutflowCategory,
+    LiquidityOptimizationResult, LiquidityOutflow, LiquidityPosition, NSFRResult, OutflowCategory,
 };
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::HashMap;
@@ -245,12 +244,7 @@ impl LiquidityOptimization {
 
         // Generate optimization actions if below targets
         if !lcr_before.is_compliant || lcr_before.lcr_ratio < config.target_lcr {
-            let lcr_actions = Self::generate_lcr_actions(
-                assets,
-                outflows,
-                &lcr_before,
-                config,
-            );
+            let lcr_actions = Self::generate_lcr_actions(assets, outflows, &lcr_before, config);
             for action in lcr_actions {
                 total_cost += action.cost;
                 actions.push(action);
@@ -258,24 +252,22 @@ impl LiquidityOptimization {
         }
 
         if !nsfr_before.is_compliant || nsfr_before.nsfr_ratio < config.target_nsfr {
-            let nsfr_actions = Self::generate_nsfr_actions(
-                assets,
-                funding,
-                &nsfr_before,
-                config,
-            );
+            let nsfr_actions = Self::generate_nsfr_actions(assets, funding, &nsfr_before, config);
             for action in nsfr_actions {
                 total_cost += action.cost;
                 actions.push(action);
             }
         }
 
-        // Calculate improvement (simplified - would need to recalculate with actions applied)
-        let lcr_improvement = if !lcr_before.is_compliant {
-            (config.lcr_config.min_lcr - lcr_before.lcr_ratio) * lcr_before.net_outflows
-        } else {
-            0.0
-        };
+        // Calculate actual improvement by simulating actions applied
+        let lcr_improvement = Self::calculate_lcr_improvement(
+            assets,
+            outflows,
+            inflows,
+            &actions,
+            &lcr_before,
+            &config.lcr_config,
+        );
 
         LiquidityOptimizationResult {
             lcr: lcr_before,
@@ -302,7 +294,10 @@ impl LiquidityOptimization {
 
         // Action 1: Convert non-HQLA to HQLA
         for (i, asset) in assets.iter().enumerate() {
-            if matches!(asset.asset_type, LiquidityAssetType::OtherLiquid | LiquidityAssetType::Illiquid) {
+            if matches!(
+                asset.asset_type,
+                LiquidityAssetType::OtherLiquid | LiquidityAssetType::Illiquid
+            ) {
                 let convert_amount = asset.amount.min(shortfall);
                 let cost = convert_amount * config.conversion_cost_rate;
                 let lcr_impact = convert_amount * (1.0 - asset.lcr_haircut);
@@ -357,9 +352,14 @@ impl LiquidityOptimization {
 
         // Action 1: Issue term funding
         for (i, fund) in funding.iter().enumerate() {
-            if fund.remaining_maturity_days < 365 && matches!(fund.funding_type, FundingType::WholesaleDeposit) {
+            if fund.remaining_maturity_days < 365
+                && matches!(fund.funding_type, FundingType::WholesaleDeposit)
+            {
                 let extend_amount = fund.amount.min(shortfall);
-                let cost = extend_amount * config.term_funding_spread * (365.0 - fund.remaining_maturity_days as f64) / 365.0;
+                let cost = extend_amount
+                    * config.term_funding_spread
+                    * (365.0 - fund.remaining_maturity_days as f64)
+                    / 365.0;
                 let asf_improvement = extend_amount * (1.0 - config.nsfr_config.asf_wholesale);
 
                 actions.push(LiquidityAction {
@@ -407,7 +407,8 @@ impl LiquidityOptimization {
         let stressed_outflows: Vec<LiquidityOutflow> = outflows
             .iter()
             .map(|o| {
-                let stress_factor = scenario.outflow_multipliers
+                let stress_factor = scenario
+                    .outflow_multipliers
                     .get(&o.category)
                     .copied()
                     .unwrap_or(scenario.default_outflow_multiplier);
@@ -424,36 +425,38 @@ impl LiquidityOptimization {
         // Apply haircut to assets
         let stressed_assets: Vec<LiquidityPosition> = assets
             .iter()
-            .map(|a| {
-                LiquidityPosition {
-                    id: a.id.clone(),
-                    asset_type: a.asset_type,
-                    amount: a.amount,
-                    currency: a.currency.clone(),
-                    hqla_level: a.hqla_level,
-                    lcr_haircut: (a.lcr_haircut + scenario.additional_haircut).min(1.0),
-                    days_to_liquidate: (a.days_to_liquidate as f64 * scenario.liquidation_delay_factor) as u32,
-                }
+            .map(|a| LiquidityPosition {
+                id: a.id.clone(),
+                asset_type: a.asset_type,
+                amount: a.amount,
+                currency: a.currency.clone(),
+                hqla_level: a.hqla_level,
+                lcr_haircut: (a.lcr_haircut + scenario.additional_haircut).min(1.0),
+                days_to_liquidate: (a.days_to_liquidate as f64 * scenario.liquidation_delay_factor)
+                    as u32,
             })
             .collect();
 
         // Reduce inflows
         let stressed_inflows: Vec<LiquidityInflow> = inflows
             .iter()
-            .map(|i| {
-                LiquidityInflow {
-                    category: i.category.clone(),
-                    amount: i.amount,
-                    currency: i.currency.clone(),
-                    inflow_rate: i.inflow_rate * scenario.inflow_reduction,
-                    days_to_maturity: i.days_to_maturity,
-                }
+            .map(|i| LiquidityInflow {
+                category: i.category.clone(),
+                amount: i.amount,
+                currency: i.currency.clone(),
+                inflow_rate: i.inflow_rate * scenario.inflow_reduction,
+                days_to_maturity: i.days_to_maturity,
             })
             .collect();
 
         let lcr_config = LCRConfig::default();
         let base_lcr = Self::calculate_lcr(assets, outflows, inflows, &lcr_config);
-        let stressed_lcr = Self::calculate_lcr(&stressed_assets, &stressed_outflows, &stressed_inflows, &lcr_config);
+        let stressed_lcr = Self::calculate_lcr(
+            &stressed_assets,
+            &stressed_outflows,
+            &stressed_inflows,
+            &lcr_config,
+        );
 
         StressTestResult {
             scenario_name: scenario.name.clone(),
@@ -465,13 +468,116 @@ impl LiquidityOptimization {
         }
     }
 
+    /// Calculate actual LCR improvement by simulating actions applied.
+    fn calculate_lcr_improvement(
+        assets: &[LiquidityPosition],
+        outflows: &[LiquidityOutflow],
+        inflows: &[LiquidityInflow],
+        actions: &[LiquidityAction],
+        lcr_before: &LCRResult,
+        config: &LCRConfig,
+    ) -> f64 {
+        if actions.is_empty() {
+            return 0.0;
+        }
+
+        // Create modified copies of assets and outflows
+        let mut modified_assets: Vec<LiquidityPosition> = assets.to_vec();
+        let mut modified_outflows: Vec<LiquidityOutflow> = outflows.to_vec();
+
+        // Apply each action
+        for action in actions {
+            match action.action_type {
+                LiquidityActionType::ConvertToHQLA => {
+                    // Parse asset index from target_id (e.g., "asset_0")
+                    if let Some(idx_str) = action.target_id.strip_prefix("asset_") {
+                        if let Ok(idx) = idx_str.parse::<usize>() {
+                            if idx < modified_assets.len() {
+                                // Extract data we need before modifying
+                                let asset_id = modified_assets[idx].id.clone();
+                                let asset_currency = modified_assets[idx].currency.clone();
+
+                                // Reduce original asset amount
+                                modified_assets[idx].amount -= action.amount;
+
+                                // Add new Level 1 HQLA position
+                                modified_assets.push(LiquidityPosition {
+                                    id: format!("{}_converted", asset_id),
+                                    asset_type: LiquidityAssetType::Level1HQLA,
+                                    amount: action.amount,
+                                    currency: asset_currency,
+                                    hqla_level: Some(1),
+                                    lcr_haircut: 0.0,
+                                    days_to_liquidate: 1,
+                                });
+                            }
+                        }
+                    }
+                }
+                LiquidityActionType::ReduceCommitment => {
+                    // Parse outflow index from target_id (e.g., "outflow_0")
+                    if let Some(idx_str) = action.target_id.strip_prefix("outflow_") {
+                        if let Ok(idx) = idx_str.parse::<usize>() {
+                            if idx < modified_outflows.len() {
+                                // Reduce outflow amount
+                                modified_outflows[idx].amount -= action.amount;
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    // Other action types (NSFR-related) don't affect LCR
+                }
+            }
+        }
+
+        // Recalculate LCR with modified positions
+        let lcr_after = Self::calculate_lcr(&modified_assets, &modified_outflows, inflows, config);
+
+        // Return the improvement in HQLA buffer (positive = improvement)
+        lcr_after.buffer - lcr_before.buffer
+    }
+
     /// Estimate days until LCR breach under stress.
+    ///
+    /// Uses a liquidity runoff model considering:
+    /// - Current LCR ratio and buffer
+    /// - Daily net outflow rate under stress
+    /// - HQLA depletion trajectory
     fn estimate_days_until_breach(lcr: &LCRResult) -> Option<u32> {
         if lcr.is_compliant {
             return None;
         }
-        // Simplified estimate
-        Some(((lcr.lcr_ratio / 1.0) * 30.0).ceil() as u32)
+
+        // Calculate daily net outflow rate (30-day outflows spread daily)
+        let daily_outflow = lcr.net_outflows / 30.0;
+
+        if daily_outflow <= 0.0 {
+            // No outflows, won't breach
+            return None;
+        }
+
+        // Current HQLA level
+        let current_hqla = lcr.hqla;
+
+        // Calculate minimum HQLA needed for compliance (LCR = 100%)
+        // LCR = HQLA / NetOutflows >= 1.0
+        // We're already below compliance, so estimate how long until
+        // HQLA depletes to a critical level (e.g., 50% of net outflows)
+        let critical_hqla = lcr.net_outflows * 0.5;
+
+        // Days until HQLA drops below critical threshold
+        // Assuming linear HQLA depletion at daily outflow rate
+        if current_hqla <= critical_hqla {
+            // Already at critical level
+            return Some(0);
+        }
+
+        let hqla_buffer = current_hqla - critical_hqla;
+        let days = (hqla_buffer / daily_outflow).ceil() as u32;
+
+        // Cap at reasonable maximum (regulatory typically look at 30-day horizon)
+        Some(days.min(90))
     }
 }
 
@@ -737,15 +843,13 @@ mod tests {
     }
 
     fn create_test_inflows() -> Vec<LiquidityInflow> {
-        vec![
-            LiquidityInflow {
-                category: "Loans".to_string(),
-                amount: 100_000.0,
-                currency: "USD".to_string(),
-                inflow_rate: 0.50,
-                days_to_maturity: 30,
-            },
-        ]
+        vec![LiquidityInflow {
+            category: "Loans".to_string(),
+            amount: 100_000.0,
+            currency: "USD".to_string(),
+            inflow_rate: 0.50,
+            days_to_maturity: 30,
+        }]
     }
 
     fn create_test_funding() -> Vec<FundingSource> {
@@ -862,16 +966,14 @@ mod tests {
 
     #[test]
     fn test_asf_factors() {
-        let funding = vec![
-            FundingSource {
-                id: "EQUITY".to_string(),
-                funding_type: FundingType::Equity,
-                amount: 100_000.0,
-                currency: "USD".to_string(),
-                remaining_maturity_days: u32::MAX,
-                is_stable: true,
-            },
-        ];
+        let funding = vec![FundingSource {
+            id: "EQUITY".to_string(),
+            funding_type: FundingType::Equity,
+            amount: 100_000.0,
+            currency: "USD".to_string(),
+            remaining_maturity_days: u32::MAX,
+            is_stable: true,
+        }];
         let config = NSFRConfig::default();
 
         let nsfr = LiquidityOptimization::calculate_nsfr(&[], &funding, &config);
@@ -888,9 +990,8 @@ mod tests {
         let funding = create_test_funding();
         let config = OptimizationConfig::default();
 
-        let result = LiquidityOptimization::optimize(
-            &assets, &outflows, &inflows, &funding, &config,
-        );
+        let result =
+            LiquidityOptimization::optimize(&assets, &outflows, &inflows, &funding, &config);
 
         // Should have LCR and NSFR results
         assert!(result.lcr.hqla > 0.0);
@@ -913,17 +1014,15 @@ mod tests {
 
     #[test]
     fn test_lcr_compliant() {
-        let assets = vec![
-            LiquidityPosition {
-                id: "CASH".to_string(),
-                asset_type: LiquidityAssetType::CashReserves,
-                amount: 500_000.0, // Large cash balance
-                currency: "USD".to_string(),
-                hqla_level: Some(1),
-                lcr_haircut: 0.0,
-                days_to_liquidate: 0,
-            },
-        ];
+        let assets = vec![LiquidityPosition {
+            id: "CASH".to_string(),
+            asset_type: LiquidityAssetType::CashReserves,
+            amount: 500_000.0, // Large cash balance
+            currency: "USD".to_string(),
+            hqla_level: Some(1),
+            lcr_haircut: 0.0,
+            days_to_liquidate: 0,
+        }];
 
         let outflows = vec![LiquidityOutflow {
             category: OutflowCategory::RetailDeposits,

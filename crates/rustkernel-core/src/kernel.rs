@@ -195,7 +195,7 @@ impl Default for KernelMetadata {
 
 /// Convert a kebab-case or snake_case string to PascalCase.
 fn to_pascal_case(s: &str) -> String {
-    s.split(|c| c == '-' || c == '_')
+    s.split(['-', '_'])
         .filter(|part| !part.is_empty())
         .map(|part| {
             let mut chars = part.chars();

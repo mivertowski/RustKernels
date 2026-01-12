@@ -8,24 +8,43 @@
 
 #![warn(missing_docs)]
 
-pub mod types;
-pub mod processing;
 pub mod flow;
+pub mod processing;
+pub mod types;
 
+pub use flow::{AccountFlowAnalysis, FlowAnalysis, FlowAnalysisConfig};
+pub use processing::{PaymentProcessing, PaymentRouting, ProcessingConfig};
 pub use types::*;
-pub use processing::{PaymentProcessing, ProcessingConfig, PaymentRouting};
-pub use flow::{FlowAnalysis, FlowAnalysisConfig, AccountFlowAnalysis};
 
 /// Register all payment kernels.
-pub fn register_all(_registry: &rustkernel_core::registry::KernelRegistry) -> rustkernel_core::error::Result<()> {
+pub fn register_all(
+    registry: &rustkernel_core::registry::KernelRegistry,
+) -> rustkernel_core::error::Result<()> {
+    use rustkernel_core::traits::GpuKernel;
+
     tracing::info!("Registering payment processing kernels");
+
+    // Processing kernel (1)
+    registry.register_metadata(processing::PaymentProcessing::new().metadata().clone())?;
+
+    // Flow analysis kernel (1)
+    registry.register_metadata(flow::FlowAnalysis::new().metadata().clone())?;
+
+    tracing::info!("Registered 2 payment processing kernels");
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rustkernel_core::{domain::Domain, traits::GpuKernel};
+    use rustkernel_core::{domain::Domain, registry::KernelRegistry, traits::GpuKernel};
+
+    #[test]
+    fn test_register_all() {
+        let registry = KernelRegistry::new();
+        register_all(&registry).expect("Failed to register payments kernels");
+        assert_eq!(registry.total_count(), 2);
+    }
 
     #[test]
     fn test_payment_processing_metadata() {

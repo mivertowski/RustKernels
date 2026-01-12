@@ -7,11 +7,7 @@
 //! - Average clustering coefficient
 
 use crate::types::CsrGraph;
-use rustkernel_core::{
-    domain::Domain,
-    kernel::KernelMetadata,
-    traits::GpuKernel,
-};
+use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::VecDeque;
 
 /// Result of graph metrics computation.
@@ -203,7 +199,8 @@ impl ClusteringCoefficient {
             return 0.0;
         }
 
-        let neighbors: std::collections::HashSet<u64> = graph.neighbors(node).iter().copied().collect();
+        let neighbors: std::collections::HashSet<u64> =
+            graph.neighbors(node).iter().copied().collect();
 
         let mut triangles = 0u64;
         for &v in graph.neighbors(node) {
@@ -228,9 +225,7 @@ impl ClusteringCoefficient {
             return 0.0;
         }
 
-        let sum: f64 = (0..n)
-            .map(|i| Self::compute_local(graph, i as u64))
-            .sum();
+        let sum: f64 = (0..n).map(|i| Self::compute_local(graph, i as u64)).sum();
 
         sum / n as f64
     }
@@ -244,7 +239,8 @@ impl ClusteringCoefficient {
         let mut wedges = 0u64;
 
         for u in 0..n {
-            let neighbors: std::collections::HashSet<u64> = graph.neighbors(u as u64).iter().copied().collect();
+            let neighbors: std::collections::HashSet<u64> =
+                graph.neighbors(u as u64).iter().copied().collect();
             let degree = neighbors.len();
 
             if degree >= 2 {
@@ -437,29 +433,33 @@ mod tests {
 
     fn create_complete_graph() -> CsrGraph {
         // Complete graph K4
-        CsrGraph::from_edges(4, &[
-            (0, 1), (0, 2), (0, 3),
-            (1, 0), (1, 2), (1, 3),
-            (2, 0), (2, 1), (2, 3),
-            (3, 0), (3, 1), (3, 2),
-        ])
+        CsrGraph::from_edges(
+            4,
+            &[
+                (0, 1),
+                (0, 2),
+                (0, 3),
+                (1, 0),
+                (1, 2),
+                (1, 3),
+                (2, 0),
+                (2, 1),
+                (2, 3),
+                (3, 0),
+                (3, 1),
+                (3, 2),
+            ],
+        )
     }
 
     fn create_line_graph() -> CsrGraph {
         // Line: 0 - 1 - 2 - 3
-        CsrGraph::from_edges(4, &[
-            (0, 1), (1, 0),
-            (1, 2), (2, 1),
-            (2, 3), (3, 2),
-        ])
+        CsrGraph::from_edges(4, &[(0, 1), (1, 0), (1, 2), (2, 1), (2, 3), (3, 2)])
     }
 
     fn create_disconnected_graph() -> CsrGraph {
         // Two disconnected components: 0-1 and 2-3
-        CsrGraph::from_edges(4, &[
-            (0, 1), (1, 0),
-            (2, 3), (3, 2),
-        ])
+        CsrGraph::from_edges(4, &[(0, 1), (1, 0), (2, 3), (3, 2)])
     }
 
     #[test]
@@ -468,7 +468,11 @@ mod tests {
         let density = GraphDensity::compute(&graph);
 
         // Complete graph should have density 1.0
-        assert!((density - 1.0).abs() < 0.01, "Expected 1.0, got {}", density);
+        assert!(
+            (density - 1.0).abs() < 0.01,
+            "Expected 1.0, got {}",
+            density
+        );
     }
 
     #[test]
@@ -477,7 +481,11 @@ mod tests {
         let density = GraphDensity::compute(&graph);
 
         // Line graph: 3 edges out of 6 possible = 0.5
-        assert!((density - 0.5).abs() < 0.01, "Expected 0.5, got {}", density);
+        assert!(
+            (density - 0.5).abs() < 0.01,
+            "Expected 0.5, got {}",
+            density
+        );
     }
 
     #[test]

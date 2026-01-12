@@ -40,10 +40,7 @@ impl InterestRateRisk {
     }
 
     /// Calculate interest rate risk metrics.
-    pub fn calculate_metrics(
-        positions: &[IRPosition],
-        config: &IRRiskConfig,
-    ) -> IRRiskMetrics {
+    pub fn calculate_metrics(positions: &[IRPosition], config: &IRRiskConfig) -> IRRiskMetrics {
         let current_date = config.valuation_date;
 
         let mut total_pv = 0.0;
@@ -84,7 +81,8 @@ impl InterestRateRisk {
             0.0
         };
 
-        let modified_duration = duration / (1.0 + config.market_rate / config.compounding_frequency as f64);
+        let modified_duration =
+            duration / (1.0 + config.market_rate / config.compounding_frequency as f64);
         let dv01 = total_pv * modified_duration * 0.0001;
 
         // Gap analysis
@@ -160,8 +158,24 @@ impl InterestRateRisk {
                 }
             }
             IRInstrumentType::Swap => {
-                // Swap duration is difference between fixed and floating legs
-                ttm * 0.8 // Simplified
+                // Interest rate swap duration
+                // Pay fixed: Duration = -Duration_fixed + Duration_float ≈ -Duration_fixed
+                // Receive fixed: Duration = Duration_fixed - Duration_float ≈ Duration_fixed
+                // For receive-fixed (typical): fixed leg duration - floating leg duration
+                // Floating leg duration ≈ time to next reset (typically ~0.25 for quarterly)
+                let float_duration = 0.25; // Quarterly reset assumed
+
+                // Fixed leg duration approximation (zero-coupon equivalent)
+                // For an at-par swap, fixed leg duration ≈ (1 - e^(-y*T)) / y where y is swap rate
+                let swap_rate = pos.rate.max(0.01);
+                let fixed_duration = if swap_rate > 0.0001 {
+                    (1.0 - (-swap_rate * ttm).exp()) / swap_rate
+                } else {
+                    ttm
+                };
+
+                // Net duration (receive fixed positive, pay fixed negative encoded in notional sign)
+                (fixed_duration - float_duration).abs()
             }
             IRInstrumentType::Deposit => {
                 // Deposit duration = time to maturity
@@ -197,7 +211,9 @@ impl InterestRateRisk {
                 }
 
                 if denominator > 0.0 {
-                    numerator / denominator / (1.0 + y).powi(2)
+                    numerator
+                        / denominator
+                        / (1.0 + y).powi(2)
                         / (config.compounding_frequency as f64).powi(2)
                 } else {
                     ttm * ttm
@@ -371,13 +387,41 @@ impl Default for IRRiskConfig {
             market_rate: 0.05,
             compounding_frequency: 2,
             gap_buckets: vec![
-                GapBucketDef { name: "0-30d".to_string(), start_days: 0, end_days: 30 },
-                GapBucketDef { name: "30-90d".to_string(), start_days: 30, end_days: 90 },
-                GapBucketDef { name: "90-180d".to_string(), start_days: 90, end_days: 180 },
-                GapBucketDef { name: "180d-1y".to_string(), start_days: 180, end_days: 365 },
-                GapBucketDef { name: "1-2y".to_string(), start_days: 365, end_days: 730 },
-                GapBucketDef { name: "2-5y".to_string(), start_days: 730, end_days: 1825 },
-                GapBucketDef { name: ">5y".to_string(), start_days: 1825, end_days: u32::MAX },
+                GapBucketDef {
+                    name: "0-30d".to_string(),
+                    start_days: 0,
+                    end_days: 30,
+                },
+                GapBucketDef {
+                    name: "30-90d".to_string(),
+                    start_days: 30,
+                    end_days: 90,
+                },
+                GapBucketDef {
+                    name: "90-180d".to_string(),
+                    start_days: 90,
+                    end_days: 180,
+                },
+                GapBucketDef {
+                    name: "180d-1y".to_string(),
+                    start_days: 180,
+                    end_days: 365,
+                },
+                GapBucketDef {
+                    name: "1-2y".to_string(),
+                    start_days: 365,
+                    end_days: 730,
+                },
+                GapBucketDef {
+                    name: "2-5y".to_string(),
+                    start_days: 730,
+                    end_days: 1825,
+                },
+                GapBucketDef {
+                    name: ">5y".to_string(),
+                    start_days: 1825,
+                    end_days: u32::MAX,
+                },
             ],
         }
     }

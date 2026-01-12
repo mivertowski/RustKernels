@@ -5,11 +5,7 @@
 //! - Motif detection (k-node subgraph census)
 
 use crate::types::CsrGraph;
-use rustkernel_core::{
-    domain::Domain,
-    kernel::KernelMetadata,
-    traits::GpuKernel,
-};
+use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::HashSet;
 
 // ============================================================================
@@ -97,7 +93,7 @@ impl TriangleCounting {
         let mut total_actual = 0u64;
 
         for i in 0..n {
-            let degree = graph.out_degree(i as u64) as u64;
+            let degree = graph.out_degree(i as u64);
             if degree >= 2 {
                 let possible = degree * (degree - 1) / 2;
                 total_possible += possible;
@@ -356,31 +352,20 @@ impl KCliqueDetection {
         let pivot = candidates
             .iter()
             .chain(excluded.iter())
-            .max_by_key(|&&v| {
-                adj[v as usize].intersection(&candidates).count()
-            })
+            .max_by_key(|&&v| adj[v as usize].intersection(&candidates).count())
             .copied();
 
-        let pivot_neighbors = pivot
-            .map(|p| adj[p as usize].clone())
-            .unwrap_or_default();
+        let pivot_neighbors = pivot.map(|p| adj[p as usize].clone()).unwrap_or_default();
 
-        let to_explore: Vec<u64> = candidates
-            .difference(&pivot_neighbors)
-            .copied()
-            .collect();
+        let to_explore: Vec<u64> = candidates.difference(&pivot_neighbors).copied().collect();
 
         for v in to_explore {
             current.push(v);
 
-            let new_candidates: HashSet<u64> = candidates
-                .intersection(&adj[v as usize])
-                .copied()
-                .collect();
-            let new_excluded: HashSet<u64> = excluded
-                .intersection(&adj[v as usize])
-                .copied()
-                .collect();
+            let new_candidates: HashSet<u64> =
+                candidates.intersection(&adj[v as usize]).copied().collect();
+            let new_excluded: HashSet<u64> =
+                excluded.intersection(&adj[v as usize]).copied().collect();
 
             Self::bron_kerbosch(adj, current, new_candidates, new_excluded, k, cliques);
 
@@ -414,21 +399,24 @@ mod tests {
 
     fn create_triangle_graph() -> CsrGraph {
         // Graph with one triangle: 0-1-2-0
-        CsrGraph::from_edges(3, &[
-            (0, 1), (1, 0),
-            (1, 2), (2, 1),
-            (2, 0), (0, 2),
-        ])
+        CsrGraph::from_edges(3, &[(0, 1), (1, 0), (1, 2), (2, 1), (2, 0), (0, 2)])
     }
 
     fn create_square_graph() -> CsrGraph {
         // Graph with square: 0-1-2-3-0 (no triangles)
-        CsrGraph::from_edges(4, &[
-            (0, 1), (1, 0),
-            (1, 2), (2, 1),
-            (2, 3), (3, 2),
-            (3, 0), (0, 3),
-        ])
+        CsrGraph::from_edges(
+            4,
+            &[
+                (0, 1),
+                (1, 0),
+                (1, 2),
+                (2, 1),
+                (2, 3),
+                (3, 2),
+                (3, 0),
+                (0, 3),
+            ],
+        )
     }
 
     #[test]

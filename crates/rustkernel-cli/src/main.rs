@@ -3,7 +3,7 @@
 //! Provides commands for kernel management, discovery, and validation.
 
 use clap::{Parser, Subcommand};
-use rustkernel::catalog::{domains, enabled_domains, total_kernel_count, DomainInfo};
+use rustkernel::catalog::{DomainInfo, domains, enabled_domains, total_kernel_count};
 use rustkernel_core::{domain::Domain, kernel::KernelMode, registry::KernelRegistry};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -82,7 +82,9 @@ fn main() -> anyhow::Result<()> {
     // Initialize tracing
     let filter = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| filter.into()))
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| filter.into()),
+        )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
@@ -130,7 +132,9 @@ fn cmd_list(domain_filter: Option<String>, mode_filter: Option<String>) -> anyho
 
     let all_domains = domains();
     let filter_domain = domain_filter.as_ref().and_then(|d| {
-        all_domains.iter().find(|info| info.feature == d.to_lowercase())
+        all_domains
+            .iter()
+            .find(|info| info.feature == d.to_lowercase())
     });
 
     if let Some(filter) = &filter_domain {
@@ -147,7 +151,11 @@ fn cmd_list(domain_filter: Option<String>, mode_filter: Option<String>) -> anyho
         }
     }
 
-    println!("\nTotal: {} kernels across {} domains", total_kernel_count(), all_domains.len());
+    println!(
+        "\nTotal: {} kernels across {} domains",
+        total_kernel_count(),
+        all_domains.len()
+    );
 
     Ok(())
 }
@@ -188,108 +196,400 @@ fn print_domain_kernels(info: &DomainInfo, mode_filter: Option<&str>) {
 fn get_domain_kernels(domain: &Domain) -> Vec<(String, KernelMode, String)> {
     match domain {
         Domain::GraphAnalytics => vec![
-            ("graph/degree_centrality".into(), KernelMode::Ring, "Node degree centrality".into()),
-            ("graph/betweenness_centrality".into(), KernelMode::Ring, "Brandes algorithm".into()),
-            ("graph/closeness_centrality".into(), KernelMode::Ring, "BFS-based centrality".into()),
-            ("graph/eigenvector_centrality".into(), KernelMode::Ring, "Power iteration".into()),
-            ("graph/pagerank".into(), KernelMode::Ring, "PageRank with teleport".into()),
-            ("graph/katz_centrality".into(), KernelMode::Ring, "Attenuated paths".into()),
-            ("graph/modularity".into(), KernelMode::Batch, "Community modularity Q".into()),
-            ("graph/louvain".into(), KernelMode::Batch, "Louvain community detection".into()),
-            ("graph/triangle_counting".into(), KernelMode::Ring, "Local triangle enumeration".into()),
-            ("graph/motif_detection".into(), KernelMode::Batch, "K-node subgraph census".into()),
-            ("graph/jaccard_similarity".into(), KernelMode::Batch, "Set similarity".into()),
-            ("graph/cosine_similarity".into(), KernelMode::Batch, "Vector similarity".into()),
-            ("graph/adamic_adar".into(), KernelMode::Batch, "Link prediction index".into()),
-            ("graph/density".into(), KernelMode::Batch, "Graph density metric".into()),
-            ("graph/clustering_coeff".into(), KernelMode::Batch, "Clustering coefficient".into()),
+            (
+                "graph/degree_centrality".into(),
+                KernelMode::Ring,
+                "Node degree centrality".into(),
+            ),
+            (
+                "graph/betweenness_centrality".into(),
+                KernelMode::Ring,
+                "Brandes algorithm".into(),
+            ),
+            (
+                "graph/closeness_centrality".into(),
+                KernelMode::Ring,
+                "BFS-based centrality".into(),
+            ),
+            (
+                "graph/eigenvector_centrality".into(),
+                KernelMode::Ring,
+                "Power iteration".into(),
+            ),
+            (
+                "graph/pagerank".into(),
+                KernelMode::Ring,
+                "PageRank with teleport".into(),
+            ),
+            (
+                "graph/katz_centrality".into(),
+                KernelMode::Ring,
+                "Attenuated paths".into(),
+            ),
+            (
+                "graph/modularity".into(),
+                KernelMode::Batch,
+                "Community modularity Q".into(),
+            ),
+            (
+                "graph/louvain".into(),
+                KernelMode::Batch,
+                "Louvain community detection".into(),
+            ),
+            (
+                "graph/triangle_counting".into(),
+                KernelMode::Ring,
+                "Local triangle enumeration".into(),
+            ),
+            (
+                "graph/motif_detection".into(),
+                KernelMode::Batch,
+                "K-node subgraph census".into(),
+            ),
+            (
+                "graph/jaccard_similarity".into(),
+                KernelMode::Batch,
+                "Set similarity".into(),
+            ),
+            (
+                "graph/cosine_similarity".into(),
+                KernelMode::Batch,
+                "Vector similarity".into(),
+            ),
+            (
+                "graph/adamic_adar".into(),
+                KernelMode::Batch,
+                "Link prediction index".into(),
+            ),
+            (
+                "graph/density".into(),
+                KernelMode::Batch,
+                "Graph density metric".into(),
+            ),
+            (
+                "graph/clustering_coeff".into(),
+                KernelMode::Batch,
+                "Clustering coefficient".into(),
+            ),
         ],
         Domain::StatisticalML => vec![
-            ("ml/kmeans".into(), KernelMode::Batch, "K-Means++ clustering".into()),
-            ("ml/dbscan".into(), KernelMode::Batch, "Density-based clustering".into()),
-            ("ml/hierarchical".into(), KernelMode::Batch, "Agglomerative clustering".into()),
-            ("ml/isolation_forest".into(), KernelMode::Batch, "Anomaly detection".into()),
-            ("ml/lof".into(), KernelMode::Batch, "Local outlier factor".into()),
-            ("ml/ensemble_voting".into(), KernelMode::Batch, "Weighted voting".into()),
+            (
+                "ml/kmeans".into(),
+                KernelMode::Batch,
+                "K-Means++ clustering".into(),
+            ),
+            (
+                "ml/dbscan".into(),
+                KernelMode::Batch,
+                "Density-based clustering".into(),
+            ),
+            (
+                "ml/hierarchical".into(),
+                KernelMode::Batch,
+                "Agglomerative clustering".into(),
+            ),
+            (
+                "ml/isolation_forest".into(),
+                KernelMode::Batch,
+                "Anomaly detection".into(),
+            ),
+            (
+                "ml/lof".into(),
+                KernelMode::Batch,
+                "Local outlier factor".into(),
+            ),
+            (
+                "ml/ensemble_voting".into(),
+                KernelMode::Batch,
+                "Weighted voting".into(),
+            ),
         ],
         Domain::Compliance => vec![
-            ("compliance/circular_flow".into(), KernelMode::Ring, "SCC detection".into()),
-            ("compliance/reciprocity".into(), KernelMode::Ring, "Mutual transactions".into()),
-            ("compliance/rapid_movement".into(), KernelMode::Ring, "Velocity analysis".into()),
-            ("compliance/aml_patterns".into(), KernelMode::Ring, "Multi-pattern FSM".into()),
-            ("compliance/kyc_scoring".into(), KernelMode::Batch, "Risk factor aggregation".into()),
-            ("compliance/entity_resolution".into(), KernelMode::Batch, "Fuzzy matching".into()),
-            ("compliance/sanctions".into(), KernelMode::Ring, "OFAC/UN/EU screening".into()),
-            ("compliance/pep".into(), KernelMode::Ring, "PEP screening".into()),
-            ("compliance/txmon".into(), KernelMode::Ring, "Real-time monitoring".into()),
+            (
+                "compliance/circular_flow".into(),
+                KernelMode::Ring,
+                "SCC detection".into(),
+            ),
+            (
+                "compliance/reciprocity".into(),
+                KernelMode::Ring,
+                "Mutual transactions".into(),
+            ),
+            (
+                "compliance/rapid_movement".into(),
+                KernelMode::Ring,
+                "Velocity analysis".into(),
+            ),
+            (
+                "compliance/aml_patterns".into(),
+                KernelMode::Ring,
+                "Multi-pattern FSM".into(),
+            ),
+            (
+                "compliance/kyc_scoring".into(),
+                KernelMode::Batch,
+                "Risk factor aggregation".into(),
+            ),
+            (
+                "compliance/entity_resolution".into(),
+                KernelMode::Batch,
+                "Fuzzy matching".into(),
+            ),
+            (
+                "compliance/sanctions".into(),
+                KernelMode::Ring,
+                "OFAC/UN/EU screening".into(),
+            ),
+            (
+                "compliance/pep".into(),
+                KernelMode::Ring,
+                "PEP screening".into(),
+            ),
+            (
+                "compliance/txmon".into(),
+                KernelMode::Ring,
+                "Real-time monitoring".into(),
+            ),
         ],
         Domain::TemporalAnalysis => vec![
-            ("temporal/arima".into(), KernelMode::Batch, "ARIMA forecasting".into()),
-            ("temporal/prophet".into(), KernelMode::Batch, "Prophet decomposition".into()),
-            ("temporal/changepoint".into(), KernelMode::Batch, "PELT detection".into()),
-            ("temporal/anomaly".into(), KernelMode::Ring, "Statistical thresholds".into()),
-            ("temporal/stl".into(), KernelMode::Batch, "STL decomposition".into()),
-            ("temporal/trend".into(), KernelMode::Batch, "Trend extraction".into()),
-            ("temporal/volatility".into(), KernelMode::Ring, "GARCH models".into()),
+            (
+                "temporal/arima".into(),
+                KernelMode::Batch,
+                "ARIMA forecasting".into(),
+            ),
+            (
+                "temporal/prophet".into(),
+                KernelMode::Batch,
+                "Prophet decomposition".into(),
+            ),
+            (
+                "temporal/changepoint".into(),
+                KernelMode::Batch,
+                "PELT detection".into(),
+            ),
+            (
+                "temporal/anomaly".into(),
+                KernelMode::Ring,
+                "Statistical thresholds".into(),
+            ),
+            (
+                "temporal/stl".into(),
+                KernelMode::Batch,
+                "STL decomposition".into(),
+            ),
+            (
+                "temporal/trend".into(),
+                KernelMode::Batch,
+                "Trend extraction".into(),
+            ),
+            (
+                "temporal/volatility".into(),
+                KernelMode::Ring,
+                "GARCH models".into(),
+            ),
         ],
         Domain::RiskAnalytics => vec![
-            ("risk/credit_scoring".into(), KernelMode::Ring, "PD/LGD/EAD calculation".into()),
-            ("risk/monte_carlo_var".into(), KernelMode::Ring, "Monte Carlo VaR".into()),
-            ("risk/portfolio_risk".into(), KernelMode::Ring, "Correlation-adjusted VaR".into()),
-            ("risk/stress_testing".into(), KernelMode::Batch, "Scenario-based shocks".into()),
+            (
+                "risk/credit_scoring".into(),
+                KernelMode::Ring,
+                "PD/LGD/EAD calculation".into(),
+            ),
+            (
+                "risk/monte_carlo_var".into(),
+                KernelMode::Ring,
+                "Monte Carlo VaR".into(),
+            ),
+            (
+                "risk/portfolio_risk".into(),
+                KernelMode::Ring,
+                "Correlation-adjusted VaR".into(),
+            ),
+            (
+                "risk/stress_testing".into(),
+                KernelMode::Batch,
+                "Scenario-based shocks".into(),
+            ),
         ],
-        Domain::Banking => vec![
-            ("banking/fraud_pattern".into(), KernelMode::Ring, "Pattern matching".into()),
-        ],
+        Domain::Banking => vec![(
+            "banking/fraud_pattern".into(),
+            KernelMode::Ring,
+            "Pattern matching".into(),
+        )],
         Domain::BehavioralAnalytics => vec![
-            ("behavioral/profiling".into(), KernelMode::Ring, "Feature extraction".into()),
-            ("behavioral/anomaly_profiling".into(), KernelMode::Ring, "Deviation scoring".into()),
-            ("behavioral/fraud_signature".into(), KernelMode::Ring, "Known patterns".into()),
-            ("behavioral/causal_graph".into(), KernelMode::Batch, "DAG inference".into()),
-            ("behavioral/forensic_query".into(), KernelMode::Batch, "Historical search".into()),
-            ("behavioral/event_correlation".into(), KernelMode::Ring, "Temporal correlation".into()),
+            (
+                "behavioral/profiling".into(),
+                KernelMode::Ring,
+                "Feature extraction".into(),
+            ),
+            (
+                "behavioral/anomaly_profiling".into(),
+                KernelMode::Ring,
+                "Deviation scoring".into(),
+            ),
+            (
+                "behavioral/fraud_signature".into(),
+                KernelMode::Ring,
+                "Known patterns".into(),
+            ),
+            (
+                "behavioral/causal_graph".into(),
+                KernelMode::Batch,
+                "DAG inference".into(),
+            ),
+            (
+                "behavioral/forensic_query".into(),
+                KernelMode::Batch,
+                "Historical search".into(),
+            ),
+            (
+                "behavioral/event_correlation".into(),
+                KernelMode::Ring,
+                "Temporal correlation".into(),
+            ),
         ],
-        Domain::OrderMatching => vec![
-            ("orderbook/matching_engine".into(), KernelMode::Ring, "Price-time priority".into()),
-        ],
+        Domain::OrderMatching => vec![(
+            "orderbook/matching_engine".into(),
+            KernelMode::Ring,
+            "Price-time priority".into(),
+        )],
         Domain::ProcessIntelligence => vec![
-            ("procint/dfg".into(), KernelMode::Batch, "DFG construction".into()),
-            ("procint/partial_order".into(), KernelMode::Batch, "Concurrency detection".into()),
-            ("procint/conformance".into(), KernelMode::Ring, "Multi-model checking".into()),
-            ("procint/ocpm".into(), KernelMode::Batch, "Object-centric PM".into()),
+            (
+                "procint/dfg".into(),
+                KernelMode::Batch,
+                "DFG construction".into(),
+            ),
+            (
+                "procint/partial_order".into(),
+                KernelMode::Batch,
+                "Concurrency detection".into(),
+            ),
+            (
+                "procint/conformance".into(),
+                KernelMode::Ring,
+                "Multi-model checking".into(),
+            ),
+            (
+                "procint/ocpm".into(),
+                KernelMode::Batch,
+                "Object-centric PM".into(),
+            ),
         ],
         Domain::Clearing => vec![
-            ("clearing/validation".into(), KernelMode::Batch, "Trade validation".into()),
-            ("clearing/dvp".into(), KernelMode::Ring, "Delivery vs payment".into()),
-            ("clearing/netting".into(), KernelMode::Batch, "Multilateral netting".into()),
-            ("clearing/settlement".into(), KernelMode::Ring, "Settlement execution".into()),
-            ("clearing/zero_balance".into(), KernelMode::Batch, "Efficiency analysis".into()),
+            (
+                "clearing/validation".into(),
+                KernelMode::Batch,
+                "Trade validation".into(),
+            ),
+            (
+                "clearing/dvp".into(),
+                KernelMode::Ring,
+                "Delivery vs payment".into(),
+            ),
+            (
+                "clearing/netting".into(),
+                KernelMode::Batch,
+                "Multilateral netting".into(),
+            ),
+            (
+                "clearing/settlement".into(),
+                KernelMode::Ring,
+                "Settlement execution".into(),
+            ),
+            (
+                "clearing/zero_balance".into(),
+                KernelMode::Batch,
+                "Efficiency analysis".into(),
+            ),
         ],
         Domain::TreasuryManagement => vec![
-            ("treasury/cashflow".into(), KernelMode::Batch, "Cash flow forecasting".into()),
-            ("treasury/collateral".into(), KernelMode::Batch, "Collateral optimization".into()),
-            ("treasury/fx_hedging".into(), KernelMode::Batch, "FX exposure".into()),
-            ("treasury/interest_rate".into(), KernelMode::Batch, "Duration/convexity".into()),
-            ("treasury/liquidity".into(), KernelMode::Batch, "LCR/NSFR optimization".into()),
+            (
+                "treasury/cashflow".into(),
+                KernelMode::Batch,
+                "Cash flow forecasting".into(),
+            ),
+            (
+                "treasury/collateral".into(),
+                KernelMode::Batch,
+                "Collateral optimization".into(),
+            ),
+            (
+                "treasury/fx_hedging".into(),
+                KernelMode::Batch,
+                "FX exposure".into(),
+            ),
+            (
+                "treasury/interest_rate".into(),
+                KernelMode::Batch,
+                "Duration/convexity".into(),
+            ),
+            (
+                "treasury/liquidity".into(),
+                KernelMode::Batch,
+                "LCR/NSFR optimization".into(),
+            ),
         ],
         Domain::Accounting => vec![
-            ("accounting/coa_mapping".into(), KernelMode::Batch, "Chart of accounts".into()),
-            ("accounting/journal".into(), KernelMode::Batch, "GL mapping".into()),
-            ("accounting/reconciliation".into(), KernelMode::Batch, "Account matching".into()),
-            ("accounting/network".into(), KernelMode::Batch, "Intercompany analysis".into()),
-            ("accounting/temporal_corr".into(), KernelMode::Batch, "Account correlations".into()),
+            (
+                "accounting/coa_mapping".into(),
+                KernelMode::Batch,
+                "Chart of accounts".into(),
+            ),
+            (
+                "accounting/journal".into(),
+                KernelMode::Batch,
+                "GL mapping".into(),
+            ),
+            (
+                "accounting/reconciliation".into(),
+                KernelMode::Batch,
+                "Account matching".into(),
+            ),
+            (
+                "accounting/network".into(),
+                KernelMode::Batch,
+                "Intercompany analysis".into(),
+            ),
+            (
+                "accounting/temporal_corr".into(),
+                KernelMode::Batch,
+                "Account correlations".into(),
+            ),
         ],
         Domain::PaymentProcessing => vec![
-            ("payments/processing".into(), KernelMode::Ring, "Transaction execution".into()),
-            ("payments/flow_analysis".into(), KernelMode::Batch, "Payment flow metrics".into()),
+            (
+                "payments/processing".into(),
+                KernelMode::Ring,
+                "Transaction execution".into(),
+            ),
+            (
+                "payments/flow_analysis".into(),
+                KernelMode::Batch,
+                "Payment flow metrics".into(),
+            ),
         ],
         Domain::FinancialAudit => vec![
-            ("audit/feature_extraction".into(), KernelMode::Batch, "Audit feature vectors".into()),
-            ("audit/hypergraph".into(), KernelMode::Batch, "Multi-way relationships".into()),
+            (
+                "audit/feature_extraction".into(),
+                KernelMode::Batch,
+                "Audit feature vectors".into(),
+            ),
+            (
+                "audit/hypergraph".into(),
+                KernelMode::Batch,
+                "Multi-way relationships".into(),
+            ),
         ],
         Domain::Core => vec![
-            ("core/vector_add".into(), KernelMode::Batch, "Simple validation".into()),
-            ("core/echo".into(), KernelMode::Ring, "Message round-trip".into()),
+            (
+                "core/vector_add".into(),
+                KernelMode::Batch,
+                "Simple validation".into(),
+            ),
+            (
+                "core/echo".into(),
+                KernelMode::Ring,
+                "Message round-trip".into(),
+            ),
         ],
         // Wildcard for future domains (Domain is non-exhaustive)
         _ => vec![],
@@ -333,20 +633,46 @@ fn cmd_domains(detailed: bool) -> anyhow::Result<()> {
     let all_domains = domains();
 
     // Group by priority
-    let p1: Vec<_> = all_domains.iter().filter(|d| matches!(d.domain,
-        Domain::GraphAnalytics | Domain::StatisticalML | Domain::Compliance |
-        Domain::TemporalAnalysis | Domain::RiskAnalytics
-    )).collect();
+    let p1: Vec<_> = all_domains
+        .iter()
+        .filter(|d| {
+            matches!(
+                d.domain,
+                Domain::GraphAnalytics
+                    | Domain::StatisticalML
+                    | Domain::Compliance
+                    | Domain::TemporalAnalysis
+                    | Domain::RiskAnalytics
+            )
+        })
+        .collect();
 
-    let p2: Vec<_> = all_domains.iter().filter(|d| matches!(d.domain,
-        Domain::Banking | Domain::BehavioralAnalytics | Domain::OrderMatching |
-        Domain::ProcessIntelligence | Domain::Clearing
-    )).collect();
+    let p2: Vec<_> = all_domains
+        .iter()
+        .filter(|d| {
+            matches!(
+                d.domain,
+                Domain::Banking
+                    | Domain::BehavioralAnalytics
+                    | Domain::OrderMatching
+                    | Domain::ProcessIntelligence
+                    | Domain::Clearing
+            )
+        })
+        .collect();
 
-    let p3: Vec<_> = all_domains.iter().filter(|d| matches!(d.domain,
-        Domain::TreasuryManagement | Domain::Accounting | Domain::PaymentProcessing |
-        Domain::FinancialAudit
-    )).collect();
+    let p3: Vec<_> = all_domains
+        .iter()
+        .filter(|d| {
+            matches!(
+                d.domain,
+                Domain::TreasuryManagement
+                    | Domain::Accounting
+                    | Domain::PaymentProcessing
+                    | Domain::FinancialAudit
+            )
+        })
+        .collect();
 
     println!("Priority 1 (High Value):");
     println!("────────────────────────");
@@ -376,7 +702,10 @@ fn print_domain_info(info: &DomainInfo, detailed: bool) {
         println!("    Kernels: {}", info.kernel_count);
         println!();
     } else {
-        println!("  {:<25} {:>2} kernels  (--features {})", info.name, info.kernel_count, info.feature);
+        println!(
+            "  {:<25} {:>2} kernels  (--features {})",
+            info.name, info.kernel_count, info.feature
+        );
     }
 }
 
@@ -423,7 +752,10 @@ fn cmd_info(kernel_id: &str) -> anyhow::Result<()> {
                 }
             }
         } else {
-            println!("Kernel '{}' not found in domain '{}'", kernel_name, domain_str);
+            println!(
+                "Kernel '{}' not found in domain '{}'",
+                kernel_name, domain_str
+            );
         }
     } else {
         println!("Unknown domain: {}", domain_str);
@@ -477,7 +809,10 @@ fn cmd_validate(kernel_id: &str) -> anyhow::Result<()> {
     if enabled.contains(&domain_str) {
         println!("✓ Domain feature enabled");
     } else {
-        println!("⚠ Domain feature not enabled (add --features {})", domain_str);
+        println!(
+            "⚠ Domain feature not enabled (add --features {})",
+            domain_str
+        );
     }
 
     println!();
@@ -492,7 +827,10 @@ fn cmd_check(all_backends: bool) -> anyhow::Result<()> {
     println!("╚══════════════════════════════════════════════════════════════════╝\n");
 
     println!("RustKernels Version: {}", rustkernel::version::VERSION);
-    println!("Min RingKernel:      {}", rustkernel::version::MIN_RINGKERNEL_VERSION);
+    println!(
+        "Min RingKernel:      {}",
+        rustkernel::version::MIN_RINGKERNEL_VERSION
+    );
     println!();
 
     println!("Enabled Features:");
@@ -529,7 +867,11 @@ fn cmd_features() -> anyhow::Result<()> {
     println!("──────────────────────────────────────────────────────────────────");
 
     for info in &all_domains {
-        let status = if enabled.contains(&info.feature) { "✓" } else { "✗" };
+        let status = if enabled.contains(&info.feature) {
+            "✓"
+        } else {
+            "✗"
+        };
         let kernels = if enabled.contains(&info.feature) {
             format!("{} kernels", info.kernel_count)
         } else {
@@ -540,12 +882,17 @@ fn cmd_features() -> anyhow::Result<()> {
 
     println!("──────────────────────────────────────────────────────────────────");
 
-    let enabled_count: usize = all_domains.iter()
+    let enabled_count: usize = all_domains
+        .iter()
         .filter(|d| enabled.contains(&d.feature))
         .map(|d| d.kernel_count)
         .sum();
 
-    println!("  {} of {} kernels enabled", enabled_count, total_kernel_count());
+    println!(
+        "  {} of {} kernels enabled",
+        enabled_count,
+        total_kernel_count()
+    );
     println!();
 
     println!("To enable all features:");

@@ -33,13 +33,10 @@ impl CausalGraphConstruction {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            metadata: KernelMetadata::batch(
-                "behavioral/causal-graph",
-                Domain::BehavioralAnalytics,
-            )
-            .with_description("Causal DAG inference from event streams")
-            .with_throughput(10_000)
-            .with_latency_us(500.0),
+            metadata: KernelMetadata::batch("behavioral/causal-graph", Domain::BehavioralAnalytics)
+                .with_description("Causal DAG inference from event streams")
+                .with_throughput(10_000)
+                .with_latency_us(500.0),
         }
     }
 
@@ -131,9 +128,7 @@ impl CausalGraphConstruction {
                     continue;
                 }
 
-                let stats = transitions
-                    .entry((src, tgt))
-                    .or_insert_with(TransitionStats::new);
+                let stats = transitions.entry((src, tgt)).or_default();
                 stats.add(time_diff);
             }
         }
@@ -299,7 +294,7 @@ impl CausalGraphConstruction {
                     direct_effects: Vec::new(),
                     indirect_effects: Vec::new(),
                     total_impact: 0.0,
-                }
+                };
             }
         };
 

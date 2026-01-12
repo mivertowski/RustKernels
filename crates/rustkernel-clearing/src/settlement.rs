@@ -91,7 +91,12 @@ impl SettlementExecution {
                     }
                 }
                 EligibilityResult::InsufficientBalance(reason) => {
-                    if config.allow_partial && matches!(instruction.instruction_type, InstructionType::Deliver | InstructionType::Pay) {
+                    if config.allow_partial
+                        && matches!(
+                            instruction.instruction_type,
+                            InstructionType::Deliver | InstructionType::Pay
+                        )
+                    {
                         // Try partial settlement
                         instruction.status = SettlementStatus::Partial;
                         pending.push(instruction.id);
@@ -149,16 +154,16 @@ impl SettlementExecution {
 
         // Check if on hold
         if context.parties_on_hold.contains(&instruction.party_id) {
-            return EligibilityResult::Hold(format!(
-                "Party {} is on hold",
-                instruction.party_id
-            ));
+            return EligibilityResult::Hold(format!("Party {} is on hold", instruction.party_id));
         }
 
         // Check balances for deliveries/payments
         match instruction.instruction_type {
             InstructionType::Deliver => {
-                let key = (instruction.party_id.clone(), instruction.security_id.clone());
+                let key = (
+                    instruction.party_id.clone(),
+                    instruction.security_id.clone(),
+                );
                 let balance = context.security_balances.get(&key).copied().unwrap_or(0);
                 if balance < instruction.quantity.unsigned_abs() as i64 {
                     return EligibilityResult::InsufficientBalance(format!(
@@ -169,13 +174,16 @@ impl SettlementExecution {
                 }
             }
             InstructionType::Pay => {
-                let balance = context.cash_balances.get(&instruction.party_id).copied().unwrap_or(0);
+                let balance = context
+                    .cash_balances
+                    .get(&instruction.party_id)
+                    .copied()
+                    .unwrap_or(0);
                 let required = instruction.payment_amount.unsigned_abs() as i64;
                 if balance < required {
                     return EligibilityResult::InsufficientBalance(format!(
                         "Insufficient cash: need {}, have {}",
-                        required,
-                        balance
+                        required, balance
                     ));
                 }
             }
@@ -251,12 +259,16 @@ impl SettlementExecution {
         match priority {
             SettlementPriority::ValueDescending => {
                 instructions.sort_by(|a, b| {
-                    b.payment_amount.unsigned_abs().cmp(&a.payment_amount.unsigned_abs())
+                    b.payment_amount
+                        .unsigned_abs()
+                        .cmp(&a.payment_amount.unsigned_abs())
                 });
             }
             SettlementPriority::ValueAscending => {
                 instructions.sort_by(|a, b| {
-                    a.payment_amount.unsigned_abs().cmp(&b.payment_amount.unsigned_abs())
+                    a.payment_amount
+                        .unsigned_abs()
+                        .cmp(&b.payment_amount.unsigned_abs())
                 });
             }
             SettlementPriority::DateFirst => {
@@ -363,13 +375,18 @@ mod tests {
         let mut ctx = SettlementContext::default();
         ctx.eligible_parties.insert("PARTY_A".to_string());
         ctx.eligible_parties.insert("PARTY_B".to_string());
-        ctx.security_balances.insert(("PARTY_A".to_string(), "AAPL".to_string()), 1000);
+        ctx.security_balances
+            .insert(("PARTY_A".to_string(), "AAPL".to_string()), 1000);
         ctx.cash_balances.insert("PARTY_A".to_string(), 1_000_000);
         ctx.cash_balances.insert("PARTY_B".to_string(), 500_000);
         ctx
     }
 
-    fn create_instruction(id: u64, party: &str, instr_type: InstructionType) -> SettlementInstruction {
+    fn create_instruction(
+        id: u64,
+        party: &str,
+        instr_type: InstructionType,
+    ) -> SettlementInstruction {
         SettlementInstruction {
             id,
             party_id: party.to_string(),
@@ -410,9 +427,7 @@ mod tests {
 
     #[test]
     fn test_insufficient_balance() {
-        let mut instructions = vec![
-            create_instruction(1, "PARTY_A", InstructionType::Deliver),
-        ];
+        let mut instructions = vec![create_instruction(1, "PARTY_A", InstructionType::Deliver)];
         instructions[0].quantity = 10000; // More than balance
 
         let context = create_context();
@@ -427,9 +442,7 @@ mod tests {
 
     #[test]
     fn test_ineligible_party() {
-        let mut instructions = vec![
-            create_instruction(1, "UNKNOWN", InstructionType::Deliver),
-        ];
+        let mut instructions = vec![create_instruction(1, "UNKNOWN", InstructionType::Deliver)];
 
         let context = create_context();
         let config = SettlementConfig::default();
@@ -442,9 +455,7 @@ mod tests {
 
     #[test]
     fn test_party_on_hold() {
-        let mut instructions = vec![
-            create_instruction(1, "PARTY_A", InstructionType::Deliver),
-        ];
+        let mut instructions = vec![create_instruction(1, "PARTY_A", InstructionType::Deliver)];
 
         let mut context = create_context();
         context.parties_on_hold.insert("PARTY_A".to_string());
@@ -523,13 +534,11 @@ mod tests {
 
     #[test]
     fn test_zero_quantity_rejected() {
-        let mut instructions = vec![
-            {
-                let mut i = create_instruction(1, "PARTY_A", InstructionType::Deliver);
-                i.quantity = 0;
-                i
-            },
-        ];
+        let mut instructions = vec![{
+            let mut i = create_instruction(1, "PARTY_A", InstructionType::Deliver);
+            i.quantity = 0;
+            i
+        }];
 
         let context = create_context();
         let config = SettlementConfig::default();

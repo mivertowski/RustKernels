@@ -232,8 +232,7 @@ impl SeasonalDecomposition {
                 .collect();
 
             if !season_values.is_empty() {
-                season_values
-                    .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                season_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 seasonal[s] = season_values[season_values.len() / 2];
             }
         }
@@ -587,8 +586,7 @@ mod tests {
         let values: Vec<f64> = (0..120)
             .map(|t| {
                 let trend = 100.0 + 0.5 * t as f64;
-                let seasonal =
-                    1.0 + 0.1 * ((2.0 * std::f64::consts::PI * t as f64 / 12.0).sin());
+                let seasonal = 1.0 + 0.1 * ((2.0 * std::f64::consts::PI * t as f64 / 12.0).sin());
                 trend * seasonal
             })
             .collect();

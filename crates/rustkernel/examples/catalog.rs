@@ -8,7 +8,10 @@ fn main() {
     println!("=== RustKernels Catalog ===\n");
 
     println!("Version: {}", rustkernel::version::VERSION);
-    println!("Min RingKernel: {}", rustkernel::version::MIN_RINGKERNEL_VERSION);
+    println!(
+        "Min RingKernel: {}",
+        rustkernel::version::MIN_RINGKERNEL_VERSION
+    );
     println!();
 
     // List all domains
@@ -18,11 +21,17 @@ fn main() {
 
     for domain in &domains {
         println!("  {} (feature: {})", domain.name, domain.feature);
-        println!("    {} kernels - {}", domain.kernel_count, domain.description);
+        println!(
+            "    {} kernels - {}",
+            domain.kernel_count, domain.description
+        );
         println!();
     }
 
-    println!("Total kernel count: {}", rustkernel::catalog::total_kernel_count());
+    println!(
+        "Total kernel count: {}",
+        rustkernel::catalog::total_kernel_count()
+    );
     println!();
 
     // Show enabled domains

@@ -32,18 +32,18 @@ impl CashFlowForecasting {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            metadata: KernelMetadata::batch("treasury/cashflow-forecast", Domain::TreasuryManagement)
-                .with_description("Multi-horizon cash flow forecasting")
-                .with_throughput(10_000)
-                .with_latency_us(500.0),
+            metadata: KernelMetadata::batch(
+                "treasury/cashflow-forecast",
+                Domain::TreasuryManagement,
+            )
+            .with_description("Multi-horizon cash flow forecasting")
+            .with_throughput(10_000)
+            .with_latency_us(500.0),
         }
     }
 
     /// Generate cash flow forecast.
-    pub fn forecast(
-        cash_flows: &[CashFlow],
-        config: &ForecastConfig,
-    ) -> CashFlowForecast {
+    pub fn forecast(cash_flows: &[CashFlow], config: &ForecastConfig) -> CashFlowForecast {
         let start_date = config.start_date;
         let end_date = start_date + (config.horizon_days as u64 * 86400);
 
@@ -146,10 +146,7 @@ impl CashFlowForecasting {
         let mut by_category: HashMap<CashFlowCategory, Vec<CashFlow>> = HashMap::new();
 
         for cf in cash_flows {
-            by_category
-                .entry(cf.category)
-                .or_default()
-                .push(cf.clone());
+            by_category.entry(cf.category).or_default().push(cf.clone());
         }
 
         by_category
@@ -174,7 +171,8 @@ impl CashFlowForecasting {
                 let mut stressed = cf.clone();
 
                 // Apply category-specific stress
-                let factor = stress.category_factors
+                let factor = stress
+                    .category_factors
                     .get(&cf.category)
                     .copied()
                     .unwrap_or(1.0);
@@ -337,8 +335,8 @@ mod tests {
             },
             CashFlow {
                 id: 2,
-                date: 86400,      // Day 1
-                amount: -5000.0,  // Outflow
+                date: 86400,     // Day 1
+                amount: -5000.0, // Outflow
                 currency: "USD".to_string(),
                 category: CashFlowCategory::Operating,
                 certainty: 1.0,
@@ -347,8 +345,8 @@ mod tests {
             },
             CashFlow {
                 id: 3,
-                date: 172800,     // Day 2
-                amount: -8000.0,  // Outflow
+                date: 172800,    // Day 2
+                amount: -8000.0, // Outflow
                 currency: "USD".to_string(),
                 category: CashFlowCategory::DebtService,
                 certainty: 0.9,
@@ -465,8 +463,8 @@ mod tests {
 
         let stress = StressScenario {
             name: "Severe".to_string(),
-            inflow_haircut: 0.5,       // 50% reduction
-            outflow_multiplier: 1.5,   // 50% increase
+            inflow_haircut: 0.5,     // 50% reduction
+            outflow_multiplier: 1.5, // 50% increase
             certainty_reduction: 0.5,
             category_factors: HashMap::new(),
         };

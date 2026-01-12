@@ -178,17 +178,15 @@ impl ChartOfAccountsMapping {
                     amount_ratio: 1.0,
                 }]
             }
-            MappingTransformation::Split(splits) => {
-                splits
-                    .iter()
-                    .map(|(target, ratio)| MappedAccount {
-                        source_code: account.code.clone(),
-                        target_code: target.clone(),
-                        rule_id: rule.id.clone(),
-                        amount_ratio: *ratio,
-                    })
-                    .collect()
-            }
+            MappingTransformation::Split(splits) => splits
+                .iter()
+                .map(|(target, ratio)| MappedAccount {
+                    source_code: account.code.clone(),
+                    target_code: target.clone(),
+                    rule_id: rule.id.clone(),
+                    amount_ratio: *ratio,
+                })
+                .collect(),
             MappingTransformation::Aggregate => {
                 vec![MappedAccount {
                     source_code: account.code.clone(),
@@ -197,7 +195,11 @@ impl ChartOfAccountsMapping {
                     amount_ratio: 1.0,
                 }]
             }
-            MappingTransformation::Conditional { condition, if_true, if_false } => {
+            MappingTransformation::Conditional {
+                condition,
+                if_true,
+                if_false,
+            } => {
                 let target = if Self::evaluate_condition(account, condition) {
                     if_true.clone()
                 } else {
@@ -253,7 +255,9 @@ impl ChartOfAccountsMapping {
             }
 
             // Check for empty targets
-            if rule.target_code.is_empty() && !matches!(rule.transformation, MappingTransformation::Split(_)) {
+            if rule.target_code.is_empty()
+                && !matches!(rule.transformation, MappingTransformation::Split(_))
+            {
                 errors.push(RuleValidationError {
                     rule_id: rule.id.clone(),
                     message: "Target code is empty".to_string(),
@@ -443,7 +447,8 @@ mod tests {
             ]),
         }];
 
-        let result = ChartOfAccountsMapping::map_accounts(&accounts, &rules, &MappingConfig::default());
+        let result =
+            ChartOfAccountsMapping::map_accounts(&accounts, &rules, &MappingConfig::default());
 
         assert_eq!(result.mapped.len(), 2);
         assert!((result.mapped[0].amount_ratio - 0.6).abs() < 0.001);
@@ -484,7 +489,8 @@ mod tests {
             transformation: MappingTransformation::Direct,
         }];
 
-        let result = ChartOfAccountsMapping::map_accounts(&accounts, &rules, &MappingConfig::default());
+        let result =
+            ChartOfAccountsMapping::map_accounts(&accounts, &rules, &MappingConfig::default());
 
         assert_eq!(result.stats.mapped_count, 1);
         assert_eq!(result.unmapped.len(), 1);
@@ -561,7 +567,8 @@ mod tests {
         let rules = create_test_rules();
 
         // Default: exclude inactive
-        let result1 = ChartOfAccountsMapping::map_accounts(&accounts, &rules, &MappingConfig::default());
+        let result1 =
+            ChartOfAccountsMapping::map_accounts(&accounts, &rules, &MappingConfig::default());
         assert_eq!(result1.stats.total_accounts, 0);
 
         // Include inactive

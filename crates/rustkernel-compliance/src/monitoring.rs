@@ -110,8 +110,10 @@ impl TransactionMonitoring {
                     );
 
                     for (entity_id, txs) in &entity_txs {
-                        let window_txs: Vec<_> =
-                            txs.iter().filter(|tx| window.contains(tx.timestamp)).collect();
+                        let window_txs: Vec<_> = txs
+                            .iter()
+                            .filter(|tx| window.contains(tx.timestamp))
+                            .collect();
 
                         let total: f64 = window_txs.iter().map(|tx| tx.amount).sum();
 
@@ -144,8 +146,10 @@ impl TransactionMonitoring {
                     );
 
                     for (entity_id, txs) in &entity_txs {
-                        let window_txs: Vec<_> =
-                            txs.iter().filter(|tx| window.contains(tx.timestamp)).collect();
+                        let window_txs: Vec<_> = txs
+                            .iter()
+                            .filter(|tx| window.contains(tx.timestamp))
+                            .collect();
 
                         let count = window_txs.len() as f64;
 
@@ -179,8 +183,10 @@ impl TransactionMonitoring {
                     let hours = rule.window_seconds as f64 / 3600.0;
 
                     for (entity_id, txs) in &entity_txs {
-                        let window_txs: Vec<_> =
-                            txs.iter().filter(|tx| window.contains(tx.timestamp)).collect();
+                        let window_txs: Vec<_> = txs
+                            .iter()
+                            .filter(|tx| window.contains(tx.timestamp))
+                            .collect();
 
                         let total: f64 = window_txs.iter().map(|tx| tx.amount).sum();
                         let velocity = if hours > 0.0 { total / hours } else { total };
@@ -273,8 +279,13 @@ impl GpuKernel for TransactionMonitoring {
 }
 
 #[async_trait]
-impl BatchKernel<TransactionMonitoringInput, TransactionMonitoringOutput> for TransactionMonitoring {
-    async fn execute(&self, input: TransactionMonitoringInput) -> Result<TransactionMonitoringOutput> {
+impl BatchKernel<TransactionMonitoringInput, TransactionMonitoringOutput>
+    for TransactionMonitoring
+{
+    async fn execute(
+        &self,
+        input: TransactionMonitoringInput,
+    ) -> Result<TransactionMonitoringOutput> {
         let start = Instant::now();
         let result = Self::compute(&input.transactions, &input.rules, input.current_time);
         Ok(TransactionMonitoringOutput {
@@ -327,7 +338,7 @@ impl RingKernelHandler<MonitorTransactionRing, MonitorTransactionResponse>
         let risk_score = if result.alerts.is_empty() {
             0u8
         } else {
-            let max_severity = result
+            result
                 .alerts
                 .iter()
                 .map(|a| match a.severity {
@@ -338,8 +349,7 @@ impl RingKernelHandler<MonitorTransactionRing, MonitorTransactionResponse>
                     Severity::Critical => 100,
                 })
                 .max()
-                .unwrap_or(0);
-            max_severity
+                .unwrap_or(0)
         };
 
         // Build alert flags bitmask
@@ -549,7 +559,11 @@ mod tests {
         let rules = TransactionMonitoring::default_rules();
         assert!(!rules.is_empty());
         assert!(rules.iter().any(|r| r.rule_type == RuleType::SingleAmount));
-        assert!(rules.iter().any(|r| r.rule_type == RuleType::AggregateAmount));
+        assert!(
+            rules
+                .iter()
+                .any(|r| r.rule_type == RuleType::AggregateAmount)
+        );
     }
 
     #[test]

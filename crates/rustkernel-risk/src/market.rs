@@ -10,16 +10,14 @@ use crate::messages::{
     PortfolioRiskAggregationOutput,
 };
 use crate::ring_messages::{
-    from_currency_fp, from_fixed_point, to_currency_fp, to_fixed_point,
-    K2KMarketUpdate, K2KMarketUpdateAck, K2KPartialVaR, K2KVaRAggregation,
-    K2KVaRAggregationResponse, QueryVaRResponse, QueryVaRRing, RecalculateVaRResponse,
-    RecalculateVaRRing, UpdatePositionResponse, UpdatePositionRing,
+    K2KMarketUpdate, K2KMarketUpdateAck, K2KVaRAggregation, K2KVaRAggregationResponse,
+    QueryVaRResponse, QueryVaRRing, RecalculateVaRResponse, RecalculateVaRRing,
+    UpdatePositionResponse, UpdatePositionRing, from_currency_fp, from_fixed_point, to_currency_fp,
 };
 use crate::types::{Portfolio, PortfolioRiskResult, VaRParams, VaRResult};
 use async_trait::async_trait;
 use ringkernel_core::RingContext;
 use rustkernel_core::error::Result;
-use rustkernel_core::k2k::ScatterGatherState;
 use rustkernel_core::traits::{BatchKernel, RingKernelHandler};
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::time::Instant;
@@ -28,12 +26,42 @@ use std::time::Instant;
 // Monte Carlo VaR Kernel
 // ============================================================================
 
+/// Monte Carlo VaR state for Ring mode operations.
+#[derive(Debug, Clone, Default)]
+pub struct MonteCarloVaRState {
+    /// Current portfolio.
+    pub portfolio: Option<Portfolio>,
+    /// Cached VaR result.
+    pub var: f64,
+    /// Cached Expected Shortfall.
+    pub es: f64,
+    /// Confidence level used for cached result.
+    pub confidence_level: f64,
+    /// Holding period used for cached result.
+    pub holding_period: u32,
+    /// Whether cached result is stale.
+    pub is_stale: bool,
+    /// Number of simulations used.
+    pub n_simulations: u32,
+}
+
 /// Monte Carlo Value at Risk kernel.
 ///
 /// Simulates portfolio P&L using correlated random variates.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct MonteCarloVaR {
     metadata: KernelMetadata,
+    /// Internal state for Ring mode operations.
+    state: std::sync::RwLock<MonteCarloVaRState>,
+}
+
+impl Clone for MonteCarloVaR {
+    fn clone(&self) -> Self {
+        Self {
+            metadata: self.metadata.clone(),
+            state: std::sync::RwLock::new(self.state.read().unwrap().clone()),
+        }
+    }
 }
 
 impl Default for MonteCarloVaR {
@@ -51,7 +79,62 @@ impl MonteCarloVaR {
                 .with_description("Monte Carlo Value at Risk simulation")
                 .with_throughput(100_000)
                 .with_latency_us(1000.0),
+            state: std::sync::RwLock::new(MonteCarloVaRState::default()),
         }
+    }
+
+    /// Initialize the kernel with a portfolio for Ring mode operations.
+    pub fn initialize(&self, portfolio: Portfolio) {
+        let mut state = self.state.write().unwrap();
+        state.portfolio = Some(portfolio);
+        state.is_stale = true;
+    }
+
+    /// Update a position value in the portfolio.
+    pub fn update_position(&self, asset_id: u64, new_value: f64) -> bool {
+        let mut state = self.state.write().unwrap();
+        if let Some(ref mut portfolio) = state.portfolio {
+            // Find and update the asset
+            for (i, &id) in portfolio.asset_ids.iter().enumerate() {
+                if id == asset_id {
+                    portfolio.values[i] = new_value;
+                    state.is_stale = true;
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// Get cached VaR result.
+    pub fn cached_var(&self) -> (f64, f64, bool) {
+        let state = self.state.read().unwrap();
+        (state.var, state.es, !state.is_stale)
+    }
+
+    /// Recalculate VaR using given parameters.
+    pub fn recalculate(
+        &self,
+        confidence_level: f64,
+        holding_period: u32,
+        n_simulations: u32,
+    ) -> (f64, f64) {
+        let mut state = self.state.write().unwrap();
+        let Some(ref portfolio) = state.portfolio else {
+            return (0.0, 0.0);
+        };
+
+        let params = VaRParams::new(confidence_level, holding_period, n_simulations);
+        let result = Self::compute(portfolio, params);
+
+        state.var = result.var;
+        state.es = result.expected_shortfall;
+        state.confidence_level = confidence_level;
+        state.holding_period = holding_period;
+        state.n_simulations = n_simulations;
+        state.is_stale = false;
+
+        (result.var, result.expected_shortfall)
     }
 
     /// Calculate VaR using Monte Carlo simulation.
@@ -84,9 +167,7 @@ impl MonteCarloVaR {
 
         for _ in 0..n_sims {
             // Generate independent standard normal variates
-            let z: Vec<f64> = (0..portfolio.n_assets())
-                .map(|_| rng.normal())
-                .collect();
+            let z: Vec<f64> = (0..portfolio.n_assets()).map(|_| rng.normal()).collect();
 
             // Correlate using Cholesky
             let correlated = Self::apply_cholesky(&cholesky, &z, portfolio.n_assets());
@@ -188,7 +269,11 @@ impl MonteCarloVaR {
     }
 
     /// Calculate component VaR.
-    fn calculate_component_var(portfolio: &Portfolio, total_var: f64, _cholesky: &[f64]) -> Vec<f64> {
+    fn calculate_component_var(
+        portfolio: &Portfolio,
+        total_var: f64,
+        _cholesky: &[f64],
+    ) -> Vec<f64> {
         // Component VaR = weight_i * sigma_i * rho_i,p * VaR / sigma_p
         let weights = portfolio.weights();
         let n = portfolio.n_assets();
@@ -222,7 +307,11 @@ impl MonteCarloVaR {
     }
 
     /// Calculate marginal VaR.
-    fn calculate_marginal_var(portfolio: &Portfolio, params: VaRParams, _cholesky: &[f64]) -> Vec<f64> {
+    fn calculate_marginal_var(
+        portfolio: &Portfolio,
+        params: VaRParams,
+        _cholesky: &[f64],
+    ) -> Vec<f64> {
         let n = portfolio.n_assets();
         let weights = portfolio.weights();
         let holding_factor = (params.holding_period as f64).sqrt();
@@ -319,11 +408,15 @@ impl RingKernelHandler<UpdatePositionRing, UpdatePositionResponse> for MonteCarl
         _ctx: &mut RingContext,
         msg: UpdatePositionRing,
     ) -> Result<UpdatePositionResponse> {
-        // In a real implementation, this would update GPU-resident portfolio state
+        // Update position in internal state
+        let new_value = from_currency_fp(msg.value_fp);
+        let updated = self.update_position(msg.asset_id, new_value);
+
+        // Position changed, VaR needs recalculation
         Ok(UpdatePositionResponse {
             request_id: msg.id.0,
             asset_id: msg.asset_id,
-            var_stale: true, // Position changed, VaR needs recalculation
+            var_stale: updated,
         })
     }
 }
@@ -333,21 +426,17 @@ impl RingKernelHandler<UpdatePositionRing, UpdatePositionResponse> for MonteCarl
 /// Returns current cached VaR or triggers recalculation.
 #[async_trait]
 impl RingKernelHandler<QueryVaRRing, QueryVaRResponse> for MonteCarloVaR {
-    async fn handle(
-        &self,
-        _ctx: &mut RingContext,
-        msg: QueryVaRRing,
-    ) -> Result<QueryVaRResponse> {
-        // In a real implementation, this would query GPU-resident VaR state
-        let confidence = from_fixed_point(msg.confidence_fp);
+    async fn handle(&self, _ctx: &mut RingContext, msg: QueryVaRRing) -> Result<QueryVaRResponse> {
+        // Query cached VaR from internal state
+        let (var, es, is_fresh) = self.cached_var();
 
         Ok(QueryVaRResponse {
             request_id: msg.id.0,
-            var_fp: 0, // Would come from state
-            es_fp: 0,
+            var_fp: to_currency_fp(var),
+            es_fp: to_currency_fp(es),
             confidence_fp: msg.confidence_fp,
             holding_period: msg.holding_period,
-            is_fresh: false,
+            is_fresh,
         })
     }
 }
@@ -365,14 +454,14 @@ impl RingKernelHandler<RecalculateVaRRing, RecalculateVaRResponse> for MonteCarl
         let start = Instant::now();
         let confidence = from_fixed_point(msg.confidence_fp);
 
-        // In a real implementation, this would run on GPU-resident portfolio
-        // For now, return placeholder
+        // Run full Monte Carlo simulation on internal state
+        let (var, es) = self.recalculate(confidence, msg.holding_period, msg.n_simulations);
         let compute_time_us = start.elapsed().as_micros() as u64;
 
         Ok(RecalculateVaRResponse {
             request_id: msg.id.0,
-            var_fp: 0, // Would be computed
-            es_fp: 0,
+            var_fp: to_currency_fp(var),
+            es_fp: to_currency_fp(es),
             compute_time_us,
             n_simulations: msg.n_simulations,
         })
@@ -389,16 +478,31 @@ impl RingKernelHandler<K2KMarketUpdate, K2KMarketUpdateAck> for MonteCarloVaR {
         _ctx: &mut RingContext,
         msg: K2KMarketUpdate,
     ) -> Result<K2KMarketUpdateAck> {
-        // In a distributed setting, this would:
-        // 1. Update local price for asset
-        // 2. Recalculate position value
-        // 3. Estimate VaR impact
+        // Get current portfolio value for impact estimation
+        let portfolio_value = {
+            let state = self.state.read().unwrap();
+            state
+                .portfolio
+                .as_ref()
+                .map(|p| p.total_value())
+                .unwrap_or(0.0)
+        };
+
+        // Estimate VaR impact from volatility change
+        // VaR impact ≈ portfolio_value * z * Δvolatility * sqrt(holding_period)
         let vol_delta = from_fixed_point(msg.vol_delta_fp);
-        let var_impact = vol_delta * 1000.0; // Simplified impact estimate
+        let z_95 = 1.645; // 95% confidence z-score
+        let var_impact = portfolio_value * z_95 * vol_delta.abs();
+
+        // Mark state as stale since market conditions changed
+        {
+            let mut state = self.state.write().unwrap();
+            state.is_stale = true;
+        }
 
         Ok(K2KMarketUpdateAck {
             request_id: msg.id.0,
-            worker_id: 0, // Would be actual worker ID
+            worker_id: 0, // Single instance worker
             var_impact_fp: to_currency_fp(var_impact),
         })
     }
@@ -414,22 +518,52 @@ impl RingKernelHandler<K2KVaRAggregation, K2KVaRAggregationResponse> for MonteCa
         _ctx: &mut RingContext,
         msg: K2KVaRAggregation,
     ) -> Result<K2KVaRAggregationResponse> {
-        // In a distributed setting, this would:
-        // 1. Collect partial VaR contributions
-        // 2. Apply correlation adjustments for diversification
-        // 3. Compute final aggregated VaR
         let complete = msg.workers_reported >= msg.expected_workers;
         let aggregated_var = from_currency_fp(msg.aggregated_var_fp);
 
-        // Diversification benefit (simplified - would use actual correlation matrix)
-        let diversification_benefit = aggregated_var * 0.15; // 15% benefit placeholder
+        // Calculate diversification benefit based on portfolio correlation structure
+        // With n workers, diversification benefit scales with 1 - sqrt(1/n) for uncorrelated
+        // For partially correlated, use average correlation from portfolio if available
+        let diversification_factor = {
+            let state = self.state.read().unwrap();
+            if let Some(ref portfolio) = state.portfolio {
+                let n = portfolio.n_assets();
+                if n > 1 {
+                    // Calculate average off-diagonal correlation
+                    let mut avg_corr = 0.0;
+                    let mut count = 0;
+                    for i in 0..n {
+                        for j in (i + 1)..n {
+                            avg_corr += portfolio.correlation(i, j);
+                            count += 1;
+                        }
+                    }
+                    if count > 0 {
+                        avg_corr /= count as f64;
+                    }
+                    // Diversification benefit = 1 - sqrt(average correlation adjustment)
+                    // Higher correlation = less benefit
+                    (1.0 - avg_corr.max(0.0).sqrt()) * 0.3 // Cap at 30%
+                } else {
+                    0.0
+                }
+            } else {
+                0.15 // Default 15% when no portfolio available
+            }
+        };
+
+        let diversification_benefit = aggregated_var * diversification_factor;
         let final_var = aggregated_var - diversification_benefit;
+
+        // ES ratio depends on confidence level (1.25x for 95%, 1.15x for 99%)
+        let es_ratio = 1.25;
+        let final_es = final_var * es_ratio;
 
         Ok(K2KVaRAggregationResponse {
             correlation_id: msg.correlation_id,
             complete,
             final_var_fp: to_currency_fp(final_var),
-            final_es_fp: to_currency_fp(final_var * 1.25), // ES ~1.25x VaR at 95%
+            final_es_fp: to_currency_fp(final_es),
             diversification_benefit_fp: to_currency_fp(diversification_benefit),
         })
     }
@@ -535,7 +669,8 @@ impl PortfolioRiskAggregation {
         }
 
         // Portfolio VaR
-        let portfolio_var = portfolio.total_value() * z * portfolio_variance.sqrt() * holding_factor;
+        let portfolio_var =
+            portfolio.total_value() * z * portfolio_variance.sqrt() * holding_factor;
 
         // Diversification benefit
         let diversification_benefit = undiversified_var - portfolio_var;
@@ -558,10 +693,7 @@ impl PortfolioRiskAggregation {
 
         // Expected Shortfall (using normal approximation)
         let pdf_at_z = (-z * z / 2.0).exp() / (2.0 * std::f64::consts::PI).sqrt();
-        let portfolio_es = portfolio.total_value()
-            * port_vol
-            * holding_factor
-            * pdf_at_z
+        let portfolio_es = portfolio.total_value() * port_vol * holding_factor * pdf_at_z
             / (1.0 - confidence_level);
 
         PortfolioRiskResult {
@@ -596,7 +728,11 @@ impl BatchKernel<PortfolioRiskAggregationInput, PortfolioRiskAggregationOutput>
         input: PortfolioRiskAggregationInput,
     ) -> Result<PortfolioRiskAggregationOutput> {
         let start = Instant::now();
-        let result = Self::compute(&input.portfolio, input.confidence_level, input.holding_period);
+        let result = Self::compute(
+            &input.portfolio,
+            input.confidence_level,
+            input.holding_period,
+        );
         Ok(PortfolioRiskAggregationOutput {
             result,
             compute_time_us: start.elapsed().as_micros() as u64,
@@ -615,9 +751,7 @@ struct SimpleRng {
 
 impl SimpleRng {
     fn new(seed: u64) -> Self {
-        Self {
-            state: seed.max(1),
-        }
+        Self { state: seed.max(1) }
     }
 
     fn next_u64(&mut self) -> u64 {
@@ -648,8 +782,8 @@ mod tests {
         Portfolio::new(
             vec![1, 2],
             vec![100_000.0, 100_000.0],
-            vec![0.08, 0.10],  // 8%, 10% expected returns
-            vec![0.15, 0.20],  // 15%, 20% volatility
+            vec![0.08, 0.10],         // 8%, 10% expected returns
+            vec![0.15, 0.20],         // 15%, 20% volatility
             vec![1.0, 0.5, 0.5, 1.0], // Correlation matrix
         )
     }
@@ -662,10 +796,7 @@ mod tests {
             vec![0.06, 0.08, 0.10, 0.12],
             vec![0.10, 0.15, 0.20, 0.25],
             vec![
-                1.0, 0.2, 0.1, 0.0,
-                0.2, 1.0, 0.3, 0.1,
-                0.1, 0.3, 1.0, 0.2,
-                0.0, 0.1, 0.2, 1.0,
+                1.0, 0.2, 0.1, 0.0, 0.2, 1.0, 0.3, 0.1, 0.1, 0.3, 1.0, 0.2, 0.0, 0.1, 0.2, 1.0,
             ],
         )
     }
@@ -690,7 +821,11 @@ mod tests {
         assert_eq!(result.holding_period, 10);
 
         // VaR should be reasonable (not more than 50% of portfolio)
-        assert!(result.var < 100_000.0, "VaR seems too large: {}", result.var);
+        assert!(
+            result.var < 100_000.0,
+            "VaR seems too large: {}",
+            result.var
+        );
     }
 
     #[test]
@@ -766,7 +901,8 @@ mod tests {
 
         // Diversification benefit = undiversified - portfolio
         assert!(
-            (result.diversification_benefit - (result.undiversified_var - result.portfolio_var)).abs()
+            (result.diversification_benefit - (result.undiversified_var - result.portfolio_var))
+                .abs()
                 < 1.0
         );
 

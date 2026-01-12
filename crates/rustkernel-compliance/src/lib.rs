@@ -50,8 +50,42 @@ pub use sanctions::{PEPScreening, SanctionsScreening};
 
 /// Register all compliance kernels with a registry.
 pub fn register_all(
-    _registry: &rustkernel_core::registry::KernelRegistry,
+    registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
+    use rustkernel_core::traits::GpuKernel;
+
     tracing::info!("Registering compliance kernels");
+
+    // AML kernels (4)
+    registry.register_metadata(aml::CircularFlowRatio::new().metadata().clone())?;
+    registry.register_metadata(aml::ReciprocityFlowRatio::new().metadata().clone())?;
+    registry.register_metadata(aml::RapidMovement::new().metadata().clone())?;
+    registry.register_metadata(aml::AMLPatternDetection::new().metadata().clone())?;
+
+    // KYC kernels (2)
+    registry.register_metadata(kyc::KYCScoring::new().metadata().clone())?;
+    registry.register_metadata(kyc::EntityResolution::new().metadata().clone())?;
+
+    // Sanctions kernels (2)
+    registry.register_metadata(sanctions::SanctionsScreening::new().metadata().clone())?;
+    registry.register_metadata(sanctions::PEPScreening::new().metadata().clone())?;
+
+    // Monitoring kernel (1)
+    registry.register_metadata(monitoring::TransactionMonitoring::new().metadata().clone())?;
+
+    tracing::info!("Registered 9 compliance kernels");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustkernel_core::registry::KernelRegistry;
+
+    #[test]
+    fn test_register_all() {
+        let registry = KernelRegistry::new();
+        register_all(&registry).expect("Failed to register compliance kernels");
+        assert_eq!(registry.total_count(), 9);
+    }
 }

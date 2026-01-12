@@ -6,8 +6,8 @@
 //! - Identify pattern changes
 
 use crate::types::{
-    AccountCorrelation, AnomalyType, CorrelationAnomaly, CorrelationResult, CorrelationStats,
-    CorrelationType, AccountTimeSeries, TimeSeriesPoint,
+    AccountCorrelation, AccountTimeSeries, AnomalyType, CorrelationAnomaly, CorrelationResult,
+    CorrelationStats, CorrelationType, TimeSeriesPoint,
 };
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::collections::HashMap;
@@ -111,7 +111,11 @@ impl TemporalCorrelation {
             .count();
 
         let avg_correlation = if !correlations.is_empty() {
-            correlations.iter().map(|c| c.coefficient.abs()).sum::<f64>() / correlations.len() as f64
+            correlations
+                .iter()
+                .map(|c| c.coefficient.abs())
+                .sum::<f64>()
+                / correlations.len() as f64
         } else {
             0.0
         };
@@ -147,7 +151,11 @@ impl TemporalCorrelation {
         let n = values_a.len() as f64;
         let sum_a: f64 = values_a.iter().sum();
         let sum_b: f64 = values_b.iter().sum();
-        let sum_ab: f64 = values_a.iter().zip(values_b.iter()).map(|(a, b)| a * b).sum();
+        let sum_ab: f64 = values_a
+            .iter()
+            .zip(values_b.iter())
+            .map(|(a, b)| a * b)
+            .sum();
         let sum_a2: f64 = values_a.iter().map(|a| a * a).sum();
         let sum_b2: f64 = values_b.iter().map(|b| b * b).sum();
 
@@ -201,21 +209,148 @@ impl TemporalCorrelation {
             .copied()
             .collect();
 
-        let values_a: Vec<f64> = common_dates.iter().filter_map(|d| dates_a.get(d)).copied().collect();
-        let values_b: Vec<f64> = common_dates.iter().filter_map(|d| dates_b.get(d)).copied().collect();
+        let values_a: Vec<f64> = common_dates
+            .iter()
+            .filter_map(|d| dates_a.get(d))
+            .copied()
+            .collect();
+        let values_b: Vec<f64> = common_dates
+            .iter()
+            .filter_map(|d| dates_b.get(d))
+            .copied()
+            .collect();
 
         (values_a, values_b)
     }
 
-    /// Simplified p-value from t-distribution.
+    /// Calculate p-value from t-distribution using proper Student's t CDF.
+    ///
+    /// Uses the regularized incomplete beta function for exact calculation.
     fn t_distribution_pvalue(t: f64, df: u32) -> f64 {
-        // Simplified approximation using normal distribution for large df
-        if df > 30 {
-            2.0 * (1.0 - Self::normal_cdf(t))
-        } else {
-            // Very rough approximation
-            2.0 * (1.0 - Self::normal_cdf(t * (1.0 - 1.0 / (4.0 * df as f64))))
+        if df == 0 {
+            return 1.0;
         }
+
+        let t_abs = t.abs();
+        let df_f = df as f64;
+
+        // For large df, use normal approximation (numerically stable)
+        if df > 100 {
+            return 2.0 * (1.0 - Self::normal_cdf(t_abs));
+        }
+
+        // Use regularized incomplete beta function:
+        // P(T > |t|) = I_{x}(df/2, 1/2) where x = df/(df + t²)
+        let x = df_f / (df_f + t_abs * t_abs);
+
+        // Two-tailed p-value: 2 * P(T > |t|) = I_x(df/2, 1/2)
+        Self::regularized_incomplete_beta(x, df_f / 2.0, 0.5)
+    }
+
+    /// Regularized incomplete beta function I_x(a, b).
+    ///
+    /// Uses continued fraction expansion for numerical stability.
+    fn regularized_incomplete_beta(x: f64, a: f64, b: f64) -> f64 {
+        if x <= 0.0 {
+            return 0.0;
+        }
+        if x >= 1.0 {
+            return 1.0;
+        }
+
+        // Use symmetry: I_x(a,b) = 1 - I_{1-x}(b,a) when x > (a+1)/(a+b+2)
+        let threshold = (a + 1.0) / (a + b + 2.0);
+
+        if x > threshold {
+            return 1.0 - Self::regularized_incomplete_beta(1.0 - x, b, a);
+        }
+
+        // Beta function using log-gamma approximation
+        let log_beta = Self::log_gamma(a) + Self::log_gamma(b) - Self::log_gamma(a + b);
+
+        // Front factor: x^a * (1-x)^b / (a * B(a,b))
+        let front = (a * x.ln() + b * (1.0 - x).ln() - log_beta - a.ln()).exp();
+
+        // Continued fraction expansion (Lentz's method)
+        let mut f = 1.0;
+        let mut c = 1.0;
+        let mut d = 0.0;
+
+        for m in 1..200 {
+            let m_f = m as f64;
+
+            // Even term: d_{2m}
+            let num_even = m_f * (b - m_f) * x / ((a + 2.0 * m_f - 1.0) * (a + 2.0 * m_f));
+            d = 1.0 + num_even * d;
+            if d.abs() < 1e-30 {
+                d = 1e-30;
+            }
+            d = 1.0 / d;
+            c = 1.0 + num_even / c;
+            if c.abs() < 1e-30 {
+                c = 1e-30;
+            }
+            f *= d * c;
+
+            // Odd term: d_{2m+1}
+            let num_odd =
+                -(a + m_f) * (a + b + m_f) * x / ((a + 2.0 * m_f) * (a + 2.0 * m_f + 1.0));
+            d = 1.0 + num_odd * d;
+            if d.abs() < 1e-30 {
+                d = 1e-30;
+            }
+            d = 1.0 / d;
+            c = 1.0 + num_odd / c;
+            if c.abs() < 1e-30 {
+                c = 1e-30;
+            }
+            let delta = d * c;
+            f *= delta;
+
+            // Check convergence
+            if (delta - 1.0).abs() < 1e-10 {
+                break;
+            }
+        }
+
+        front * f / a
+    }
+
+    /// Log-gamma function using Stirling's approximation.
+    fn log_gamma(x: f64) -> f64 {
+        if x <= 0.0 {
+            return f64::INFINITY;
+        }
+
+        // Use Lanczos approximation coefficients
+        let g = 7.0;
+        let c = [
+            0.99999999999980993,
+            676.5203681218851,
+            -1259.1392167224028,
+            771.32342877765313,
+            -176.61502916214059,
+            12.507343278686905,
+            -0.13857109526572012,
+            9.9843695780195716e-6,
+            1.5056327351493116e-7,
+        ];
+
+        if x < 0.5 {
+            // Reflection formula
+            return std::f64::consts::PI.ln()
+                - (std::f64::consts::PI * x).sin().ln()
+                - Self::log_gamma(1.0 - x);
+        }
+
+        let x = x - 1.0;
+        let mut ag = c[0];
+        for (i, &coef) in c.iter().enumerate().skip(1) {
+            ag += coef / (x + i as f64);
+        }
+
+        let tmp = x + g + 0.5;
+        0.5 * (2.0 * std::f64::consts::PI).ln() + (x + 0.5) * tmp.ln() - tmp + ag.ln()
     }
 
     /// Standard normal CDF approximation.
@@ -263,8 +398,12 @@ impl TemporalCorrelation {
                     &corr.account_a
                 };
 
-                if let Some(related_ts) = all_series.iter().find(|t| t.account_code == *related_code) {
-                    if let Some(related_point) = related_ts.data_points.iter().find(|p| p.date == point.date) {
+                if let Some(related_ts) =
+                    all_series.iter().find(|t| t.account_code == *related_code)
+                {
+                    if let Some(related_point) =
+                        related_ts.data_points.iter().find(|p| p.date == point.date)
+                    {
                         // Simple linear prediction
                         let predicted = related_point.balance * corr.coefficient;
                         predictions.push(predicted);
@@ -278,9 +417,11 @@ impl TemporalCorrelation {
 
             let avg_prediction = predictions.iter().sum::<f64>() / predictions.len() as f64;
             let std_dev = if predictions.len() > 1 {
-                let variance = predictions.iter()
+                let variance = predictions
+                    .iter()
                     .map(|p| (p - avg_prediction).powi(2))
-                    .sum::<f64>() / (predictions.len() - 1) as f64;
+                    .sum::<f64>()
+                    / (predictions.len() - 1) as f64;
                 variance.sqrt()
             } else {
                 avg_prediction.abs() * 0.1 // Fallback
@@ -335,9 +476,7 @@ impl TemporalCorrelation {
         let common_dates: Vec<u64> = ts_a
             .data_points
             .iter()
-            .filter(|p| {
-                ts_b.data_points.iter().any(|pb| pb.date == p.date)
-            })
+            .filter(|p| ts_b.data_points.iter().any(|pb| pb.date == p.date))
             .map(|p| p.date)
             .collect();
 
@@ -364,7 +503,11 @@ impl TemporalCorrelation {
         let n = values_a.len() as f64;
         let sum_a: f64 = values_a.iter().sum();
         let sum_b: f64 = values_b.iter().sum();
-        let sum_ab: f64 = values_a.iter().zip(values_b.iter()).map(|(a, b)| a * b).sum();
+        let sum_ab: f64 = values_a
+            .iter()
+            .zip(values_b.iter())
+            .map(|(a, b)| a * b)
+            .sum();
         let sum_a2: f64 = values_a.iter().map(|a| a * a).sum();
         let sum_b2: f64 = values_b.iter().map(|b| b * b).sum();
 
@@ -467,7 +610,9 @@ mod tests {
     use crate::types::TimeFrequency;
 
     fn create_correlated_series() -> (AccountTimeSeries, AccountTimeSeries) {
-        let base_values = vec![100.0, 110.0, 105.0, 120.0, 115.0, 130.0, 125.0, 140.0, 135.0, 150.0];
+        let base_values = vec![
+            100.0, 110.0, 105.0, 120.0, 115.0, 130.0, 125.0, 140.0, 135.0, 150.0,
+        ];
         let correlated_values: Vec<f64> = base_values.iter().map(|v| v * 0.5 + 20.0).collect();
 
         let ts_a = AccountTimeSeries {
@@ -492,7 +637,11 @@ mod tests {
                 .map(|(i, &v)| TimeSeriesPoint {
                     date: 1700000000 + (i as u64 * 86400),
                     balance: v,
-                    period_change: if i > 0 { v - correlated_values[i - 1] } else { 0.0 },
+                    period_change: if i > 0 {
+                        v - correlated_values[i - 1]
+                    } else {
+                        0.0
+                    },
                 })
                 .collect(),
             frequency: TimeFrequency::Daily,
@@ -583,17 +732,21 @@ mod tests {
     fn test_insufficient_data() {
         let ts_a = AccountTimeSeries {
             account_code: "1000".to_string(),
-            data_points: vec![
-                TimeSeriesPoint { date: 1700000000, balance: 100.0, period_change: 0.0 },
-            ],
+            data_points: vec![TimeSeriesPoint {
+                date: 1700000000,
+                balance: 100.0,
+                period_change: 0.0,
+            }],
             frequency: TimeFrequency::Daily,
         };
 
         let ts_b = AccountTimeSeries {
             account_code: "2000".to_string(),
-            data_points: vec![
-                TimeSeriesPoint { date: 1700000000, balance: 50.0, period_change: 0.0 },
-            ],
+            data_points: vec![TimeSeriesPoint {
+                date: 1700000000,
+                balance: 50.0,
+                period_change: 0.0,
+            }],
             frequency: TimeFrequency::Daily,
         };
 
@@ -622,10 +775,26 @@ mod tests {
     #[test]
     fn test_correlation_break_detection() {
         let rolling = vec![
-            RollingCorrelation { end_date: 1700000000, correlation: 0.9, window_size: 5 },
-            RollingCorrelation { end_date: 1700086400, correlation: 0.85, window_size: 5 },
-            RollingCorrelation { end_date: 1700172800, correlation: 0.2, window_size: 5 }, // Break!
-            RollingCorrelation { end_date: 1700259200, correlation: 0.25, window_size: 5 },
+            RollingCorrelation {
+                end_date: 1700000000,
+                correlation: 0.9,
+                window_size: 5,
+            },
+            RollingCorrelation {
+                end_date: 1700086400,
+                correlation: 0.85,
+                window_size: 5,
+            },
+            RollingCorrelation {
+                end_date: 1700172800,
+                correlation: 0.2,
+                window_size: 5,
+            }, // Break!
+            RollingCorrelation {
+                end_date: 1700259200,
+                correlation: 0.25,
+                window_size: 5,
+            },
         ];
 
         let breaks = TemporalCorrelation::detect_correlation_breaks(&rolling, 0.5);
@@ -668,6 +837,11 @@ mod tests {
         let result = TemporalCorrelation::correlate(&time_series, &config);
 
         // Should detect anomaly because correlation doesn't match expected
-        assert!(result.anomalies.iter().any(|a| a.anomaly_type == AnomalyType::MissingCorrelation));
+        assert!(
+            result
+                .anomalies
+                .iter()
+                .any(|a| a.anomaly_type == AnomalyType::MissingCorrelation)
+        );
     }
 }

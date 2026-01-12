@@ -10,9 +10,9 @@
 
 use crate::messages::{CentralityInput, CentralityOutput, CentralityParams};
 use crate::ring_messages::{
-    from_fixed_point, to_fixed_point, K2KBarrier, K2KBarrierRelease, K2KIterationSync,
-    K2KIterationSyncResponse, PageRankConvergeResponse, PageRankConvergeRing,
-    PageRankIterateResponse, PageRankIterateRing, PageRankQueryResponse, PageRankQueryRing,
+    K2KBarrier, K2KBarrierRelease, K2KIterationSync, K2KIterationSyncResponse,
+    PageRankConvergeResponse, PageRankConvergeRing, PageRankIterateResponse, PageRankIterateRing,
+    PageRankQueryResponse, PageRankQueryRing, from_fixed_point, to_fixed_point,
 };
 use crate::types::{CentralityResult, CsrGraph, NodeScore};
 use async_trait::async_trait;
@@ -92,9 +92,20 @@ pub struct PageRankState {
 ///
 /// Calculates PageRank centrality using power iteration with teleportation.
 /// This is a Ring kernel for low-latency queries after graph is loaded.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PageRank {
     metadata: KernelMetadata,
+    /// Internal state for Ring mode operations.
+    state: std::sync::RwLock<PageRankState>,
+}
+
+impl Clone for PageRank {
+    fn clone(&self) -> Self {
+        Self {
+            metadata: self.metadata.clone(),
+            state: std::sync::RwLock::new(self.state.read().unwrap().clone()),
+        }
+    }
 }
 
 impl PageRank {
@@ -107,7 +118,36 @@ impl PageRank {
                 .with_throughput(100_000)
                 .with_latency_us(1.0)
                 .with_gpu_native(true),
+            state: std::sync::RwLock::new(PageRankState::default()),
         }
+    }
+
+    /// Initialize the kernel with a graph for Ring mode operations.
+    pub fn initialize(&self, graph: CsrGraph, damping: f32) {
+        let mut state = self.state.write().unwrap();
+        *state = Self::initialize_state(graph, damping);
+    }
+
+    /// Query the score for a specific node.
+    pub fn query_score(&self, node_id: u64) -> Option<f64> {
+        let state = self.state.read().unwrap();
+        state.scores.get(node_id as usize).copied()
+    }
+
+    /// Get current iteration count.
+    pub fn current_iteration(&self) -> u32 {
+        self.state.read().unwrap().iteration
+    }
+
+    /// Check if converged.
+    pub fn is_converged(&self) -> bool {
+        self.state.read().unwrap().converged
+    }
+
+    /// Perform one iteration step using internal state.
+    pub fn iterate(&self) -> f64 {
+        let mut state = self.state.write().unwrap();
+        Self::iterate_step(&mut state)
     }
 
     /// Perform one iteration of PageRank on the given state.
@@ -226,14 +266,19 @@ impl RingKernelHandler<PageRankQueryRing, PageRankQueryResponse> for PageRank {
         _ctx: &mut RingContext,
         msg: PageRankQueryRing,
     ) -> Result<PageRankQueryResponse> {
-        // In a real implementation, this would query GPU-resident state.
-        // For now, return a placeholder response.
+        let state = self.state.read().unwrap();
+        let score = state
+            .scores
+            .get(msg.node_id as usize)
+            .copied()
+            .unwrap_or(0.0);
+
         Ok(PageRankQueryResponse {
             request_id: msg.id.0,
             node_id: msg.node_id,
-            score_fp: to_fixed_point(0.0), // Would come from state
-            iteration: 0,
-            converged: false,
+            score_fp: to_fixed_point(score),
+            iteration: state.iteration,
+            converged: state.converged,
         })
     }
 }
@@ -248,14 +293,18 @@ impl RingKernelHandler<PageRankIterateRing, PageRankIterateResponse> for PageRan
         _ctx: &mut RingContext,
         msg: PageRankIterateRing,
     ) -> Result<PageRankIterateResponse> {
-        // In a real implementation, this would:
-        // 1. Perform one iteration on GPU-resident state
-        // 2. Return the max delta from this iteration
+        // Perform one iteration on internal state
+        let max_delta = self.iterate();
+
+        // Check convergence using default threshold
+        let state = self.state.read().unwrap();
+        let converged = max_delta < 1e-6;
+
         Ok(PageRankIterateResponse {
             request_id: msg.id.0,
-            iteration: 1,
-            max_delta_fp: to_fixed_point(0.1), // Placeholder
-            converged: false,
+            iteration: state.iteration,
+            max_delta_fp: to_fixed_point(max_delta),
+            converged,
         })
     }
 }
@@ -276,11 +325,16 @@ impl RingKernelHandler<PageRankConvergeRing, PageRankConvergeResponse> for PageR
         // Use K2K IterativeState for convergence tracking
         let mut iterative_state = IterativeState::new(threshold, max_iterations);
 
-        // Simulate convergence (in real impl, would iterate on GPU state)
-        let mut current_delta = 1.0;
+        // Run actual iterations on internal state
         while iterative_state.should_continue() {
-            current_delta *= 0.5; // Simulate convergence
-            iterative_state.update(current_delta);
+            let max_delta = self.iterate();
+            iterative_state.update(max_delta);
+        }
+
+        // Update convergence status in internal state
+        {
+            let mut state = self.state.write().unwrap();
+            state.converged = iterative_state.summary().converged;
         }
 
         let summary = iterative_state.summary();
@@ -297,6 +351,8 @@ impl RingKernelHandler<PageRankConvergeRing, PageRankConvergeResponse> for PageR
 /// RingKernelHandler for K2K iteration synchronization.
 ///
 /// Used in distributed PageRank to synchronize iterations across partitions.
+/// In a single-instance setting, this validates the worker's iteration state
+/// and returns convergence status based on the reported delta.
 #[async_trait]
 impl RingKernelHandler<K2KIterationSync, K2KIterationSyncResponse> for PageRank {
     async fn handle(
@@ -304,17 +360,24 @@ impl RingKernelHandler<K2KIterationSync, K2KIterationSyncResponse> for PageRank 
         _ctx: &mut RingContext,
         msg: K2KIterationSync,
     ) -> Result<K2KIterationSyncResponse> {
-        // In a distributed setting, this would:
-        // 1. Record this worker's delta
-        // 2. Check if all workers have synced
-        // 3. Compute global delta
-        // 4. Determine global convergence
+        let state = self.state.read().unwrap();
+
+        // For single-instance, verify iteration matches internal state
+        // In distributed setting, would aggregate deltas from all workers
+        let current_iteration = state.iteration as u64;
+        let all_synced = msg.iteration <= current_iteration;
+
+        // Use reported local delta as global delta (single worker case)
+        // In distributed setting, would compute max across all workers
+        let local_delta = from_fixed_point(msg.local_delta_fp);
+        let global_converged = local_delta < 1e-6 || state.converged;
+
         Ok(K2KIterationSyncResponse {
             request_id: msg.id.0,
             iteration: msg.iteration,
-            all_synced: true, // Placeholder
-            global_delta_fp: msg.local_delta_fp, // In real impl, max across workers
-            global_converged: from_fixed_point(msg.local_delta_fp) < 1e-6,
+            all_synced,
+            global_delta_fp: msg.local_delta_fp,
+            global_converged,
         })
     }
 }
@@ -324,11 +387,7 @@ impl RingKernelHandler<K2KIterationSync, K2KIterationSyncResponse> for PageRank 
 /// Implements barrier synchronization for distributed PageRank iterations.
 #[async_trait]
 impl RingKernelHandler<K2KBarrier, K2KBarrierRelease> for PageRank {
-    async fn handle(
-        &self,
-        _ctx: &mut RingContext,
-        msg: K2KBarrier,
-    ) -> Result<K2KBarrierRelease> {
+    async fn handle(&self, _ctx: &mut RingContext, msg: K2KBarrier) -> Result<K2KBarrierRelease> {
         // In a distributed setting, this would:
         // 1. Record this worker as ready
         // 2. Check if all workers are ready
@@ -439,7 +498,7 @@ impl BetweennessCentrality {
             let mut stack: Vec<usize> = Vec::with_capacity(n);
             let mut predecessors: Vec<Vec<usize>> = vec![Vec::new(); n];
             let mut sigma = vec![0.0f64; n]; // Number of shortest paths
-            let mut dist = vec![-1i64; n];   // Distance from source
+            let mut dist = vec![-1i64; n]; // Distance from source
 
             sigma[s] = 1.0;
             dist[s] = 0;
@@ -650,11 +709,7 @@ impl EigenvectorCentrality {
     }
 
     /// Compute eigenvector centrality using power iteration.
-    pub fn compute(
-        graph: &CsrGraph,
-        max_iterations: u32,
-        tolerance: f64,
-    ) -> CentralityResult {
+    pub fn compute(graph: &CsrGraph, max_iterations: u32, tolerance: f64) -> CentralityResult {
         let n = graph.num_nodes;
         if n == 0 {
             return CentralityResult {
@@ -990,10 +1045,19 @@ mod tests {
 
     fn create_star_graph() -> CsrGraph {
         // Star graph: center node 0 connected to all others
-        CsrGraph::from_edges(5, &[
-            (0, 1), (0, 2), (0, 3), (0, 4),
-            (1, 0), (2, 0), (3, 0), (4, 0),
-        ])
+        CsrGraph::from_edges(
+            5,
+            &[
+                (0, 1),
+                (0, 2),
+                (0, 3),
+                (0, 4),
+                (1, 0),
+                (2, 0),
+                (3, 0),
+                (4, 0),
+            ],
+        )
     }
 
     #[test]
@@ -1045,11 +1109,7 @@ mod tests {
     #[test]
     fn test_betweenness_centrality() {
         // Line graph: 0 - 1 - 2 - 3
-        let graph = CsrGraph::from_edges(4, &[
-            (0, 1), (1, 0),
-            (1, 2), (2, 1),
-            (2, 3), (3, 2),
-        ]);
+        let graph = CsrGraph::from_edges(4, &[(0, 1), (1, 0), (1, 2), (2, 1), (2, 3), (3, 2)]);
 
         let result = BetweennessCentrality::compute(&graph, false);
 

@@ -258,7 +258,7 @@ pub struct VolatilityResult {
 }
 
 /// GARCH model coefficients.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GARCHCoefficients {
     /// Omega (constant term).
     pub omega: f64,
