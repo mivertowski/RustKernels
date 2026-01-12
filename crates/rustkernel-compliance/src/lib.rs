@@ -23,52 +23,31 @@
 
 #![warn(missing_docs)]
 
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+pub mod aml;
+pub mod kyc;
+pub mod monitoring;
+pub mod sanctions;
+pub mod types;
 
-/// AML circular flow detection kernel.
-#[derive(Debug, Clone, Default)]
-pub struct CircularFlowRatio { metadata: KernelMetadata }
-impl CircularFlowRatio {
-    /// Create a new kernel.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { metadata: KernelMetadata::ring("compliance/circular-flow", Domain::Compliance)
-            .with_description("Circular flow detection via SCC")
-            .with_throughput(50_000).with_latency_us(100.0) }
-    }
+/// Prelude for convenient imports.
+pub mod prelude {
+    pub use crate::aml::*;
+    pub use crate::kyc::*;
+    pub use crate::monitoring::*;
+    pub use crate::sanctions::*;
+    pub use crate::types::*;
 }
-impl GpuKernel for CircularFlowRatio { fn metadata(&self) -> &KernelMetadata { &self.metadata } }
 
-/// Sanctions screening kernel.
-#[derive(Debug, Clone, Default)]
-pub struct SanctionsScreening { metadata: KernelMetadata }
-impl SanctionsScreening {
-    /// Create a new kernel.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { metadata: KernelMetadata::ring("compliance/sanctions-screening", Domain::Compliance)
-            .with_description("OFAC/UN/EU sanctions list screening")
-            .with_throughput(100_000).with_latency_us(10.0) }
-    }
-}
-impl GpuKernel for SanctionsScreening { fn metadata(&self) -> &KernelMetadata { &self.metadata } }
+// Re-export main types for convenience
+pub use aml::{AMLPatternDetection, CircularFlowRatio, RapidMovement, ReciprocityFlowRatio};
+pub use kyc::{EntityResolution, KYCScoring};
+pub use monitoring::TransactionMonitoring;
+pub use sanctions::{PEPScreening, SanctionsScreening};
 
-/// Transaction monitoring kernel.
-#[derive(Debug, Clone, Default)]
-pub struct TransactionMonitoring { metadata: KernelMetadata }
-impl TransactionMonitoring {
-    /// Create a new kernel.
-    #[must_use]
-    pub fn new() -> Self {
-        Self { metadata: KernelMetadata::ring("compliance/transaction-monitoring", Domain::Compliance)
-            .with_description("Real-time transaction threshold monitoring")
-            .with_throughput(500_000).with_latency_us(1.0) }
-    }
-}
-impl GpuKernel for TransactionMonitoring { fn metadata(&self) -> &KernelMetadata { &self.metadata } }
-
-/// Register all compliance kernels.
-pub fn register_all(_registry: &rustkernel_core::registry::KernelRegistry) -> rustkernel_core::error::Result<()> {
+/// Register all compliance kernels with a registry.
+pub fn register_all(
+    _registry: &rustkernel_core::registry::KernelRegistry,
+) -> rustkernel_core::error::Result<()> {
     tracing::info!("Registering compliance kernels");
     Ok(())
 }
