@@ -425,3 +425,111 @@ pub struct MonitoringResult {
     /// Transactions analyzed.
     pub transactions_analyzed: usize,
 }
+
+// ============================================================================
+// Flow Reversal Types
+// ============================================================================
+
+/// A detected flow reversal pair.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlowReversalPair {
+    /// Original transaction ID.
+    pub original_tx_id: u64,
+    /// Reversal transaction ID.
+    pub reversal_tx_id: u64,
+    /// Source entity in original transaction.
+    pub entity_a: u64,
+    /// Destination entity in original transaction.
+    pub entity_b: u64,
+    /// Original amount.
+    pub original_amount: f64,
+    /// Reversal amount.
+    pub reversal_amount: f64,
+    /// Time delta between transactions (seconds).
+    pub time_delta: u64,
+    /// Amount match ratio (0-1, 1.0 = exact match).
+    pub amount_match_ratio: f64,
+    /// Risk level for this reversal.
+    pub risk_level: ReversalRiskLevel,
+}
+
+/// Risk level for flow reversal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ReversalRiskLevel {
+    /// Normal - likely legitimate business reversal.
+    Normal,
+    /// Suspicious - short time window or repeated pattern.
+    Suspicious,
+    /// High - very short window with exact amount match.
+    High,
+    /// Critical - pattern indicates potential wash trading or layering.
+    Critical,
+}
+
+/// Result of flow reversal analysis.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlowReversalResult {
+    /// Detected reversal pairs.
+    pub reversals: Vec<FlowReversalPair>,
+    /// Total reversal volume.
+    pub reversal_volume: f64,
+    /// Reversal ratio (reversal volume / total volume).
+    pub reversal_ratio: f64,
+    /// Entities with multiple reversals.
+    pub repeat_offenders: Vec<(u64, u32)>,
+    /// Overall risk score (0-100).
+    pub risk_score: f64,
+}
+
+// ============================================================================
+// Flow Split Ratio Types
+// ============================================================================
+
+/// A detected flow split pattern.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlowSplitPattern {
+    /// Source entity performing the split.
+    pub source_entity: u64,
+    /// Destination entities receiving the split transactions.
+    pub dest_entities: Vec<u64>,
+    /// Individual transaction IDs in the split.
+    pub transaction_ids: Vec<u64>,
+    /// Individual amounts.
+    pub amounts: Vec<f64>,
+    /// Total split amount.
+    pub total_amount: f64,
+    /// Time span of the split (seconds).
+    pub time_span: u64,
+    /// Estimated original amount (if structuring detected).
+    pub estimated_threshold: f64,
+    /// Risk level.
+    pub risk_level: SplitRiskLevel,
+}
+
+/// Risk level for flow split.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SplitRiskLevel {
+    /// Normal - likely legitimate batch payments.
+    Normal,
+    /// Elevated - amounts near reporting threshold.
+    Elevated,
+    /// High - clear structuring pattern.
+    High,
+    /// Critical - multiple splits targeting exact threshold.
+    Critical,
+}
+
+/// Result of flow split ratio analysis.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlowSplitResult {
+    /// Detected split patterns.
+    pub splits: Vec<FlowSplitPattern>,
+    /// Entities with structuring patterns.
+    pub structuring_entities: Vec<u64>,
+    /// Total amount in split patterns.
+    pub split_volume: f64,
+    /// Split ratio (split volume / total volume).
+    pub split_ratio: f64,
+    /// Overall risk score (0-100).
+    pub risk_score: f64,
+}

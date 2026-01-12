@@ -10,10 +10,13 @@
 //! - `TemporalCorrelation` - Account correlations
 //! - `NetworkGeneration` - Journal entry to accounting network transformation
 //! - `NetworkGenerationRing` - Streaming network generation
+//! - `SuspenseAccountDetection` - Centrality-based suspense account detection
+//! - `GaapViolationDetection` - GAAP prohibited flow pattern detection
 
 #![warn(missing_docs)]
 
 pub mod coa_mapping;
+pub mod detection;
 pub mod journal;
 pub mod network;
 pub mod network_generation;
@@ -22,6 +25,9 @@ pub mod temporal;
 pub mod types;
 
 pub use coa_mapping::ChartOfAccountsMapping;
+pub use detection::{
+    GaapDetectionConfig, GaapViolationDetection, SuspenseAccountDetection, SuspenseDetectionConfig,
+};
 pub use journal::JournalTransformation;
 pub use network::NetworkAnalysis;
 pub use network_generation::{
@@ -72,7 +78,19 @@ pub fn register_all(
             .clone(),
     )?;
 
-    tracing::info!("Registered 7 accounting kernels");
+    // Detection kernels (2)
+    registry.register_metadata(
+        detection::SuspenseAccountDetection::new()
+            .metadata()
+            .clone(),
+    )?;
+    registry.register_metadata(
+        detection::GaapViolationDetection::new()
+            .metadata()
+            .clone(),
+    )?;
+
+    tracing::info!("Registered 9 accounting kernels");
     Ok(())
 }
 
@@ -85,6 +103,6 @@ mod tests {
     fn test_register_all() {
         let registry = KernelRegistry::new();
         register_all(&registry).expect("Failed to register accounting kernels");
-        assert_eq!(registry.total_count(), 7);
+        assert_eq!(registry.total_count(), 9);
     }
 }

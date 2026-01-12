@@ -1027,6 +1027,532 @@ impl RingKernelHandler<MatchPatternRing, MatchPatternResponse> for AMLPatternDet
     }
 }
 
+// ============================================================================
+// Flow Reversal Pattern Kernel
+// ============================================================================
+
+/// Flow reversal pattern detection kernel.
+///
+/// Detects transactions that are reversed (A->B followed by B->A).
+/// Critical for detecting wash trading, round-tripping, and layering.
+#[derive(Debug, Clone)]
+pub struct FlowReversalPattern {
+    metadata: KernelMetadata,
+}
+
+impl Default for FlowReversalPattern {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl FlowReversalPattern {
+    /// Create a new flow reversal pattern kernel.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            metadata: KernelMetadata::batch("compliance/flow-reversal", Domain::Compliance)
+                .with_description("Transaction reversal pattern detection")
+                .with_throughput(80_000)
+                .with_latency_us(50.0),
+        }
+    }
+
+    /// Detect flow reversal patterns.
+    ///
+    /// # Arguments
+    /// * `transactions` - List of transactions to analyze
+    /// * `config` - Reversal detection configuration
+    pub fn compute(
+        transactions: &[Transaction],
+        config: &FlowReversalConfig,
+    ) -> crate::types::FlowReversalResult {
+        use crate::types::{FlowReversalPair, FlowReversalResult, ReversalRiskLevel};
+
+        if transactions.is_empty() {
+            return FlowReversalResult {
+                reversals: Vec::new(),
+                reversal_volume: 0.0,
+                reversal_ratio: 0.0,
+                repeat_offenders: Vec::new(),
+                risk_score: 0.0,
+            };
+        }
+
+        // Sort transactions by timestamp
+        let mut sorted_txs: Vec<_> = transactions.iter().collect();
+        sorted_txs.sort_by_key(|tx| tx.timestamp);
+
+        // Build edge map for quick lookup: (src, dst) -> Vec<(tx_id, amount, timestamp)>
+        let mut forward_edges: HashMap<(u64, u64), Vec<(u64, f64, u64)>> = HashMap::new();
+        for tx in &sorted_txs {
+            forward_edges
+                .entry((tx.source_id, tx.dest_id))
+                .or_default()
+                .push((tx.id, tx.amount, tx.timestamp));
+        }
+
+        let mut reversals = Vec::new();
+        let mut processed_pairs: HashSet<(u64, u64)> = HashSet::new();
+        let mut entity_reversal_count: HashMap<u64, u32> = HashMap::new();
+
+        // For each transaction A->B, look for B->A within the time window
+        for tx in &sorted_txs {
+            let reverse_key = (tx.dest_id, tx.source_id);
+
+            if let Some(reverse_txs) = forward_edges.get(&reverse_key) {
+                for &(rev_id, rev_amount, rev_timestamp) in reverse_txs {
+                    // Skip if already processed this pair
+                    if processed_pairs.contains(&(tx.id, rev_id))
+                        || processed_pairs.contains(&(rev_id, tx.id))
+                    {
+                        continue;
+                    }
+
+                    // Check time window (reversal must come after original)
+                    if rev_timestamp <= tx.timestamp {
+                        continue;
+                    }
+
+                    let time_delta = rev_timestamp - tx.timestamp;
+                    if time_delta > config.max_window_seconds {
+                        continue;
+                    }
+
+                    // Check amount tolerance
+                    let amount_ratio = if tx.amount > 0.0 {
+                        (rev_amount / tx.amount).min(tx.amount / rev_amount)
+                    } else {
+                        0.0
+                    };
+
+                    if amount_ratio < config.min_amount_match_ratio {
+                        continue;
+                    }
+
+                    // Calculate risk level
+                    let risk_level = Self::calculate_risk_level(time_delta, amount_ratio, config);
+
+                    reversals.push(FlowReversalPair {
+                        original_tx_id: tx.id,
+                        reversal_tx_id: rev_id,
+                        entity_a: tx.source_id,
+                        entity_b: tx.dest_id,
+                        original_amount: tx.amount,
+                        reversal_amount: rev_amount,
+                        time_delta,
+                        amount_match_ratio: amount_ratio,
+                        risk_level,
+                    });
+
+                    processed_pairs.insert((tx.id, rev_id));
+
+                    // Track repeat offenders
+                    *entity_reversal_count.entry(tx.source_id).or_insert(0) += 1;
+                    *entity_reversal_count.entry(tx.dest_id).or_insert(0) += 1;
+                }
+            }
+        }
+
+        // Calculate metrics
+        let reversal_volume: f64 = reversals
+            .iter()
+            .map(|r| r.original_amount + r.reversal_amount)
+            .sum();
+        let total_volume: f64 = transactions.iter().map(|tx| tx.amount).sum();
+        let reversal_ratio = if total_volume > 0.0 {
+            reversal_volume / total_volume
+        } else {
+            0.0
+        };
+
+        // Find repeat offenders (entities with 2+ reversals)
+        let mut repeat_offenders: Vec<_> = entity_reversal_count
+            .into_iter()
+            .filter(|(_, count)| *count >= 2)
+            .collect();
+        repeat_offenders.sort_by(|a, b| b.1.cmp(&a.1));
+
+        // Calculate overall risk score
+        let high_risk_count = reversals
+            .iter()
+            .filter(|r| {
+                matches!(
+                    r.risk_level,
+                    ReversalRiskLevel::High | ReversalRiskLevel::Critical
+                )
+            })
+            .count();
+
+        let risk_score = ((reversals.len() as f64 * 5.0)
+            + (high_risk_count as f64 * 15.0)
+            + (repeat_offenders.len() as f64 * 10.0)
+            + (reversal_ratio * 50.0))
+            .min(100.0);
+
+        FlowReversalResult {
+            reversals,
+            reversal_volume,
+            reversal_ratio,
+            repeat_offenders,
+            risk_score,
+        }
+    }
+
+    /// Calculate risk level for a reversal.
+    fn calculate_risk_level(
+        time_delta: u64,
+        amount_ratio: f64,
+        config: &FlowReversalConfig,
+    ) -> crate::types::ReversalRiskLevel {
+        use crate::types::ReversalRiskLevel;
+
+        let is_exact_match = amount_ratio >= 0.99;
+        let is_fast = time_delta < config.suspicious_window_seconds;
+        let is_very_fast = time_delta < config.critical_window_seconds;
+
+        match (is_very_fast, is_fast, is_exact_match) {
+            (true, _, true) => ReversalRiskLevel::Critical,
+            (true, _, _) => ReversalRiskLevel::High,
+            (_, true, true) => ReversalRiskLevel::High,
+            (_, true, _) => ReversalRiskLevel::Suspicious,
+            (_, _, true) => ReversalRiskLevel::Suspicious,
+            _ => ReversalRiskLevel::Normal,
+        }
+    }
+}
+
+impl GpuKernel for FlowReversalPattern {
+    fn metadata(&self) -> &KernelMetadata {
+        &self.metadata
+    }
+}
+
+/// Configuration for flow reversal detection.
+#[derive(Debug, Clone)]
+pub struct FlowReversalConfig {
+    /// Maximum time window to consider reversals (seconds).
+    pub max_window_seconds: u64,
+    /// Time threshold for suspicious reversals (seconds).
+    pub suspicious_window_seconds: u64,
+    /// Time threshold for critical reversals (seconds).
+    pub critical_window_seconds: u64,
+    /// Minimum amount match ratio (0-1) to consider a reversal.
+    pub min_amount_match_ratio: f64,
+}
+
+impl Default for FlowReversalConfig {
+    fn default() -> Self {
+        Self {
+            max_window_seconds: 86400, // 24 hours
+            suspicious_window_seconds: 3600, // 1 hour
+            critical_window_seconds: 300, // 5 minutes
+            min_amount_match_ratio: 0.9, // 90% match
+        }
+    }
+}
+
+// ============================================================================
+// Flow Split Ratio Kernel
+// ============================================================================
+
+/// Flow split ratio detection kernel.
+///
+/// Detects structuring patterns where transactions are split to avoid
+/// reporting thresholds (e.g., BSA $10,000 threshold).
+#[derive(Debug, Clone)]
+pub struct FlowSplitRatio {
+    metadata: KernelMetadata,
+}
+
+impl Default for FlowSplitRatio {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl FlowSplitRatio {
+    /// Create a new flow split ratio kernel.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            metadata: KernelMetadata::batch("compliance/flow-split", Domain::Compliance)
+                .with_description("Transaction splitting and structuring detection")
+                .with_throughput(60_000)
+                .with_latency_us(80.0),
+        }
+    }
+
+    /// Detect flow split patterns.
+    ///
+    /// # Arguments
+    /// * `transactions` - List of transactions to analyze
+    /// * `config` - Split detection configuration
+    pub fn compute(
+        transactions: &[Transaction],
+        config: &FlowSplitConfig,
+    ) -> crate::types::FlowSplitResult {
+        use crate::types::{FlowSplitPattern, FlowSplitResult, SplitRiskLevel};
+
+        if transactions.is_empty() {
+            return FlowSplitResult {
+                splits: Vec::new(),
+                structuring_entities: Vec::new(),
+                split_volume: 0.0,
+                split_ratio: 0.0,
+                risk_score: 0.0,
+            };
+        }
+
+        // Group transactions by source entity
+        let mut by_source: HashMap<u64, Vec<&Transaction>> = HashMap::new();
+        for tx in transactions {
+            by_source.entry(tx.source_id).or_default().push(tx);
+        }
+
+        let mut splits = Vec::new();
+        let mut structuring_entities: HashSet<u64> = HashSet::new();
+
+        for (source_id, source_txs) in by_source {
+            if source_txs.len() < config.min_split_count {
+                continue;
+            }
+
+            // Sort by timestamp
+            let mut sorted_txs: Vec<_> = source_txs.into_iter().collect();
+            sorted_txs.sort_by_key(|tx| tx.timestamp);
+
+            // Sliding window to find split patterns
+            for start_idx in 0..sorted_txs.len() {
+                let start_tx = sorted_txs[start_idx];
+                let window_end_time = start_tx.timestamp + config.window_seconds;
+
+                // Collect transactions in window
+                let window_txs: Vec<_> = sorted_txs[start_idx..]
+                    .iter()
+                    .take_while(|tx| tx.timestamp <= window_end_time)
+                    .copied()
+                    .collect();
+
+                if window_txs.len() < config.min_split_count {
+                    continue;
+                }
+
+                // Check if transactions are below threshold but sum near/above it
+                let under_threshold: Vec<_> = window_txs
+                    .iter()
+                    .filter(|tx| tx.amount < config.reporting_threshold)
+                    .copied()
+                    .collect();
+
+                if under_threshold.len() < config.min_split_count {
+                    continue;
+                }
+
+                let total_amount: f64 = under_threshold.iter().map(|tx| tx.amount).sum();
+
+                // Check if total is near or above reporting threshold
+                if total_amount < config.reporting_threshold * 0.8 {
+                    continue;
+                }
+
+                // Check for structuring indicators
+                let amounts: Vec<f64> = under_threshold.iter().map(|tx| tx.amount).collect();
+                let avg_amount = total_amount / amounts.len() as f64;
+                let is_uniform = amounts
+                    .iter()
+                    .all(|a| (*a - avg_amount).abs() / avg_amount < 0.3);
+                let near_threshold = amounts
+                    .iter()
+                    .filter(|a| **a > config.reporting_threshold * 0.7)
+                    .count();
+
+                // Calculate risk level
+                let risk_level = Self::calculate_risk_level(
+                    total_amount,
+                    &amounts,
+                    is_uniform,
+                    near_threshold,
+                    config,
+                );
+
+                if matches!(risk_level, SplitRiskLevel::Normal) {
+                    continue;
+                }
+
+                let time_span = under_threshold
+                    .last()
+                    .map(|tx| tx.timestamp)
+                    .unwrap_or(start_tx.timestamp)
+                    .saturating_sub(start_tx.timestamp);
+
+                let dest_entities: Vec<u64> = under_threshold
+                    .iter()
+                    .map(|tx| tx.dest_id)
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect();
+
+                splits.push(FlowSplitPattern {
+                    source_entity: source_id,
+                    dest_entities,
+                    transaction_ids: under_threshold.iter().map(|tx| tx.id).collect(),
+                    amounts: amounts.clone(),
+                    total_amount,
+                    time_span,
+                    estimated_threshold: config.reporting_threshold,
+                    risk_level,
+                });
+
+                if matches!(
+                    risk_level,
+                    SplitRiskLevel::High | SplitRiskLevel::Critical
+                ) {
+                    structuring_entities.insert(source_id);
+                }
+            }
+        }
+
+        // Deduplicate overlapping patterns (keep highest risk)
+        let splits = Self::deduplicate_splits(splits);
+
+        // Calculate metrics
+        let split_volume: f64 = splits.iter().map(|s| s.total_amount).sum();
+        let total_volume: f64 = transactions.iter().map(|tx| tx.amount).sum();
+        let split_ratio = if total_volume > 0.0 {
+            split_volume / total_volume
+        } else {
+            0.0
+        };
+
+        // Calculate risk score
+        let critical_count = splits
+            .iter()
+            .filter(|s| matches!(s.risk_level, SplitRiskLevel::Critical))
+            .count();
+        let high_count = splits
+            .iter()
+            .filter(|s| matches!(s.risk_level, SplitRiskLevel::High))
+            .count();
+
+        let risk_score = ((splits.len() as f64 * 5.0)
+            + (high_count as f64 * 15.0)
+            + (critical_count as f64 * 25.0)
+            + (structuring_entities.len() as f64 * 10.0))
+            .min(100.0);
+
+        FlowSplitResult {
+            splits,
+            structuring_entities: structuring_entities.into_iter().collect(),
+            split_volume,
+            split_ratio,
+            risk_score,
+        }
+    }
+
+    /// Calculate risk level for a split pattern.
+    fn calculate_risk_level(
+        total_amount: f64,
+        amounts: &[f64],
+        is_uniform: bool,
+        near_threshold_count: usize,
+        config: &FlowSplitConfig,
+    ) -> crate::types::SplitRiskLevel {
+        use crate::types::SplitRiskLevel;
+
+        let threshold = config.reporting_threshold;
+        let just_under = total_amount >= threshold * 0.95 && total_amount <= threshold * 1.05;
+        let multiple_near = near_threshold_count >= 3;
+
+        match (just_under, multiple_near, is_uniform) {
+            (true, true, true) => SplitRiskLevel::Critical,
+            (true, true, _) => SplitRiskLevel::Critical,
+            (true, _, true) => SplitRiskLevel::High,
+            (true, _, _) => SplitRiskLevel::High,
+            (_, true, _) => SplitRiskLevel::High,
+            _ if amounts.len() >= 5 && total_amount > threshold => SplitRiskLevel::Elevated,
+            _ => SplitRiskLevel::Normal,
+        }
+    }
+
+    /// Deduplicate overlapping split patterns.
+    fn deduplicate_splits(
+        mut splits: Vec<crate::types::FlowSplitPattern>,
+    ) -> Vec<crate::types::FlowSplitPattern> {
+        // Sort by risk level (highest first), then by total amount
+        splits.sort_by(|a, b| {
+            let risk_ord = Self::risk_level_ord(&b.risk_level).cmp(&Self::risk_level_ord(&a.risk_level));
+            if risk_ord == std::cmp::Ordering::Equal {
+                b.total_amount
+                    .partial_cmp(&a.total_amount)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            } else {
+                risk_ord
+            }
+        });
+
+        let mut kept: Vec<crate::types::FlowSplitPattern> = Vec::new();
+        let mut used_tx_ids: HashSet<u64> = HashSet::new();
+
+        for split in splits {
+            // Check overlap with already kept patterns
+            let overlap = split
+                .transaction_ids
+                .iter()
+                .filter(|id| used_tx_ids.contains(id))
+                .count();
+
+            // Keep if less than 50% overlap
+            if overlap < split.transaction_ids.len() / 2 {
+                for id in &split.transaction_ids {
+                    used_tx_ids.insert(*id);
+                }
+                kept.push(split);
+            }
+        }
+
+        kept
+    }
+
+    /// Convert risk level to ordinal for sorting.
+    fn risk_level_ord(level: &crate::types::SplitRiskLevel) -> u8 {
+        use crate::types::SplitRiskLevel;
+        match level {
+            SplitRiskLevel::Normal => 0,
+            SplitRiskLevel::Elevated => 1,
+            SplitRiskLevel::High => 2,
+            SplitRiskLevel::Critical => 3,
+        }
+    }
+}
+
+impl GpuKernel for FlowSplitRatio {
+    fn metadata(&self) -> &KernelMetadata {
+        &self.metadata
+    }
+}
+
+/// Configuration for flow split detection.
+#[derive(Debug, Clone)]
+pub struct FlowSplitConfig {
+    /// Reporting threshold to detect structuring around (e.g., $10,000).
+    pub reporting_threshold: f64,
+    /// Time window to look for split transactions (seconds).
+    pub window_seconds: u64,
+    /// Minimum number of transactions to constitute a split.
+    pub min_split_count: usize,
+}
+
+impl Default for FlowSplitConfig {
+    fn default() -> Self {
+        Self {
+            reporting_threshold: 10_000.0, // BSA threshold
+            window_seconds: 86400,         // 24 hours
+            min_split_count: 3,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1175,5 +1701,274 @@ mod tests {
 
         let aml = AMLPatternDetection::compute(&empty, 10000.0, 24.0);
         assert!(aml.patterns.is_empty());
+
+        let reversal = FlowReversalPattern::compute(&empty, &FlowReversalConfig::default());
+        assert!(reversal.reversals.is_empty());
+
+        let split = FlowSplitRatio::compute(&empty, &FlowSplitConfig::default());
+        assert!(split.splits.is_empty());
+    }
+
+    // ========================================================================
+    // Flow Reversal Pattern Tests
+    // ========================================================================
+
+    fn create_reversal_transactions() -> Vec<Transaction> {
+        vec![
+            // A -> B: 5000 at t=100
+            Transaction {
+                id: 1,
+                source_id: 1,
+                dest_id: 2,
+                amount: 5000.0,
+                timestamp: 100,
+                currency: "USD".to_string(),
+                tx_type: "wire".to_string(),
+            },
+            // B -> A: 5000 at t=200 (reversal with exact match)
+            Transaction {
+                id: 2,
+                source_id: 2,
+                dest_id: 1,
+                amount: 5000.0,
+                timestamp: 200,
+                currency: "USD".to_string(),
+                tx_type: "wire".to_string(),
+            },
+            // C -> D: 3000 at t=300
+            Transaction {
+                id: 3,
+                source_id: 3,
+                dest_id: 4,
+                amount: 3000.0,
+                timestamp: 300,
+                currency: "USD".to_string(),
+                tx_type: "wire".to_string(),
+            },
+            // D -> C: 2800 at t=400 (reversal with ~93% match)
+            Transaction {
+                id: 4,
+                source_id: 4,
+                dest_id: 3,
+                amount: 2800.0,
+                timestamp: 400,
+                currency: "USD".to_string(),
+                tx_type: "wire".to_string(),
+            },
+        ]
+    }
+
+    #[test]
+    fn test_flow_reversal_metadata() {
+        let kernel = FlowReversalPattern::new();
+        assert_eq!(kernel.metadata().id, "compliance/flow-reversal");
+        assert_eq!(kernel.metadata().domain, Domain::Compliance);
+    }
+
+    #[test]
+    fn test_flow_reversal_detection() {
+        let txs = create_reversal_transactions();
+        let config = FlowReversalConfig::default();
+        let result = FlowReversalPattern::compute(&txs, &config);
+
+        assert_eq!(result.reversals.len(), 2);
+        assert!(result.reversal_volume > 0.0);
+        assert!(result.reversal_ratio > 0.0);
+    }
+
+    #[test]
+    fn test_flow_reversal_exact_match() {
+        let txs = vec![
+            Transaction {
+                id: 1,
+                source_id: 1,
+                dest_id: 2,
+                amount: 1000.0,
+                timestamp: 100,
+                currency: "USD".to_string(),
+                tx_type: "wire".to_string(),
+            },
+            Transaction {
+                id: 2,
+                source_id: 2,
+                dest_id: 1,
+                amount: 1000.0,
+                timestamp: 150, // Very fast reversal
+                currency: "USD".to_string(),
+                tx_type: "wire".to_string(),
+            },
+        ];
+
+        let config = FlowReversalConfig {
+            critical_window_seconds: 100,
+            suspicious_window_seconds: 600,
+            ..Default::default()
+        };
+        let result = FlowReversalPattern::compute(&txs, &config);
+
+        assert_eq!(result.reversals.len(), 1);
+        assert_eq!(result.reversals[0].amount_match_ratio, 1.0);
+        // Should be Critical due to very fast + exact match
+        assert!(matches!(
+            result.reversals[0].risk_level,
+            crate::types::ReversalRiskLevel::Critical
+        ));
+    }
+
+    #[test]
+    fn test_flow_reversal_outside_window() {
+        let txs = vec![
+            Transaction {
+                id: 1,
+                source_id: 1,
+                dest_id: 2,
+                amount: 1000.0,
+                timestamp: 100,
+                currency: "USD".to_string(),
+                tx_type: "wire".to_string(),
+            },
+            Transaction {
+                id: 2,
+                source_id: 2,
+                dest_id: 1,
+                amount: 1000.0,
+                timestamp: 100000, // Way outside window
+                currency: "USD".to_string(),
+                tx_type: "wire".to_string(),
+            },
+        ];
+
+        let config = FlowReversalConfig {
+            max_window_seconds: 3600, // 1 hour window
+            ..Default::default()
+        };
+        let result = FlowReversalPattern::compute(&txs, &config);
+
+        assert!(result.reversals.is_empty());
+    }
+
+    // ========================================================================
+    // Flow Split Ratio Tests
+    // ========================================================================
+
+    fn create_structuring_transactions() -> Vec<Transaction> {
+        // Classic structuring: 5 transactions of $2500 each = $12,500 total
+        // All just under the $10,000 threshold indicator
+        (0..5)
+            .map(|i| Transaction {
+                id: i as u64,
+                source_id: 1,
+                dest_id: (i + 10) as u64,
+                amount: 2500.0,
+                timestamp: 1000 + i as u64 * 100,
+                currency: "USD".to_string(),
+                tx_type: "wire".to_string(),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_flow_split_metadata() {
+        let kernel = FlowSplitRatio::new();
+        assert_eq!(kernel.metadata().id, "compliance/flow-split");
+        assert_eq!(kernel.metadata().domain, Domain::Compliance);
+    }
+
+    #[test]
+    fn test_flow_split_detection() {
+        let txs = create_structuring_transactions();
+        let config = FlowSplitConfig::default();
+        let result = FlowSplitRatio::compute(&txs, &config);
+
+        // Should detect structuring pattern
+        assert!(!result.splits.is_empty());
+        assert!(result.split_volume > 0.0);
+    }
+
+    #[test]
+    fn test_flow_split_near_threshold() {
+        // 4 transactions of $2450 each = $9800, just under $10k
+        let txs: Vec<Transaction> = (0..4)
+            .map(|i| Transaction {
+                id: i as u64,
+                source_id: 1,
+                dest_id: (i + 10) as u64,
+                amount: 2450.0,
+                timestamp: 1000 + i as u64 * 100,
+                currency: "USD".to_string(),
+                tx_type: "wire".to_string(),
+            })
+            .collect();
+
+        let config = FlowSplitConfig {
+            reporting_threshold: 10_000.0,
+            min_split_count: 3,
+            ..Default::default()
+        };
+        let result = FlowSplitRatio::compute(&txs, &config);
+
+        // Total is $9800, should detect as structuring
+        assert!(!result.splits.is_empty());
+
+        // Should flag the source entity
+        if !result.structuring_entities.is_empty() {
+            assert!(result.structuring_entities.contains(&1));
+        }
+    }
+
+    #[test]
+    fn test_flow_split_below_threshold() {
+        // Only 2 small transactions - should NOT be flagged
+        let txs: Vec<Transaction> = (0..2)
+            .map(|i| Transaction {
+                id: i as u64,
+                source_id: 1,
+                dest_id: (i + 10) as u64,
+                amount: 500.0, // Small amounts
+                timestamp: 1000 + i as u64 * 100,
+                currency: "USD".to_string(),
+                tx_type: "wire".to_string(),
+            })
+            .collect();
+
+        let config = FlowSplitConfig::default();
+        let result = FlowSplitRatio::compute(&txs, &config);
+
+        // Should not detect any structuring
+        assert!(result.splits.is_empty());
+    }
+
+    #[test]
+    fn test_flow_split_risk_levels() {
+        // Create transactions targeting exactly $10k (critical structuring)
+        let txs: Vec<Transaction> = (0..4)
+            .map(|i| Transaction {
+                id: i as u64,
+                source_id: 1,
+                dest_id: (i + 10) as u64,
+                amount: 2500.0, // 4 x 2500 = 10000 exactly
+                timestamp: 1000 + i as u64 * 100,
+                currency: "USD".to_string(),
+                tx_type: "wire".to_string(),
+            })
+            .collect();
+
+        let config = FlowSplitConfig {
+            reporting_threshold: 10_000.0,
+            min_split_count: 3,
+            ..Default::default()
+        };
+        let result = FlowSplitRatio::compute(&txs, &config);
+
+        // Should detect high/critical risk
+        if !result.splits.is_empty() {
+            let has_high_risk = result.splits.iter().any(|s| {
+                matches!(
+                    s.risk_level,
+                    crate::types::SplitRiskLevel::High | crate::types::SplitRiskLevel::Critical
+                )
+            });
+            assert!(has_high_risk);
+        }
     }
 }

@@ -1,12 +1,14 @@
 # Accounting
 
 **Crate**: `rustkernel-accounting`
-**Kernels**: 7
+**Kernels**: 9
 **Feature**: `accounting`
 
 Accounting network generation, reconciliation, and analysis kernels for financial close and audit.
 
 ## Kernel Overview
+
+### Core Kernels (7)
 
 | Kernel | ID | Modes | Description |
 |--------|-----|-------|-------------|
@@ -17,6 +19,13 @@ Accounting network generation, reconciliation, and analysis kernels for financia
 | TemporalCorrelation | `accounting/temporal-correlation` | Batch | Account correlation over time |
 | NetworkGeneration | `accounting/network-generation` | Batch | Generate accounting networks |
 | NetworkGenerationRing | `accounting/network-generation-ring` | Ring | Streaming network generation |
+
+### Detection Kernels (2)
+
+| Kernel | ID | Modes | Description |
+|--------|-----|-------|-------------|
+| SuspenseAccountDetection | `accounting/suspense-detection` | Batch | Centrality-based suspense account detection |
+| GaapViolationDetection | `accounting/gaap-violation` | Batch | GAAP prohibited flow pattern detection |
 
 ---
 
@@ -214,6 +223,188 @@ pub struct AccountCorrelation {
     pub account_b: String,
     pub coefficient: f64,
     pub p_value: f64,
+}
+```
+
+---
+
+### SuspenseAccountDetection
+
+Identifies suspense accounts using centrality-based analysis on the account transaction graph.
+
+**ID**: `accounting/suspense-detection`
+**Modes**: Batch
+**Throughput**: ~20,000 accounts/sec
+
+Suspense accounts are detected based on:
+- **High centrality**: Accounts that connect many other accounts
+- **High turnover**: Large volume relative to balance
+- **Short holding period**: Funds don't stay long
+- **Balanced flows**: Equal in/out suggests clearing function
+- **Zero end balance**: Period-end balance near zero
+- **Naming patterns**: Contains "suspense", "clearing", "holding"
+
+#### Configuration
+
+```rust
+pub struct SuspenseDetectionConfig {
+    /// Minimum betweenness centrality to flag
+    pub centrality_threshold: f64,        // default: 0.1
+    /// Minimum turnover ratio (turnover/balance)
+    pub turnover_ratio_threshold: f64,    // default: 10.0
+    /// Maximum average holding period (days)
+    pub holding_period_threshold: f64,    // default: 7.0
+    /// Minimum balance ratio to consider balanced (0-1)
+    pub balance_ratio_threshold: f64,     // default: 0.9
+    /// Minimum counterparty count to flag
+    pub counterparty_threshold: usize,    // default: 5
+    /// Maximum balance to consider "zero"
+    pub zero_balance_threshold: f64,      // default: 100.0
+}
+```
+
+#### Output
+
+```rust
+pub struct SuspenseAccountResult {
+    /// Detected suspense account candidates
+    pub candidates: Vec<SuspenseAccountCandidate>,
+    /// High-risk accounts
+    pub high_risk_accounts: Vec<String>,
+    /// Total accounts analyzed
+    pub accounts_analyzed: usize,
+    /// Overall risk score
+    pub risk_score: f64,
+}
+
+pub struct SuspenseAccountCandidate {
+    pub account_code: String,
+    pub account_name: String,
+    pub suspense_score: f64,           // 0-100
+    pub centrality_score: f64,
+    pub turnover_volume: f64,
+    pub avg_holding_period: f64,
+    pub counterparty_count: usize,
+    pub balance_ratio: f64,
+    pub risk_level: SuspenseRiskLevel, // Low, Medium, High, Critical
+    pub indicators: Vec<SuspenseIndicator>,
+}
+```
+
+#### Example
+
+```rust
+use rustkernel::accounting::detection::{SuspenseAccountDetection, SuspenseDetectionConfig};
+
+let result = SuspenseAccountDetection::detect(&journal_entries, &SuspenseDetectionConfig {
+    centrality_threshold: 0.1,
+    holding_period_threshold: 7.0,
+    ..Default::default()
+});
+
+// Review high-risk suspense accounts
+for account in &result.high_risk_accounts {
+    println!("HIGH RISK: Account {} flagged as suspense", account);
+}
+
+// Analyze candidates
+for candidate in &result.candidates {
+    println!("{}: score={:.1}, centrality={:.3}, indicators={:?}",
+        candidate.account_code,
+        candidate.suspense_score,
+        candidate.centrality_score,
+        candidate.indicators);
+}
+```
+
+---
+
+### GaapViolationDetection
+
+Detects prohibited transaction patterns that violate GAAP principles.
+
+**ID**: `accounting/gaap-violation`
+**Modes**: Batch
+**Throughput**: ~15,000 entries/sec
+
+Detected violation types:
+- **DirectRevenueExpense**: Direct transfer from revenue to expense without capital account
+- **RevenueInflation**: Circular flows that may inflate revenue
+- **ImproperAssetExpense**: Asset expensed without proper depreciation
+- **SuspenseAccountMisuse**: Large amounts in suspense accounts
+- **ImproperElimination**: Incorrect intercompany eliminations
+- **ProhibitedRelatedParty**: Prohibited related-party transactions
+
+#### Configuration
+
+```rust
+pub struct GaapDetectionConfig {
+    /// Threshold for suspense account amounts
+    pub suspense_amount_threshold: f64,   // default: 10_000.0
+    /// Minimum amount for asset-to-expense flag
+    pub asset_expense_threshold: f64,     // default: 5_000.0
+    /// Minimum circular flow amount
+    pub circular_flow_threshold: f64,     // default: 1_000.0
+}
+```
+
+#### Output
+
+```rust
+pub struct GaapViolationResult {
+    /// Detected violations
+    pub violations: Vec<GaapViolation>,
+    /// Total entries analyzed
+    pub entries_analyzed: usize,
+    /// Total amount at risk
+    pub amount_at_risk: f64,
+    /// Overall compliance score (0-100, higher is better)
+    pub compliance_score: f64,
+    /// Violation counts by type
+    pub violation_counts: HashMap<String, usize>,
+}
+
+pub struct GaapViolation {
+    pub id: String,
+    pub violation_type: GaapViolationType,
+    pub accounts: Vec<String>,
+    pub entry_ids: Vec<u64>,
+    pub amount: f64,
+    pub description: String,
+    pub severity: GaapViolationSeverity,  // Minor, Moderate, Major, Critical
+    pub remediation: String,
+}
+```
+
+#### Example
+
+```rust
+use rustkernel::accounting::detection::{GaapViolationDetection, GaapDetectionConfig};
+use std::collections::HashMap;
+
+// Map account codes to types
+let mut account_types = HashMap::new();
+account_types.insert("SALES_REVENUE".to_string(), AccountType::Revenue);
+account_types.insert("SALARIES_EXPENSE".to_string(), AccountType::Expense);
+account_types.insert("EQUIPMENT_ASSET".to_string(), AccountType::Asset);
+
+let result = GaapViolationDetection::detect(
+    &journal_entries,
+    &account_types,
+    &GaapDetectionConfig::default()
+);
+
+println!("Compliance score: {:.1}%", result.compliance_score);
+println!("Amount at risk: ${:.2}", result.amount_at_risk);
+
+// Review violations by severity
+for violation in result.violations.iter()
+    .filter(|v| matches!(v.severity, GaapViolationSeverity::Major | GaapViolationSeverity::Critical))
+{
+    println!("{}: {} - {}",
+        violation.id,
+        violation.description,
+        violation.remediation);
 }
 ```
 

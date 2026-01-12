@@ -638,3 +638,153 @@ pub struct CorrelationStats {
     /// Average correlation strength.
     pub avg_correlation: f64,
 }
+
+// ============================================================================
+// Suspense Account Detection Types
+// ============================================================================
+
+/// Suspense account candidate.
+#[derive(Debug, Clone)]
+pub struct SuspenseAccountCandidate {
+    /// Account code.
+    pub account_code: String,
+    /// Account name.
+    pub account_name: String,
+    /// Suspense score (0-100).
+    pub suspense_score: f64,
+    /// Centrality score (betweenness).
+    pub centrality_score: f64,
+    /// Turnover volume.
+    pub turnover_volume: f64,
+    /// Average holding period (days).
+    pub avg_holding_period: f64,
+    /// Number of unique counterparties.
+    pub counterparty_count: usize,
+    /// In/out balance ratio (1.0 = perfectly balanced).
+    pub balance_ratio: f64,
+    /// Risk level.
+    pub risk_level: SuspenseRiskLevel,
+    /// Indicators that triggered detection.
+    pub indicators: Vec<SuspenseIndicator>,
+}
+
+/// Risk level for suspense accounts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SuspenseRiskLevel {
+    /// Low risk - likely legitimate clearing account.
+    Low,
+    /// Medium risk - needs review.
+    Medium,
+    /// High risk - strong suspense characteristics.
+    High,
+    /// Critical - definite suspense account behavior.
+    Critical,
+}
+
+/// Suspense account indicator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SuspenseIndicator {
+    /// High betweenness centrality.
+    HighCentrality,
+    /// High turnover relative to balance.
+    HighTurnover,
+    /// Short average holding period.
+    ShortHoldingPeriod,
+    /// Balanced in/out flows.
+    BalancedFlows,
+    /// Many counterparties.
+    ManyCounterparties,
+    /// Zero or near-zero period-end balance.
+    ZeroEndBalance,
+    /// Name contains suspense keywords.
+    SuspenseNaming,
+}
+
+/// Suspense account detection result.
+#[derive(Debug, Clone)]
+pub struct SuspenseAccountResult {
+    /// Detected suspense account candidates.
+    pub candidates: Vec<SuspenseAccountCandidate>,
+    /// High-risk accounts.
+    pub high_risk_accounts: Vec<String>,
+    /// Total accounts analyzed.
+    pub accounts_analyzed: usize,
+    /// Overall risk score.
+    pub risk_score: f64,
+}
+
+// ============================================================================
+// GAAP Violation Detection Types
+// ============================================================================
+
+/// GAAP violation.
+#[derive(Debug, Clone)]
+pub struct GaapViolation {
+    /// Violation ID.
+    pub id: String,
+    /// Violation type.
+    pub violation_type: GaapViolationType,
+    /// Involved accounts.
+    pub accounts: Vec<String>,
+    /// Involved transactions/entries.
+    pub entry_ids: Vec<u64>,
+    /// Amount involved.
+    pub amount: f64,
+    /// Description.
+    pub description: String,
+    /// Severity.
+    pub severity: GaapViolationSeverity,
+    /// Suggested remediation.
+    pub remediation: String,
+}
+
+/// Type of GAAP violation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GaapViolationType {
+    /// Direct revenue-to-expense transfer (should go through capital).
+    DirectRevenueExpense,
+    /// Circular flow that inflates revenue.
+    RevenueInflation,
+    /// Off-balance-sheet transaction.
+    OffBalanceSheet,
+    /// Improper intercompany elimination.
+    ImproperElimination,
+    /// Asset-to-expense without depreciation.
+    ImproperAssetExpense,
+    /// Revenue recognition timing violation.
+    RevenueRecognitionTiming,
+    /// Liability understatement.
+    LiabilityUnderstatement,
+    /// Prohibited related-party transaction.
+    ProhibitedRelatedParty,
+    /// Suspense account misuse.
+    SuspenseAccountMisuse,
+}
+
+/// Severity of GAAP violation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GaapViolationSeverity {
+    /// Minor - procedural issue.
+    Minor,
+    /// Moderate - needs correction.
+    Moderate,
+    /// Major - material misstatement.
+    Major,
+    /// Critical - potential fraud indicator.
+    Critical,
+}
+
+/// GAAP violation detection result.
+#[derive(Debug, Clone)]
+pub struct GaapViolationResult {
+    /// Detected violations.
+    pub violations: Vec<GaapViolation>,
+    /// Total entries analyzed.
+    pub entries_analyzed: usize,
+    /// Total amount at risk.
+    pub amount_at_risk: f64,
+    /// Overall compliance score (0-100, higher is better).
+    pub compliance_score: f64,
+    /// Violation counts by type.
+    pub violation_counts: std::collections::HashMap<String, usize>,
+}

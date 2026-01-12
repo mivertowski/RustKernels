@@ -4,11 +4,13 @@
 //!
 //! ## Kernels
 //!
-//! ### AML (4 kernels)
+//! ### AML (6 kernels)
 //! - `CircularFlowRatio` - SCC detection for circular transactions
 //! - `ReciprocityFlowRatio` - Mutual transaction detection
 //! - `RapidMovement` - Velocity analysis for structuring
 //! - `AMLPatternDetection` - Multi-pattern FSM detection
+//! - `FlowReversalPattern` - Transaction reversal detection (wash trading, round-tripping)
+//! - `FlowSplitRatio` - Transaction splitting/structuring detection
 //!
 //! ### KYC (2 kernels)
 //! - `KYCScoring` - Risk factor aggregation
@@ -43,7 +45,10 @@ pub mod prelude {
 }
 
 // Re-export main types for convenience
-pub use aml::{AMLPatternDetection, CircularFlowRatio, RapidMovement, ReciprocityFlowRatio};
+pub use aml::{
+    AMLPatternDetection, CircularFlowRatio, FlowReversalConfig, FlowReversalPattern,
+    FlowSplitConfig, FlowSplitRatio, RapidMovement, ReciprocityFlowRatio,
+};
 pub use kyc::{EntityResolution, KYCScoring};
 pub use monitoring::TransactionMonitoring;
 pub use sanctions::{PEPScreening, SanctionsScreening};
@@ -56,11 +61,13 @@ pub fn register_all(
 
     tracing::info!("Registering compliance kernels");
 
-    // AML kernels (4)
+    // AML kernels (6)
     registry.register_metadata(aml::CircularFlowRatio::new().metadata().clone())?;
     registry.register_metadata(aml::ReciprocityFlowRatio::new().metadata().clone())?;
     registry.register_metadata(aml::RapidMovement::new().metadata().clone())?;
     registry.register_metadata(aml::AMLPatternDetection::new().metadata().clone())?;
+    registry.register_metadata(aml::FlowReversalPattern::new().metadata().clone())?;
+    registry.register_metadata(aml::FlowSplitRatio::new().metadata().clone())?;
 
     // KYC kernels (2)
     registry.register_metadata(kyc::KYCScoring::new().metadata().clone())?;
@@ -73,7 +80,7 @@ pub fn register_all(
     // Monitoring kernel (1)
     registry.register_metadata(monitoring::TransactionMonitoring::new().metadata().clone())?;
 
-    tracing::info!("Registered 9 compliance kernels");
+    tracing::info!("Registered 11 compliance kernels");
     Ok(())
 }
 
@@ -86,6 +93,6 @@ mod tests {
     fn test_register_all() {
         let registry = KernelRegistry::new();
         register_all(&registry).expect("Failed to register compliance kernels");
-        assert_eq!(registry.total_count(), 9);
+        assert_eq!(registry.total_count(), 11);
     }
 }

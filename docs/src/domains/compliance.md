@@ -1,21 +1,23 @@
 # Compliance
 
 **Crate**: `rustkernel-compliance`
-**Kernels**: 9
+**Kernels**: 11
 **Feature**: `compliance` (included in default features)
 
 Anti-money laundering (AML), Know Your Customer (KYC), and regulatory compliance kernels.
 
 ## Kernel Overview
 
-### AML Pattern Detection (4)
+### AML Pattern Detection (6)
 
 | Kernel | ID | Modes | Description |
 |--------|-----|-------|-------------|
-| CircularFlowRatio | `compliance/circular-flow-ratio` | Batch, Ring | Detect circular fund flows |
-| ReciprocityFlowRatio | `compliance/reciprocity-flow-ratio` | Batch, Ring | Identify reciprocal transactions |
+| CircularFlowRatio | `compliance/circular-flow` | Batch, Ring | Detect circular fund flows |
+| ReciprocityFlowRatio | `compliance/reciprocity-flow` | Batch, Ring | Identify reciprocal transactions |
 | RapidMovement | `compliance/rapid-movement` | Batch, Ring | Flag rapid fund movements |
-| AMLPatternDetection | `compliance/aml-pattern-detection` | Batch, Ring | Combined AML scoring |
+| AMLPatternDetection | `compliance/aml-pattern` | Batch, Ring | Combined AML scoring |
+| FlowReversalPattern | `compliance/flow-reversal` | Batch | Transaction reversal detection (wash trading) |
+| FlowSplitRatio | `compliance/flow-split` | Batch | Structuring/smurfing detection |
 
 ### KYC/Screening (4)
 
@@ -224,6 +226,157 @@ pub struct CircularFlow {
     pub amount: f64,
     /// Time span of the cycle
     pub time_span_seconds: u64,
+}
+```
+
+---
+
+### FlowReversalPattern
+
+Detects transaction reversals (A→B followed by B→A) that may indicate wash trading, round-tripping, or layering.
+
+**ID**: `compliance/flow-reversal`
+**Modes**: Batch
+**Throughput**: ~80,000 transactions/sec
+
+#### Configuration
+
+```rust
+pub struct FlowReversalConfig {
+    /// Maximum time window to consider reversals (seconds)
+    pub max_window_seconds: u64,        // default: 86400 (24 hours)
+    /// Time threshold for suspicious reversals (seconds)
+    pub suspicious_window_seconds: u64,  // default: 3600 (1 hour)
+    /// Time threshold for critical reversals (seconds)
+    pub critical_window_seconds: u64,    // default: 300 (5 minutes)
+    /// Minimum amount match ratio (0-1)
+    pub min_amount_match_ratio: f64,     // default: 0.9
+}
+```
+
+#### Output
+
+```rust
+pub struct FlowReversalResult {
+    /// Detected reversal pairs
+    pub reversals: Vec<FlowReversalPair>,
+    /// Total reversal volume
+    pub reversal_volume: f64,
+    /// Reversal ratio (reversal volume / total volume)
+    pub reversal_ratio: f64,
+    /// Entities with multiple reversals
+    pub repeat_offenders: Vec<(u64, u32)>,
+    /// Overall risk score (0-100)
+    pub risk_score: f64,
+}
+
+pub struct FlowReversalPair {
+    pub original_tx_id: u64,
+    pub reversal_tx_id: u64,
+    pub entity_a: u64,
+    pub entity_b: u64,
+    pub original_amount: f64,
+    pub reversal_amount: f64,
+    pub time_delta: u64,
+    pub amount_match_ratio: f64,
+    pub risk_level: ReversalRiskLevel,  // Normal, Suspicious, High, Critical
+}
+```
+
+#### Example
+
+```rust
+use rustkernel::compliance::aml::{FlowReversalPattern, FlowReversalConfig};
+
+let result = FlowReversalPattern::compute(&transactions, &FlowReversalConfig {
+    max_window_seconds: 86400,
+    suspicious_window_seconds: 3600,
+    critical_window_seconds: 300,
+    min_amount_match_ratio: 0.9,
+});
+
+// Find critical reversals
+for reversal in &result.reversals {
+    if matches!(reversal.risk_level, ReversalRiskLevel::Critical) {
+        println!("CRITICAL: {} -> {} reversed in {}s",
+            reversal.entity_a, reversal.entity_b, reversal.time_delta);
+    }
+}
+```
+
+---
+
+### FlowSplitRatio
+
+Detects structuring (smurfing) patterns where transactions are split to avoid reporting thresholds.
+
+**ID**: `compliance/flow-split`
+**Modes**: Batch
+**Throughput**: ~60,000 transactions/sec
+
+#### Configuration
+
+```rust
+pub struct FlowSplitConfig {
+    /// Reporting threshold to detect structuring around (e.g., $10,000)
+    pub reporting_threshold: f64,   // default: 10_000.0 (BSA threshold)
+    /// Time window to look for split transactions (seconds)
+    pub window_seconds: u64,        // default: 86400 (24 hours)
+    /// Minimum number of transactions to constitute a split
+    pub min_split_count: usize,     // default: 3
+}
+```
+
+#### Output
+
+```rust
+pub struct FlowSplitResult {
+    /// Detected split patterns
+    pub splits: Vec<FlowSplitPattern>,
+    /// Entities with structuring patterns
+    pub structuring_entities: Vec<u64>,
+    /// Total amount in split patterns
+    pub split_volume: f64,
+    /// Split ratio (split volume / total volume)
+    pub split_ratio: f64,
+    /// Overall risk score (0-100)
+    pub risk_score: f64,
+}
+
+pub struct FlowSplitPattern {
+    pub source_entity: u64,
+    pub dest_entities: Vec<u64>,
+    pub transaction_ids: Vec<u64>,
+    pub amounts: Vec<f64>,
+    pub total_amount: f64,
+    pub time_span: u64,
+    pub estimated_threshold: f64,
+    pub risk_level: SplitRiskLevel,  // Normal, Elevated, High, Critical
+}
+```
+
+#### Example
+
+```rust
+use rustkernel::compliance::aml::{FlowSplitRatio, FlowSplitConfig};
+
+let result = FlowSplitRatio::compute(&transactions, &FlowSplitConfig {
+    reporting_threshold: 10_000.0,  // BSA threshold
+    window_seconds: 86400,
+    min_split_count: 3,
+});
+
+// Find structuring entities
+for entity in &result.structuring_entities {
+    println!("STRUCTURING ALERT: Entity {} flagged", entity);
+}
+
+// Analyze high-risk splits
+for split in result.splits.iter().filter(|s|
+    matches!(s.risk_level, SplitRiskLevel::High | SplitRiskLevel::Critical)
+) {
+    println!("Split detected: {} transactions totaling ${:.2}",
+        split.transaction_ids.len(), split.total_amount);
 }
 ```
 
