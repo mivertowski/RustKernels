@@ -1,0 +1,27 @@
+[package]
+name = "rustkernel-graph"
+description = "Graph analytics kernels: centrality, community detection, motifs, similarity"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rustkernel-core = { workspace = true }
+rustkernel-derive = { workspace = true }
+ringkernel-core = { workspace = true }
+
+tokio = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+
+# Graph-specific dependencies
+nalgebra = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
+proptest = { workspace = true }

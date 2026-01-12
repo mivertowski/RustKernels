@@ -1,0 +1,76 @@
+[package]
+name = "rustkernel"
+description = "GPU-accelerated kernel library for financial services, analytics, and compliance workloads"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+default = ["graph", "ml", "compliance", "temporal", "risk"]
+
+# P1 domains (high priority)
+graph = ["dep:rustkernel-graph"]
+ml = ["dep:rustkernel-ml"]
+compliance = ["dep:rustkernel-compliance"]
+temporal = ["dep:rustkernel-temporal"]
+risk = ["dep:rustkernel-risk"]
+
+# P2 domains (medium priority)
+banking = ["dep:rustkernel-banking"]
+behavioral = ["dep:rustkernel-behavioral"]
+orderbook = ["dep:rustkernel-orderbook"]
+procint = ["dep:rustkernel-procint"]
+clearing = ["dep:rustkernel-clearing"]
+
+# P3 domains (lower priority)
+treasury = ["dep:rustkernel-treasury"]
+accounting = ["dep:rustkernel-accounting"]
+payments = ["dep:rustkernel-payments"]
+audit = ["dep:rustkernel-audit"]
+
+# All domains
+full = [
+    "graph", "ml", "compliance", "temporal", "risk",
+    "banking", "behavioral", "orderbook", "procint", "clearing",
+    "treasury", "accounting", "payments", "audit"
+]
+
+[dependencies]
+# Core dependencies
+rustkernel-core = { workspace = true }
+rustkernel-derive = { workspace = true }
+
+# RustCompute integration
+ringkernel = { workspace = true }
+ringkernel-core = { workspace = true }
+
+# Domain crates (optional)
+rustkernel-graph = { workspace = true, optional = true }
+rustkernel-ml = { workspace = true, optional = true }
+rustkernel-compliance = { workspace = true, optional = true }
+rustkernel-temporal = { workspace = true, optional = true }
+rustkernel-risk = { workspace = true, optional = true }
+rustkernel-banking = { workspace = true, optional = true }
+rustkernel-behavioral = { workspace = true, optional = true }
+rustkernel-orderbook = { workspace = true, optional = true }
+rustkernel-procint = { workspace = true, optional = true }
+rustkernel-clearing = { workspace = true, optional = true }
+rustkernel-treasury = { workspace = true, optional = true }
+rustkernel-accounting = { workspace = true, optional = true }
+rustkernel-payments = { workspace = true, optional = true }
+rustkernel-audit = { workspace = true, optional = true }
+
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }

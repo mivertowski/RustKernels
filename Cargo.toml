@@ -1,0 +1,135 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/rustkernel",
+    "crates/rustkernel-core",
+    "crates/rustkernel-derive",
+    "crates/rustkernel-graph",
+    "crates/rustkernel-ml",
+    "crates/rustkernel-compliance",
+    "crates/rustkernel-temporal",
+    "crates/rustkernel-risk",
+    "crates/rustkernel-banking",
+    "crates/rustkernel-behavioral",
+    "crates/rustkernel-orderbook",
+    "crates/rustkernel-procint",
+    "crates/rustkernel-clearing",
+    "crates/rustkernel-treasury",
+    "crates/rustkernel-accounting",
+    "crates/rustkernel-payments",
+    "crates/rustkernel-audit",
+    "crates/rustkernel-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+authors = ["Michael Ivertowski"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/mivertowski/RustKernels"
+keywords = ["gpu", "kernels", "cuda", "compute", "finance"]
+categories = ["science", "mathematics", "finance"]
+
+[workspace.dependencies]
+# Internal crates
+rustkernel = { path = "crates/rustkernel" }
+rustkernel-core = { path = "crates/rustkernel-core" }
+rustkernel-derive = { path = "crates/rustkernel-derive" }
+rustkernel-graph = { path = "crates/rustkernel-graph" }
+rustkernel-ml = { path = "crates/rustkernel-ml" }
+rustkernel-compliance = { path = "crates/rustkernel-compliance" }
+rustkernel-temporal = { path = "crates/rustkernel-temporal" }
+rustkernel-risk = { path = "crates/rustkernel-risk" }
+rustkernel-banking = { path = "crates/rustkernel-banking" }
+rustkernel-behavioral = { path = "crates/rustkernel-behavioral" }
+rustkernel-orderbook = { path = "crates/rustkernel-orderbook" }
+rustkernel-procint = { path = "crates/rustkernel-procint" }
+rustkernel-clearing = { path = "crates/rustkernel-clearing" }
+rustkernel-treasury = { path = "crates/rustkernel-treasury" }
+rustkernel-accounting = { path = "crates/rustkernel-accounting" }
+rustkernel-payments = { path = "crates/rustkernel-payments" }
+rustkernel-audit = { path = "crates/rustkernel-audit" }
+
+# RustCompute / RingKernel dependencies
+# Note: RustCompute is at /home/michael/DEV/Repos/RustCompute/RustCompute/
+ringkernel = { path = "../../RustCompute/RustCompute/crates/ringkernel" }
+ringkernel-core = { path = "../../RustCompute/RustCompute/crates/ringkernel-core" }
+ringkernel-derive = { path = "../../RustCompute/RustCompute/crates/ringkernel-derive" }
+ringkernel-cuda = { path = "../../RustCompute/RustCompute/crates/ringkernel-cuda" }
+ringkernel-wgpu = { path = "../../RustCompute/RustCompute/crates/ringkernel-wgpu" }
+ringkernel-cpu = { path = "../../RustCompute/RustCompute/crates/ringkernel-cpu" }
+ringkernel-ecosystem = { path = "../../RustCompute/RustCompute/crates/ringkernel-ecosystem" }
+ringkernel-codegen = { path = "../../RustCompute/RustCompute/crates/ringkernel-codegen" }
+
+# Async runtime
+tokio = { version = "1.43", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# Actor framework (Actix - closest to Orleans grains)
+actix = "0.13"
+actix-rt = "2.10"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rkyv = { version = "0.7", features = ["validation", "strict"] }
+bytemuck = { version = "1.21", features = ["derive"] }
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Time and dates
+chrono = { version = "0.4", features = ["serde"] }
+
+# Collections
+hashbrown = "0.15"
+indexmap = "2.7"
+smallvec = "1.13"
+
+# Numeric and math
+num-traits = "0.2"
+nalgebra = "0.33"
+ndarray = "0.16"
+
+# Random number generation
+rand = "0.9"
+rand_chacha = "0.9"
+rand_distr = "0.5"
+
+# Testing
+proptest = "1.6"
+criterion = "0.5"
+
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# Proc macro support
+syn = { version = "2.0", features = ["full", "extra-traits"] }
+quote = "1.0"
+proc-macro2 = "1.0"
+darling = "0.20"
+
+[workspace.lints.rust]
+unsafe_code = "warn"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
+nursery = "warn"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+
+[profile.bench]
+lto = true
+codegen-units = 1

@@ -1,0 +1,46 @@
+[package]
+name = "rustkernel-core"
+description = "Core abstractions, traits, and registry for RustKernels GPU kernel library"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+# RustCompute integration
+ringkernel-core = { workspace = true }
+ringkernel-derive = { workspace = true }
+
+# Async
+tokio = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+
+# Actor framework
+actix = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+rkyv = { workspace = true }
+bytemuck = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Time
+chrono = { workspace = true }
+
+# Collections
+hashbrown = { workspace = true }
+indexmap = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
+proptest = { workspace = true }
