@@ -619,18 +619,27 @@ impl Default for LCRConfig {
 pub struct NSFRConfig {
     /// Minimum NSFR.
     pub min_nsfr: f64,
-    /// ASF factors.
+    /// ASF factor for stable retail deposits.
     pub asf_stable_retail: f64,
+    /// ASF factor for less stable retail deposits.
     pub asf_less_stable_retail: f64,
+    /// ASF factor for wholesale funding.
     pub asf_wholesale: f64,
+    /// ASF factor for 6-month to 1-year funding.
     pub asf_6m_1y: f64,
+    /// ASF factor for under 6-month funding.
     pub asf_under_6m: f64,
+    /// ASF factor for other stable funding.
     pub asf_other: f64,
-    /// RSF factors.
+    /// RSF factor for Level 1 HQLA.
     pub rsf_level1: f64,
+    /// RSF factor for Level 2A HQLA.
     pub rsf_level2a: f64,
+    /// RSF factor for Level 2B HQLA.
     pub rsf_level2b: f64,
+    /// RSF factor for other liquid assets.
     pub rsf_other_liquid: f64,
+    /// RSF factor for illiquid assets.
     pub rsf_illiquid: f64,
 }
 

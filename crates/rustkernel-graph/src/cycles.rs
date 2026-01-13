@@ -26,7 +26,7 @@ pub struct CycleParticipationResult {
     pub cycle_count_4hop: u32,
     /// Total weight (sum of edge weights) in all cycles.
     pub total_cycle_weight: f64,
-    /// Cycle ratio: fraction of edges that participate in cycles [0,1].
+    /// Cycle ratio: fraction of edges that participate in cycles `[0,1]`.
     pub cycle_ratio: f64,
     /// Risk level based on cycle participation.
     pub risk_level: CycleRiskLevel,

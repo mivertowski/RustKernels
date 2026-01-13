@@ -658,7 +658,7 @@ impl ValueSimilarity {
 
     /// Compute Wasserstein-1 distance (Earth Mover's Distance) for 1D distributions.
     ///
-    /// For 1D sorted bins: W1(P,Q) = Σ|CDF_P[i] - CDF_Q[i]|
+    /// For 1D sorted bins: `W1(P,Q) = Σ|CDF_P[i] - CDF_Q[i]|`
     pub fn wasserstein_distance(p: &[f64], q: &[f64]) -> f64 {
         assert_eq!(p.len(), q.len(), "Distributions must have same length");
 

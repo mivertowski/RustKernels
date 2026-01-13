@@ -144,7 +144,7 @@ pub struct QueryVolatilityResponse {
 }
 
 impl QueryVolatilityResponse {
-    /// Get forecast as Vec<f64>.
+    /// Get forecast as `Vec<f64>`.
     pub fn forecast_f64(&self) -> Vec<f64> {
         self.forecast[..self.forecast_count as usize]
             .iter()

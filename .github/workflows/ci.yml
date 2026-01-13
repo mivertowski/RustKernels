@@ -45,7 +45,11 @@ jobs:
 
       - name: Check formatting
         working-directory: RustKernels/RustKernels
-        run: cargo fmt --all -- --check
+        run: |
+          # Only check formatting for RustKernels packages, not path dependencies
+          for pkg in $(cargo metadata --no-deps --format-version=1 | jq -r '.packages[].name'); do
+            cargo fmt --package "$pkg" -- --check
+          done
 
       - name: Run clippy
         working-directory: RustKernels/RustKernels

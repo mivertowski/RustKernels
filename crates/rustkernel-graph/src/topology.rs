@@ -241,7 +241,7 @@ pub enum StarType {
 pub struct StarTopologyResult {
     /// Node index.
     pub node_index: usize,
-    /// Star score [0,1] - 1.0 = perfect star, 0.0 = not a star.
+    /// Star score `[0,1]` - 1.0 = perfect star, 0.0 = not a star.
     pub star_score: f64,
     /// Type of star topology.
     pub star_type: StarType,
