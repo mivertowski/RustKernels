@@ -24,6 +24,7 @@ serde = { workspace = true }
 
 # Graph-specific dependencies
 nalgebra = { workspace = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros"] }

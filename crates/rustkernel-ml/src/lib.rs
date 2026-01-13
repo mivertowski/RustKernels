@@ -27,6 +27,17 @@
 //! ### Explainability (2 kernels)
 //! - `SHAPValues` - Kernel SHAP for feature explanations
 //! - `FeatureImportance` - Permutation-based feature importance
+//!
+//! ### NLP / LLM Integration (2 kernels)
+//! - `EmbeddingGeneration` - Text embedding via hash-based features
+//! - `SemanticSimilarity` - Multi-metric semantic similarity
+//!
+//! ### Federated Learning (1 kernel)
+//! - `SecureAggregation` - Privacy-preserving model aggregation
+//!
+//! ### Healthcare Analytics (2 kernels)
+//! - `DrugInteractionPrediction` - Multi-drug interaction prediction
+//! - `ClinicalPathwayConformance` - Treatment guideline checking
 
 #![warn(missing_docs)]
 
@@ -34,7 +45,10 @@ pub mod anomaly;
 pub mod clustering;
 pub mod ensemble;
 pub mod explainability;
+pub mod federated;
+pub mod healthcare;
 pub mod messages;
+pub mod nlp;
 pub mod regression;
 pub mod ring_messages;
 pub mod streaming;
@@ -46,7 +60,10 @@ pub mod prelude {
     pub use crate::clustering::*;
     pub use crate::ensemble::*;
     pub use crate::explainability::*;
+    pub use crate::federated::*;
+    pub use crate::healthcare::*;
     pub use crate::messages::*;
+    pub use crate::nlp::*;
     pub use crate::regression::*;
     pub use crate::ring_messages::*;
     pub use crate::streaming::*;
@@ -85,7 +102,18 @@ pub fn register_all(
     registry.register_metadata(explainability::SHAPValues::new().metadata().clone())?;
     registry.register_metadata(explainability::FeatureImportance::new().metadata().clone())?;
 
-    tracing::info!("Registered 12 statistical ML kernels");
+    // NLP / LLM Integration kernels (2)
+    registry.register_metadata(nlp::EmbeddingGeneration::new().metadata().clone())?;
+    registry.register_metadata(nlp::SemanticSimilarity::new().metadata().clone())?;
+
+    // Federated Learning kernels (1)
+    registry.register_metadata(federated::SecureAggregation::new().metadata().clone())?;
+
+    // Healthcare Analytics kernels (2)
+    registry.register_metadata(healthcare::DrugInteractionPrediction::new().metadata().clone())?;
+    registry.register_metadata(healthcare::ClinicalPathwayConformance::new().metadata().clone())?;
+
+    tracing::info!("Registered 17 statistical ML kernels");
     Ok(())
 }
 
@@ -98,6 +126,6 @@ mod tests {
     fn test_register_all() {
         let registry = KernelRegistry::new();
         register_all(&registry).expect("Failed to register ML kernels");
-        assert_eq!(registry.total_count(), 12);
+        assert_eq!(registry.total_count(), 17);
     }
 }

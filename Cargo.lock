@@ -1712,6 +1712,7 @@ dependencies = [
  "inventory",
  "nalgebra",
  "proptest",
+ "rand",
  "ringkernel-core",
  "ringkernel-derive",
  "rkyv",
@@ -1781,6 +1782,7 @@ name = "rustkernel-procint"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "rand",
  "ringkernel-core",
  "rustkernel-core",
  "rustkernel-derive",

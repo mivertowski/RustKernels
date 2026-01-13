@@ -46,6 +46,10 @@
 //!
 //! ### Paths (1 kernel)
 //! - `ShortestPath` - Batch kernel, BFS/Delta-Stepping SSSP/APSP
+//!
+//! ### Graph Neural Networks (2 kernels)
+//! - `GNNInference` - Message passing neural network inference
+//! - `GraphAttention` - Graph Attention Network (GAT) with multi-head attention
 
 #![warn(missing_docs)]
 #![warn(clippy::all)]
@@ -53,6 +57,7 @@
 pub mod centrality;
 pub mod community;
 pub mod cycles;
+pub mod gnn;
 pub mod messages;
 pub mod metrics;
 pub mod motif;
@@ -69,6 +74,7 @@ pub mod prelude {
     pub use crate::centrality::*;
     pub use crate::community::*;
     pub use crate::cycles::*;
+    pub use crate::gnn::*;
     pub use crate::messages::*;
     pub use crate::metrics::*;
     pub use crate::motif::*;
@@ -129,7 +135,11 @@ pub fn register_all(
     // Path kernels (1)
     registry.register_metadata(paths::ShortestPath::new().metadata().clone())?;
 
-    tracing::info!("Registered 26 graph analytics kernels");
+    // GNN kernels (2)
+    registry.register_metadata(gnn::GNNInference::new().metadata().clone())?;
+    registry.register_metadata(gnn::GraphAttention::new().metadata().clone())?;
+
+    tracing::info!("Registered 28 graph analytics kernels");
     Ok(())
 }
 
@@ -142,7 +152,7 @@ mod tests {
     fn test_register_all() {
         let registry = KernelRegistry::new();
         register_all(&registry).expect("Failed to register graph kernels");
-        assert_eq!(registry.total_count(), 26);
+        assert_eq!(registry.total_count(), 28);
     }
 
     #[test]
@@ -153,6 +163,6 @@ mod tests {
         register_all(&registry).expect("Failed to register graph kernels");
 
         let graph_kernels = registry.by_domain(Domain::GraphAnalytics);
-        assert_eq!(graph_kernels.len(), 26);
+        assert_eq!(graph_kernels.len(), 28);
     }
 }

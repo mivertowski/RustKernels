@@ -9,6 +9,7 @@
 //! - `OCPMPatternMatching` - Object-centric process mining
 //! - `NextActivityPrediction` - Markov/N-gram next activity prediction
 //! - `EventLogImputation` - Event log quality detection and repair
+//! - `DigitalTwin` - Process simulation for what-if analysis
 //!
 //! ## Features
 //! - Directly-follows graph construction from event logs
@@ -26,6 +27,7 @@ pub mod imputation;
 pub mod ocpm;
 pub mod partial_order;
 pub mod prediction;
+pub mod simulation;
 pub mod types;
 
 /// Prelude for convenient imports.
@@ -36,6 +38,7 @@ pub mod prelude {
     pub use crate::ocpm::*;
     pub use crate::partial_order::*;
     pub use crate::prediction::*;
+    pub use crate::simulation::*;
     pub use crate::types::*;
 }
 
@@ -46,6 +49,7 @@ pub use imputation::EventLogImputation;
 pub use ocpm::OCPMPatternMatching;
 pub use partial_order::PartialOrderAnalysis;
 pub use prediction::NextActivityPrediction;
+pub use simulation::DigitalTwin;
 
 // Re-export key types
 pub use types::{
@@ -84,7 +88,10 @@ pub fn register_all(
     // Imputation kernel (1)
     registry.register_metadata(imputation::EventLogImputation::new().metadata().clone())?;
 
-    tracing::info!("Registered 6 process intelligence kernels");
+    // Simulation kernel (1)
+    registry.register_metadata(simulation::DigitalTwin::new().metadata().clone())?;
+
+    tracing::info!("Registered 7 process intelligence kernels");
     Ok(())
 }
 
@@ -97,6 +104,6 @@ mod tests {
     fn test_register_all() {
         let registry = KernelRegistry::new();
         register_all(&registry).expect("Failed to register procint kernels");
-        assert_eq!(registry.total_count(), 6);
+        assert_eq!(registry.total_count(), 7);
     }
 }

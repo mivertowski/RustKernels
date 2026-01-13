@@ -25,15 +25,15 @@ Most kernels support both modes. Choose based on your latency requirements.
 
 | Domain | Crate | Kernels |
 |--------|-------|---------|
-| Graph Analytics | `rustkernel-graph` | 26 |
-| Statistical ML | `rustkernel-ml` | 12 |
+| Graph Analytics | `rustkernel-graph` | 28 |
+| Statistical ML | `rustkernel-ml` | 17 |
 | Compliance | `rustkernel-compliance` | 11 |
 | Temporal Analysis | `rustkernel-temporal` | 7 |
 | Risk Analytics | `rustkernel-risk` | 5 |
 | Banking | `rustkernel-banking` | 1 |
 | Behavioral Analytics | `rustkernel-behavioral` | 6 |
 | Order Matching | `rustkernel-orderbook` | 1 |
-| Process Intelligence | `rustkernel-procint` | 6 |
+| Process Intelligence | `rustkernel-procint` | 7 |
 | Clearing | `rustkernel-clearing` | 5 |
 | Treasury | `rustkernel-treasury` | 5 |
 | Accounting | `rustkernel-accounting` | 9 |
@@ -94,7 +94,14 @@ crates/
 
 ## Status
 
-The port is functionally complete. All 98 kernels have been implemented with both BatchKernel and RingKernelHandler traits. K2K (kernel-to-kernel) messaging is in place for cross-kernel coordination patterns.
+The port is functionally complete. All 106 kernels have been implemented with both BatchKernel and RingKernelHandler traits. K2K (kernel-to-kernel) messaging is in place for cross-kernel coordination patterns.
+
+Recent additions include:
+- **Graph Neural Networks**: GNNInference, GraphAttention (GAT)
+- **NLP/LLM Integration**: EmbeddingGeneration, SemanticSimilarity
+- **Federated Learning**: SecureAggregation with differential privacy
+- **Healthcare Analytics**: DrugInteractionPrediction, ClinicalPathwayConformance
+- **Process Simulation**: DigitalTwin for what-if analysis
 
 Test coverage exists for all domains. Some edge cases in the behavioral analytics causal graph module remain flaky.
 
