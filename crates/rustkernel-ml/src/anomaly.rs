@@ -144,6 +144,7 @@ enum IsolationTreeNode {
 
 /// An isolation tree.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct IsolationTree {
     root: IsolationTreeNode,
     max_depth: usize,

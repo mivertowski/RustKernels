@@ -16,7 +16,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum PageRankOp {
     /// Query the current PageRank score for a node.
-    Query { node_id: u64 },
+    Query {
+        /// Node to query.
+        node_id: u64,
+    },
     /// Perform one iteration of PageRank.
     Iterate,
     /// Initialize with a new graph.
@@ -24,7 +27,12 @@ pub enum PageRankOp {
     /// Reset all scores to initial values.
     Reset,
     /// Run until convergence with threshold.
-    ConvergeUntil { threshold: f64, max_iterations: u32 },
+    ConvergeUntil {
+        /// Convergence threshold.
+        threshold: f64,
+        /// Maximum iterations.
+        max_iterations: u32,
+    },
 }
 
 /// PageRank request message.
@@ -167,17 +175,28 @@ pub struct CentralityInput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CentralityParams {
     /// PageRank parameters.
-    PageRank { damping: f32 },
+    PageRank {
+        /// Damping factor (typically 0.85).
+        damping: f32,
+    },
     /// Degree centrality (no extra params).
     Degree,
     /// Betweenness centrality (no extra params).
     Betweenness,
     /// Closeness centrality parameters.
-    Closeness { harmonic: bool },
+    Closeness {
+        /// Use harmonic centrality variant.
+        harmonic: bool,
+    },
     /// Eigenvector centrality (no extra params).
     Eigenvector,
     /// Katz centrality parameters.
-    Katz { alpha: f64, beta: f64 },
+    Katz {
+        /// Attenuation factor.
+        alpha: f64,
+        /// Bias term.
+        beta: f64,
+    },
 }
 
 impl Default for CentralityInput {

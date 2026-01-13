@@ -440,14 +440,34 @@ pub struct ProcessTransition {
 pub enum DurationDistribution {
     /// Fixed duration.
     Constant(f64),
-    /// Uniform distribution.
-    Uniform { min: f64, max: f64 },
-    /// Normal distribution.
-    Normal { mean: f64, std_dev: f64 },
+    /// Uniform distribution between min and max.
+    Uniform {
+        /// Minimum duration.
+        min: f64,
+        /// Maximum duration.
+        max: f64,
+    },
+    /// Normal (Gaussian) distribution.
+    Normal {
+        /// Mean of the distribution.
+        mean: f64,
+        /// Standard deviation.
+        std_dev: f64,
+    },
     /// Exponential distribution.
-    Exponential { mean: f64 },
+    Exponential {
+        /// Mean of the distribution.
+        mean: f64,
+    },
     /// Triangular distribution.
-    Triangular { min: f64, mode: f64, max: f64 },
+    Triangular {
+        /// Minimum duration.
+        min: f64,
+        /// Most likely duration.
+        mode: f64,
+        /// Maximum duration.
+        max: f64,
+    },
 }
 
 /// Simulation configuration.

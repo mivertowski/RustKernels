@@ -180,13 +180,18 @@ pub enum SignaturePattern {
     EventAttributes(String, HashMap<String, EventValue>),
     /// Time-based pattern (events within time window).
     TimeWindow {
+        /// Events that must occur within the window.
         events: Vec<String>,
+        /// Time window in seconds.
         window_secs: u64,
     },
     /// Count-based pattern.
     CountThreshold {
+        /// Type of event to count.
         event_type: String,
+        /// Minimum count threshold.
         count: u32,
+        /// Time window in seconds.
         window_secs: u64,
     },
     /// Regex pattern on event data.

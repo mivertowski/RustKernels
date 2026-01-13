@@ -89,12 +89,14 @@ pub struct PrivacyGuarantee {
 
 /// Mask for secure aggregation protocol.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct SecureMask {
     participant_id: String,
     mask: Vec<f64>,
     seed: u64,
 }
 
+#[allow(dead_code)]
 impl SecureMask {
     fn generate(participant_id: &str, size: usize, seed: u64) -> Self {
         let mut rng = StdRng::seed_from_u64(seed);

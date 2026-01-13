@@ -387,10 +387,6 @@ struct TransitionStats {
 }
 
 impl TransitionStats {
-    fn new() -> Self {
-        Self::default()
-    }
-
     fn add(&mut self, lag: u64) {
         self.count += 1;
         self.total_lag += lag;

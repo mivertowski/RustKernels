@@ -155,6 +155,7 @@ enum StreamingINode {
 
 /// Streaming isolation tree.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct StreamingITree {
     root: StreamingINode,
     max_depth: usize,
