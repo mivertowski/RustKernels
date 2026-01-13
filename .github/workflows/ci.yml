@@ -16,6 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: RustKernels/RustKernels
+
+      - name: Checkout RustCompute
+        uses: actions/checkout@v4
+        with:
+          repository: mivertowski/RustCompute
+          path: RustCompute/RustCompute
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -28,21 +36,25 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+            RustKernels/RustKernels/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('RustKernels/RustKernels/**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
       - name: Check formatting
+        working-directory: RustKernels/RustKernels
         run: cargo fmt --all -- --check
 
       - name: Run clippy
+        working-directory: RustKernels/RustKernels
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Check default features
+        working-directory: RustKernels/RustKernels
         run: cargo check
 
       - name: Check with all features
+        working-directory: RustKernels/RustKernels
         run: cargo check --all-features
 
   test:
@@ -53,6 +65,14 @@ jobs:
         rust: [stable, beta]
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: RustKernels/RustKernels
+
+      - name: Checkout RustCompute
+        uses: actions/checkout@v4
+        with:
+          repository: mivertowski/RustCompute
+          path: RustCompute/RustCompute
 
       - name: Install Rust ${{ matrix.rust }}
         uses: dtolnay/rust-toolchain@stable
@@ -65,15 +85,17 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+            RustKernels/RustKernels/target
+          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('RustKernels/RustKernels/**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-${{ matrix.rust }}-
 
       - name: Run tests (default features)
+        working-directory: RustKernels/RustKernels
         run: cargo test --workspace
 
       - name: Run tests (all features)
+        working-directory: RustKernels/RustKernels
         run: cargo test --workspace --all-features
 
   test-domains:
@@ -98,6 +120,14 @@ jobs:
           - audit
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: RustKernels/RustKernels
+
+      - name: Checkout RustCompute
+        uses: actions/checkout@v4
+        with:
+          repository: mivertowski/RustCompute
+          path: RustCompute/RustCompute
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -108,12 +138,13 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-domain-${{ matrix.domain }}-${{ hashFiles('**/Cargo.lock') }}
+            RustKernels/RustKernels/target
+          key: ${{ runner.os }}-cargo-domain-${{ matrix.domain }}-${{ hashFiles('RustKernels/RustKernels/**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-domain-
 
       - name: Test ${{ matrix.domain }} domain
+        working-directory: RustKernels/RustKernels
         run: cargo test --package rustkernel-${{ matrix.domain }}
 
   docs:
@@ -121,6 +152,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: RustKernels/RustKernels
+
+      - name: Checkout RustCompute
+        uses: actions/checkout@v4
+        with:
+          repository: mivertowski/RustCompute
+          path: RustCompute/RustCompute
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -131,12 +170,13 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-docs-${{ hashFiles('**/Cargo.lock') }}
+            RustKernels/RustKernels/target
+          key: ${{ runner.os }}-cargo-docs-${{ hashFiles('RustKernels/RustKernels/**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-docs-
 
       - name: Build documentation
+        working-directory: RustKernels/RustKernels
         run: cargo doc --workspace --no-deps --all-features
         env:
           RUSTDOCFLAGS: -Dwarnings
@@ -146,6 +186,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: RustKernels/RustKernels
+
+      - name: Checkout RustCompute
+        uses: actions/checkout@v4
+        with:
+          repository: mivertowski/RustCompute
+          path: RustCompute/RustCompute
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -156,12 +204,13 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Generate coverage report
+        working-directory: RustKernels/RustKernels
         run: cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: lcov.info
+          files: RustKernels/RustKernels/lcov.info
           fail_ci_if_error: false
 
   msrv:
@@ -169,6 +218,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: RustKernels/RustKernels
+
+      - name: Checkout RustCompute
+        uses: actions/checkout@v4
+        with:
+          repository: mivertowski/RustCompute
+          path: RustCompute/RustCompute
 
       - name: Install Rust 1.85
         uses: dtolnay/rust-toolchain@stable
@@ -176,6 +233,7 @@ jobs:
           toolchain: "1.85"
 
       - name: Check MSRV
+        working-directory: RustKernels/RustKernels
         run: cargo check --workspace
 
   security-audit:
@@ -183,9 +241,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: RustKernels/RustKernels
 
       - name: Install cargo-audit
         run: cargo install cargo-audit
 
       - name: Run security audit
+        working-directory: RustKernels/RustKernels
         run: cargo audit
