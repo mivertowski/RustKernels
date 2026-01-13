@@ -4,74 +4,195 @@
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg)](https://www.rust-lang.org)
+[![Documentation](https://img.shields.io/badge/docs-online-green.svg)](https://mivertowski.github.io/RustKernels/)
+
+---
+
+## Why RustKernels?
+
+Financial institutions face a common challenge: implementing high-performance analytics that scale from batch processing to real-time streaming while maintaining regulatory compliance. RustKernels solves this by providing:
+
+- **Battle-tested algorithms** ported from production C# Orleans grains
+- **Nanosecond-scale latency** for real-time fraud detection and order matching
+- **Unified API** across 14 specialized domains
+- **GPU acceleration** with automatic CPU fallback
+
+```rust
+// Detect AML patterns in transaction graphs - sub-millisecond response
+let detector = CircularFlowRatio::new();
+let risk_score = detector.compute(&transaction_graph)?;
+if risk_score > 0.8 {
+    alert_compliance_team(&transaction);
+}
+```
 
 ---
 
 ## Overview
 
-RustKernels provides **106 GPU-accelerated algorithms** across **14 domain-specific crates**, purpose-built for financial institutions, compliance teams, and enterprise analytics platforms. The library delivers consistent, production-grade implementations of algorithms previously developed in C# against Orleans grains, now ported to Rust with the RingKernel framework for maximum performance.
+RustKernels provides **106 GPU-accelerated algorithms** across **14 domain-specific crates**, purpose-built for financial institutions, compliance teams, and enterprise analytics platforms.
 
-This is not a general-purpose compute library. RustKernels exists to provide a unified Rust interface to specialized algorithms for graph analytics, machine learning, AML/compliance, risk calculations, process mining, and financial operations.
+### What Makes RustKernels Different
 
-## Key Capabilities
+| Challenge | RustKernels Solution |
+|-----------|---------------------|
+| Latency requirements vary widely | Dual execution modes: Batch (10-50μs) or Ring (100-500ns) |
+| Complex multi-kernel workflows | Built-in K2K coordination patterns |
+| Production reliability concerns | Ported from battle-tested C# implementations |
+| GPU availability uncertainty | Automatic CPU fallback when CUDA unavailable |
+| Regulatory explainability | SHAP values and feature importance kernels |
 
-| Capability | Description |
-|------------|-------------|
-| **14 Domain Categories** | Graph analytics, ML/AI, compliance, risk, treasury, process intelligence, healthcare, and more |
-| **106 Production Kernels** | Comprehensive coverage from PageRank to drug interaction prediction |
-| **Dual Execution Modes** | Batch (CPU-orchestrated) and Ring (GPU-persistent actors) |
-| **Sub-millisecond Latency** | Ring mode delivers 100-500ns message handling |
-| **K2K Coordination** | Built-in patterns for cross-kernel workflows |
-| **Enterprise Licensing** | Domain-based feature gating for commercial deployment |
+---
+
+## Performance Characteristics
+
+| Metric | Batch Mode | Ring Mode |
+|--------|------------|-----------|
+| Launch overhead | 10-50μs | N/A (persistent) |
+| Message latency | N/A | 100-500ns |
+| State location | CPU → GPU transfer | GPU-resident |
+| Throughput (PageRank) | ~100K nodes/sec | ~500K updates/sec |
+| Memory efficiency | Standard | Optimized (persistent) |
+
+### When to Use Each Mode
+
+**Batch Mode** - Best for scheduled, heavy computation:
+- End-of-day risk aggregation
+- Batch AML screening (millions of transactions)
+- Monthly compliance reporting
+- Model training and backtesting
+
+**Ring Mode** - Best for real-time, high-frequency operations:
+- Order book matching (sub-millisecond)
+- Real-time fraud scoring
+- Streaming anomaly detection
+- Live transaction monitoring
+
+---
 
 ## Domain Coverage
 
-| Domain | Crate | Kernels | Highlights |
-|--------|-------|---------|------------|
-| **Graph Analytics** | `rustkernel-graph` | 28 | PageRank, community detection, GNN inference, graph attention networks |
-| **Statistical ML** | `rustkernel-ml` | 17 | Clustering, anomaly detection, NLP embeddings, federated learning, healthcare analytics |
-| **Compliance** | `rustkernel-compliance` | 11 | AML pattern detection, KYC scoring, sanctions screening, entity resolution |
-| **Temporal Analysis** | `rustkernel-temporal` | 7 | ARIMA forecasting, seasonal decomposition, change point detection |
-| **Risk Analytics** | `rustkernel-risk` | 5 | Monte Carlo VaR, credit scoring, stress testing, real-time correlation |
-| **Process Intelligence** | `rustkernel-procint` | 7 | DFG construction, conformance checking, digital twin simulation |
-| **Behavioral Analytics** | `rustkernel-behavioral` | 6 | Profiling, forensic queries, causal graph analysis |
-| **Banking** | `rustkernel-banking` | 1 | Fraud pattern matching |
+| Domain | Crate | Kernels | Key Algorithms |
+|--------|-------|---------|----------------|
+| **Graph Analytics** | `rustkernel-graph` | 28 | PageRank, Louvain, GNN inference, graph attention, cycle detection |
+| **Statistical ML** | `rustkernel-ml` | 17 | K-Means, DBSCAN, isolation forest, federated learning, SHAP |
+| **Compliance** | `rustkernel-compliance` | 11 | Circular flow detection, rapid movement, sanctions screening |
+| **Temporal Analysis** | `rustkernel-temporal` | 7 | ARIMA, Prophet decomposition, change point detection |
+| **Risk Analytics** | `rustkernel-risk` | 5 | Monte Carlo VaR, credit scoring, stress testing |
+| **Process Intelligence** | `rustkernel-procint` | 7 | DFG construction, conformance checking, digital twin |
+| **Behavioral Analytics** | `rustkernel-behavioral` | 6 | Profiling, forensic queries, causal analysis |
+| **Treasury** | `rustkernel-treasury` | 5 | Liquidity optimization, FX hedging, NSFR calculation |
+| **Clearing** | `rustkernel-clearing` | 5 | Multilateral netting, DVP matching, settlement |
+| **Accounting** | `rustkernel-accounting` | 9 | Network generation, GL reconciliation, GAAP detection |
+| **Banking** | `rustkernel-banking` | 1 | Fraud pattern matching (Aho-Corasick) |
 | **Order Matching** | `rustkernel-orderbook` | 1 | High-frequency order book engine |
-| **Clearing** | `rustkernel-clearing` | 5 | Netting calculation, DVP matching, settlement execution |
-| **Treasury** | `rustkernel-treasury` | 5 | Liquidity optimization, FX hedging, cash flow forecasting |
-| **Accounting** | `rustkernel-accounting` | 9 | Network generation, GL reconciliation, GAAP violation detection |
 | **Payments** | `rustkernel-payments` | 2 | Payment processing, flow analysis |
 | **Audit** | `rustkernel-audit` | 2 | Feature extraction, hypergraph construction |
 
-## Execution Modes
+---
 
-Kernels operate in one of two modes, selected based on latency requirements and workload characteristics:
+## Use Cases
 
-### Batch Mode
-- **Latency**: 10-50μs launch overhead
-- **State**: CPU memory, transferred to GPU per execution
-- **Use Case**: Heavy periodic computation, large batch processing
-- **Example**: End-of-day risk aggregation, batch AML screening
+### Anti-Money Laundering (AML)
 
-### Ring Mode
-- **Latency**: 100-500ns per message
-- **State**: Persistent in GPU memory
-- **Use Case**: High-frequency streaming, real-time analytics
-- **Example**: Order book matching, real-time fraud scoring
+Detect layering, structuring, and circular transaction patterns:
 
-Most kernels support both modes. The `KernelMetadata` struct indicates supported modes for each kernel.
+```rust
+use rustkernel::graph::cycles::ShortCycleParticipation;
+use rustkernel::compliance::circular_flow::CircularFlowRatio;
+
+// Detect nodes participating in suspicious cycles
+let cycle_detector = ShortCycleParticipation::new();
+let results = cycle_detector.compute_all(&transaction_graph);
+
+for result in results.iter().filter(|r| r.risk_level == CycleRiskLevel::Critical) {
+    // Nodes in 4-cycles are high-priority for investigation
+    flag_for_investigation(result.node_index);
+}
+
+// Compute circular flow ratios
+let cfr = CircularFlowRatio::new();
+let scores = cfr.compute_batch(&graph);
+```
+
+### Real-Time Fraud Detection
+
+Score transactions in real-time with streaming anomaly detection:
+
+```rust
+use rustkernel::ml::streaming::StreamingIsolationForest;
+
+let detector = StreamingIsolationForest::new(StreamingConfig {
+    num_trees: 100,
+    sample_size: 256,
+    window_size: 10000,
+});
+
+// Process incoming transactions
+for transaction in transaction_stream {
+    let score = detector.score(&transaction.features)?;
+    if score > 0.7 {
+        block_transaction(&transaction);
+    }
+}
+```
+
+### Process Mining & Digital Twin
+
+Simulate process changes before deployment:
+
+```rust
+use rustkernel::procint::simulation::{DigitalTwin, SimulationConfig};
+
+let twin = DigitalTwin::new();
+
+// Simulate adding 2 more resources to bottleneck activity
+let what_if = twin.simulate(&process_model, &SimulationConfig {
+    num_simulations: 1000,
+    resource_overrides: vec![("Review", 5)], // 3 → 5 reviewers
+    ..Default::default()
+})?;
+
+println!("Projected improvement: {:.1}% faster",
+    (1.0 - what_if.avg_completion_time / baseline.avg_completion_time) * 100.0);
+```
+
+### Graph Neural Networks for Entity Resolution
+
+Link prediction and entity matching with GNN inference:
+
+```rust
+use rustkernel::graph::gnn::{GNNInference, GNNConfig};
+
+let gnn = GNNInference::new();
+
+let embeddings = gnn.infer(&entity_graph, &node_features, &GNNConfig {
+    hidden_dim: 64,
+    num_layers: 2,
+    aggregation: AggregationType::Mean,
+})?;
+
+// Find similar entities via embedding similarity
+let matches = find_similar_embeddings(&embeddings, threshold: 0.9);
+```
+
+---
 
 ## Recent Additions
 
-The latest release includes several innovative kernel categories:
+The latest release introduces innovative kernel categories:
 
-- **Graph Neural Networks**: `GNNInference` and `GraphAttention` for node classification and link prediction using message passing and multi-head attention
-- **NLP/LLM Integration**: `EmbeddingGeneration` and `SemanticSimilarity` for text processing, document similarity, and semantic search
-- **Federated Learning**: `SecureAggregation` with differential privacy for privacy-preserving distributed model training
-- **Healthcare Analytics**: `DrugInteractionPrediction` and `ClinicalPathwayConformance` for clinical decision support
-- **Process Simulation**: `DigitalTwin` for Monte Carlo process simulation and what-if analysis
-- **Streaming ML**: `StreamingIsolationForest` and `AdaptiveThreshold` for online anomaly detection
-- **Explainability**: `SHAPValues` and `FeatureImportance` for model interpretability
+| Category | Kernels | Description |
+|----------|---------|-------------|
+| **Graph Neural Networks** | GNNInference, GraphAttention | Message-passing GNN and multi-head attention for node classification |
+| **NLP/Embeddings** | EmbeddingGeneration, SemanticSimilarity | TF-IDF embeddings and document similarity |
+| **Federated Learning** | SecureAggregation | Privacy-preserving model aggregation with differential privacy |
+| **Healthcare Analytics** | DrugInteractionPrediction, ClinicalPathwayConformance | Clinical decision support kernels |
+| **Process Simulation** | DigitalTwin | Monte Carlo process simulation and what-if analysis |
+| **Streaming ML** | StreamingIsolationForest, AdaptiveThreshold | Online anomaly detection with concept drift handling |
+| **Explainability** | SHAPValues, FeatureImportance | Model interpretability for regulatory compliance |
+
+---
 
 ## Installation
 
@@ -91,11 +212,13 @@ Control which domains are compiled to optimize binary size:
 rustkernel = "0.1.0"
 
 # Selective domain inclusion
-rustkernel = { version = "0.1.0", features = ["graph", "risk", "procint"] }
+rustkernel = { version = "0.1.0", features = ["graph", "compliance", "procint"] }
 
 # All domains
 rustkernel = { version = "0.1.0", features = ["full"] }
 ```
+
+---
 
 ## Quick Start
 
@@ -103,34 +226,82 @@ rustkernel = { version = "0.1.0", features = ["full"] }
 use rustkernel::prelude::*;
 use rustkernel::graph::centrality::PageRank;
 
-// Create kernel instance
-let kernel = PageRank::new();
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Create kernel instance
+    let kernel = PageRank::new();
 
-// Access metadata
-let metadata = kernel.metadata();
-println!("Kernel: {}", metadata.id);
-println!("Domain: {:?}", metadata.domain);
+    // Access metadata
+    let metadata = kernel.metadata();
+    println!("Kernel: {} ({})", metadata.id, metadata.domain);
 
-// Execute in batch mode
-let input = PageRankInput {
-    num_nodes: 1000,
-    edges: edges,
-    damping_factor: 0.85,
-    max_iterations: 100,
-    tolerance: 1e-6,
-};
+    // Build input
+    let input = PageRankInput {
+        num_nodes: 1000,
+        edges: load_edges()?,
+        damping_factor: 0.85,
+        max_iterations: 100,
+        tolerance: 1e-6,
+    };
 
-let result = kernel.execute(input).await?;
-println!("Converged in {} iterations", result.iterations);
+    // Execute
+    let result = kernel.execute(input).await?;
+
+    println!("Converged in {} iterations", result.iterations);
+    println!("Top node: {} (score: {:.4})",
+        result.top_node(),
+        result.scores[result.top_node()]);
+
+    Ok(())
+}
 ```
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         rustkernel                               │
+│                    (facade crate, re-exports)                    │
+├─────────────────────────────────────────────────────────────────┤
+│  rustkernel-core          │  rustkernel-derive                  │
+│  - GpuKernel trait        │  - #[gpu_kernel] macro              │
+│  - BatchKernel trait      │  - #[derive(RingMessage)]           │
+│  - RingKernelHandler      │                                     │
+│  - K2K coordination       │                                     │
+│  - License validation     │                                     │
+├─────────────────────────────────────────────────────────────────┤
+│                    Domain Crates (14)                            │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐   │
+│  │  graph  │ │   ml    │ │complianc│ │temporal │ │  risk   │   │
+│  │  (28)   │ │  (17)   │ │  (11)   │ │   (7)   │ │   (5)   │   │
+│  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘   │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐   │
+│  │procint  │ │behavior │ │treasury │ │clearing │ │accounting│   │
+│  │   (7)   │ │   (6)   │ │   (5)   │ │   (5)   │ │   (9)   │   │
+│  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘   │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐               │
+│  │ banking │ │orderbook│ │payments │ │  audit  │               │
+│  │   (1)   │ │   (1)   │ │   (2)   │ │   (2)   │               │
+│  └─────────┘ └─────────┘ └─────────┘ └─────────┘               │
+├─────────────────────────────────────────────────────────────────┤
+│                    RustCompute / RingKernel                      │
+│                    (GPU execution framework)                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
 
 ## Requirements
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
 | Rust | 1.85+ | Edition 2024 features required |
-| RustCompute | Latest | RingKernel framework (expected at `../../RustCompute/RustCompute/`) |
-| CUDA Toolkit | 12.0+ | Optional; falls back to CPU execution if unavailable |
+| RustCompute | Latest | RingKernel framework (path dependency) |
+| CUDA Toolkit | 12.0+ | Optional; falls back to CPU if unavailable |
+
+---
 
 ## Building and Testing
 
@@ -155,23 +326,7 @@ cargo doc --workspace --no-deps --open
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-## Project Structure
-
-```
-crates/
-├── rustkernel/              # Facade crate, re-exports all domains
-├── rustkernel-core/         # Core traits, registry, licensing, K2K coordination
-├── rustkernel-derive/       # Procedural macros (#[gpu_kernel], #[derive(KernelMessage)])
-├── rustkernel-cli/          # Command-line interface for kernel management
-└── rustkernel-{domain}/     # 14 domain-specific implementation crates
-    ├── src/
-    │   ├── lib.rs           # Module exports and registration
-    │   ├── messages.rs      # Batch kernel I/O types
-    │   ├── ring_messages.rs # Ring message types
-    │   ├── types.rs         # Common domain types
-    │   └── {feature}.rs     # Kernel implementations
-    └── Cargo.toml
-```
+---
 
 ## Documentation
 
@@ -179,9 +334,13 @@ crates/
 - **[Kernel Catalogue](https://mivertowski.github.io/RustKernels/domains/)** - Complete listing of all 106 kernels
 - **[Architecture Guide](https://mivertowski.github.io/RustKernels/architecture/overview.html)** - System design and patterns
 
+---
+
 ## Contributing
 
 Contributions are welcome. Please see [CONTRIBUTING.md](docs/src/appendix/contributing.md) for guidelines.
+
+---
 
 ## License
 
@@ -191,3 +350,4 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for detai
 
 **Author**: Michael Ivertowski
 **Version**: 0.1.0
+**Kernels**: 106 across 14 domains
