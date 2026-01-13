@@ -299,6 +299,7 @@ impl CircularFlowRatio {
             }
         }
 
+        #[allow(clippy::too_many_arguments)]
         fn strongconnect(
             v: u64,
             graph: &HashMap<u64, Vec<(u64, f64)>>,
@@ -1084,6 +1085,7 @@ impl FlowReversalPattern {
         sorted_txs.sort_by_key(|tx| tx.timestamp);
 
         // Build edge map for quick lookup: (src, dst) -> Vec<(tx_id, amount, timestamp)>
+        #[allow(clippy::type_complexity)]
         let mut forward_edges: HashMap<(u64, u64), Vec<(u64, f64, u64)>> = HashMap::new();
         for tx in &sorted_txs {
             forward_edges

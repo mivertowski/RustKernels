@@ -69,6 +69,7 @@ pub enum TradeType {
 
 impl Trade {
     /// Create a new trade.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: u64,
         security_id: String,
