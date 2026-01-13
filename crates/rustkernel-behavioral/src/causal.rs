@@ -88,10 +88,14 @@ impl CausalGraphConstruction {
             *type_counts.entry(&event.event_type).or_insert(0) += 1;
         }
 
+        // Sort event types for deterministic node ID assignment
+        let mut sorted_types: Vec<_> = type_counts.into_iter().collect();
+        sorted_types.sort_by(|a, b| a.0.cmp(b.0));
+
         let mut nodes = Vec::new();
         let mut type_to_id = HashMap::new();
 
-        for (i, (event_type, count)) in type_counts.iter().enumerate() {
+        for (i, (event_type, count)) in sorted_types.iter().enumerate() {
             let node_id = i as u64;
             nodes.push(CausalNode {
                 id: node_id,
@@ -173,8 +177,14 @@ impl CausalGraphConstruction {
 
     /// Prune edges to ensure graph is a DAG.
     fn prune_to_dag(edges: &mut Vec<CausalEdge>) {
-        // Sort edges by strength (descending) to keep strongest
-        edges.sort_by(|a, b| b.strength.partial_cmp(&a.strength).unwrap());
+        // Sort edges by strength (descending), then by source/target for stability
+        edges.sort_by(|a, b| {
+            b.strength
+                .partial_cmp(&a.strength)
+                .unwrap()
+                .then_with(|| a.source.cmp(&b.source))
+                .then_with(|| a.target.cmp(&b.target))
+        });
 
         let mut graph: HashMap<u64, HashSet<u64>> = HashMap::new();
 
