@@ -11,8 +11,8 @@
 //! - Queue dynamics simulation
 
 use rustkernel_core::error::Result;
-use rustkernel_core::{domain::Domain, kernel::KernelMetadata};
 use rustkernel_core::traits::GpuKernel;
+use rustkernel_core::{domain::Domain, kernel::KernelMetadata};
 use std::collections::HashMap;
 
 /// Digital Twin process simulation kernel.
@@ -304,10 +304,7 @@ impl DigitalTwin {
         let n = cycle_times.len() as f64;
 
         let avg_cycle_time = cycle_times.iter().sum::<f64>() / n;
-        let min_cycle_time = cycle_times
-            .iter()
-            .cloned()
-            .fold(f64::INFINITY, f64::min);
+        let min_cycle_time = cycle_times.iter().cloned().fold(f64::INFINITY, f64::min);
         let max_cycle_time = cycle_times
             .iter()
             .cloned()

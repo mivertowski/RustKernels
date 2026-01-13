@@ -6,7 +6,7 @@
 
 use crate::types::{AnomalyResult, DataMatrix};
 use rand::prelude::*;
-use rand::{rng, Rng};
+use rand::{Rng, rng};
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
@@ -170,12 +170,16 @@ impl StreamingITree {
 
     fn build_node(samples: &[Vec<f64>], depth: usize, max_depth: usize) -> StreamingINode {
         if samples.is_empty() || depth >= max_depth || samples.len() <= 1 {
-            return StreamingINode::External { size: samples.len() };
+            return StreamingINode::External {
+                size: samples.len(),
+            };
         }
 
         let n_features = samples[0].len();
         if n_features == 0 {
-            return StreamingINode::External { size: samples.len() };
+            return StreamingINode::External {
+                size: samples.len(),
+            };
         }
 
         let mut rng = rng();
@@ -187,7 +191,9 @@ impl StreamingITree {
         let max_val = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
 
         if (max_val - min_val).abs() < 1e-10 {
-            return StreamingINode::External { size: samples.len() };
+            return StreamingINode::External {
+                size: samples.len(),
+            };
         }
 
         let split_value = rng.random_range(min_val..max_val);
@@ -212,9 +218,7 @@ impl StreamingITree {
 
     fn path_length_node(&self, node: &StreamingINode, point: &[f64], depth: usize) -> f64 {
         match node {
-            StreamingINode::External { size } => {
-                depth as f64 + Self::c_factor(*size)
-            }
+            StreamingINode::External { size } => depth as f64 + Self::c_factor(*size),
             StreamingINode::Internal {
                 split_feature,
                 split_value,
@@ -385,8 +389,11 @@ impl StreamingIsolationForest {
             return 0.5;
         }
 
-        let avg_path_length: f64 =
-            trees.iter().map(|tree| tree.path_length(point)).sum::<f64>() / trees.len() as f64;
+        let avg_path_length: f64 = trees
+            .iter()
+            .map(|tree| tree.path_length(point))
+            .sum::<f64>()
+            / trees.len() as f64;
 
         let c_n = StreamingITree::c_factor(sample_size);
         if c_n.abs() < 1e-10 {
@@ -714,7 +721,9 @@ impl AdaptiveThreshold {
             state.threshold -= config.learning_rate * (state.threshold - score);
         }
 
-        state.threshold = state.threshold.clamp(config.min_threshold, config.max_threshold);
+        state.threshold = state
+            .threshold
+            .clamp(config.min_threshold, config.max_threshold);
     }
 
     /// Update threshold using quantile estimation.
@@ -731,7 +740,9 @@ impl AdaptiveThreshold {
         // Smooth update
         state.threshold =
             state.threshold * (1.0 - config.learning_rate) + target * config.learning_rate;
-        state.threshold = state.threshold.clamp(config.min_threshold, config.max_threshold);
+        state.threshold = state
+            .threshold
+            .clamp(config.min_threshold, config.max_threshold);
     }
 
     /// Estimate current false positive rate.
@@ -927,7 +938,10 @@ mod tests {
         }
 
         // Should have detected drift at some point
-        assert!(drift_found || state.drift_count() > 0, "Should detect drift between 0.15 and 0.85 score ranges");
+        assert!(
+            drift_found || state.drift_count() > 0,
+            "Should detect drift between 0.15 and 0.85 score ranges"
+        );
     }
 
     #[test]

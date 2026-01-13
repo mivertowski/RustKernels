@@ -508,7 +508,10 @@ impl RealTimeCorrelation {
         let t = returns[0].len();
 
         // Compute means
-        let means: Vec<f64> = returns.iter().map(|r| r.iter().sum::<f64>() / t as f64).collect();
+        let means: Vec<f64> = returns
+            .iter()
+            .map(|r| r.iter().sum::<f64>() / t as f64)
+            .collect();
 
         // Compute standard deviations
         let stds: Vec<f64> = returns
@@ -658,11 +661,7 @@ mod tests {
 
         // Correlation should be low
         let corr = kernel.get_correlation(1, 2).unwrap();
-        assert!(
-            corr.abs() < 0.5,
-            "Expected low correlation, got: {}",
-            corr
-        );
+        assert!(corr.abs() < 0.5, "Expected low correlation, got: {}", corr);
     }
 
     #[test]
@@ -703,8 +702,12 @@ mod tests {
     fn test_batch_correlation() {
         // Returns for 3 assets over 10 periods
         let returns = vec![
-            vec![0.01, 0.02, -0.01, 0.03, 0.01, -0.02, 0.01, 0.02, -0.01, 0.01],
-            vec![0.02, 0.03, -0.02, 0.04, 0.02, -0.03, 0.02, 0.03, -0.02, 0.02], // Similar to asset 0
+            vec![
+                0.01, 0.02, -0.01, 0.03, 0.01, -0.02, 0.01, 0.02, -0.01, 0.01,
+            ],
+            vec![
+                0.02, 0.03, -0.02, 0.04, 0.02, -0.03, 0.02, 0.03, -0.02, 0.02,
+            ], // Similar to asset 0
             vec![
                 -0.01, 0.01, 0.02, -0.02, 0.03, 0.01, -0.01, 0.02, 0.01, -0.01,
             ], // Different pattern

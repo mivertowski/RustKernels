@@ -190,7 +190,11 @@ impl PredictionModel {
     }
 
     /// Predict next activities for a given sequence.
-    pub fn predict(&self, history: &[String], config: &PredictionConfig) -> Vec<ActivityPrediction> {
+    pub fn predict(
+        &self,
+        history: &[String],
+        config: &PredictionConfig,
+    ) -> Vec<ActivityPrediction> {
         let vocab_size = self.vocabulary.len();
         let smoothing = if config.laplace_smoothing { 1.0 } else { 0.0 };
 
@@ -274,7 +278,11 @@ impl PredictionModel {
     }
 
     /// Predict from activity names (convenience method).
-    pub fn predict_from_names(&self, history: &[&str], config: &PredictionConfig) -> Vec<ActivityPrediction> {
+    pub fn predict_from_names(
+        &self,
+        history: &[&str],
+        config: &PredictionConfig,
+    ) -> Vec<ActivityPrediction> {
         let history: Vec<String> = history.iter().map(|s| s.to_string()).collect();
         self.predict(&history, config)
     }

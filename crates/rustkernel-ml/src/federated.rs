@@ -3,8 +3,8 @@
 //! This module provides privacy-preserving distributed learning algorithms:
 //! - SecureAggregation - Privacy-preserving model aggregation
 
-use rand::{rng, Rng, SeedableRng};
 use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng, rng};
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use serde::{Deserialize, Serialize};
 
@@ -138,10 +138,7 @@ impl SecureAggregation {
     }
 
     /// Aggregate updates from multiple participants.
-    pub fn aggregate(
-        updates: &[ParticipantUpdate],
-        config: &SecureAggConfig,
-    ) -> AggregationResult {
+    pub fn aggregate(updates: &[ParticipantUpdate], config: &SecureAggConfig) -> AggregationResult {
         if updates.is_empty() {
             return AggregationResult {
                 aggregated_params: Vec::new(),
@@ -291,10 +288,7 @@ impl SecureAggregation {
     }
 
     /// Verify aggregation result (for testing).
-    pub fn verify_aggregation(
-        _updates: &[ParticipantUpdate],
-        result: &AggregationResult,
-    ) -> bool {
+    pub fn verify_aggregation(_updates: &[ParticipantUpdate], result: &AggregationResult) -> bool {
         // Basic sanity checks
         if result.participant_count == 0 {
             return result.aggregated_params.is_empty();
@@ -372,7 +366,7 @@ mod tests {
 
         let config = SecureAggConfig {
             min_participants: 3,
-            add_noise: false, // Disable for deterministic test
+            add_noise: false,      // Disable for deterministic test
             clip_threshold: 100.0, // High threshold to avoid clipping
             ..Default::default()
         };
@@ -427,14 +421,12 @@ mod tests {
 
     #[test]
     fn test_insufficient_participants() {
-        let updates = vec![
-            ParticipantUpdate {
-                participant_id: "p1".to_string(),
-                parameters: vec![1.0],
-                sample_count: 100,
-                local_loss: None,
-            },
-        ];
+        let updates = vec![ParticipantUpdate {
+            participant_id: "p1".to_string(),
+            parameters: vec![1.0],
+            sample_count: 100,
+            local_loss: None,
+        }];
 
         let config = SecureAggConfig {
             min_participants: 3,
@@ -520,7 +512,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = SecureAggregation::simulate_round(&global, &local_updates, &sample_counts, &config);
+        let result =
+            SecureAggregation::simulate_round(&global, &local_updates, &sample_counts, &config);
 
         assert_eq!(result.participant_count, 3);
         assert!(result.average_loss.is_some());

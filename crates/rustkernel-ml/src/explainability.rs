@@ -6,7 +6,7 @@
 
 use crate::types::DataMatrix;
 use rand::prelude::*;
-use rand::{rng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rng};
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use serde::{Deserialize, Serialize};
 
@@ -254,13 +254,7 @@ impl SHAPValues {
 
                 // Create masked instances
                 let x_with: Vec<f64> = (0..n_features)
-                    .map(|i| {
-                        if with_feature[i] {
-                            instance[i]
-                        } else {
-                            bg[i]
-                        }
-                    })
+                    .map(|i| if with_feature[i] { instance[i] } else { bg[i] })
                     .collect();
 
                 let x_without: Vec<f64> = (0..n_features)
@@ -322,13 +316,7 @@ impl SHAPValues {
         coalition
             .iter()
             .enumerate()
-            .map(|(i, &included)| {
-                if included {
-                    instance[i]
-                } else {
-                    bg[i]
-                }
-            })
+            .map(|(i, &included)| if included { instance[i] } else { bg[i] })
             .collect()
     }
 
@@ -349,7 +337,10 @@ impl SHAPValues {
         // Build design matrix X (coalitions as 0/1)
         let mut x: Vec<Vec<f64>> = Vec::with_capacity(n_samples);
         for coalition in coalitions {
-            let row: Vec<f64> = coalition.iter().map(|&b| if b { 1.0 } else { 0.0 }).collect();
+            let row: Vec<f64> = coalition
+                .iter()
+                .map(|&b| if b { 1.0 } else { 0.0 })
+                .collect();
             x.push(row);
         }
 
@@ -659,8 +650,8 @@ impl FeatureImportance {
             let mean_score: f64 = scores.iter().sum::<f64>() / scores.len() as f64;
             let importance = baseline_score - mean_score;
 
-            let variance: f64 = scores.iter().map(|s| (s - mean_score).powi(2)).sum::<f64>()
-                / scores.len() as f64;
+            let variance: f64 =
+                scores.iter().map(|s| (s - mean_score).powi(2)).sum::<f64>() / scores.len() as f64;
             let std_dev = variance.sqrt();
 
             importances.push(importance);
@@ -756,11 +747,7 @@ mod tests {
         // Simple linear model: f(x) = x[0] + 2*x[1]
         let predict_fn = |x: &[f64]| x[0] + 2.0 * x[1];
 
-        let background = DataMatrix::new(
-            vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0],
-            4,
-            2,
-        );
+        let background = DataMatrix::new(vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0], 4, 2);
 
         let config = SHAPConfig {
             n_samples: 50,
@@ -790,8 +777,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result =
-            SHAPValues::explain_batch(&instances, &background, predict_fn, &config, None);
+        let result = SHAPValues::explain_batch(&instances, &background, predict_fn, &config, None);
 
         assert_eq!(result.shap_values.len(), 3);
         assert_eq!(result.feature_importance.len(), 1);
@@ -830,9 +816,7 @@ mod tests {
         let predict_fn = |x: &[f64]| x[0];
 
         let data = DataMatrix::new(
-            vec![
-                1.0, 0.0, 0.0, 2.0, 0.0, 0.0, 3.0, 0.0, 0.0, 4.0, 0.0, 0.0,
-            ],
+            vec![1.0, 0.0, 0.0, 2.0, 0.0, 0.0, 3.0, 0.0, 0.0, 4.0, 0.0, 0.0],
             4,
             3,
         );

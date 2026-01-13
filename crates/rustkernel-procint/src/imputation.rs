@@ -260,10 +260,7 @@ impl TransitionModel {
                 .filter(|&(_, count)| *count >= min_count.max(1))
                 .map(|(act, count)| (act.clone(), *count as f64 / total as f64))
                 .collect();
-            results.sort_by(|a, b| {
-                b.1.partial_cmp(&a.1)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
+            results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
             results
         } else {
             Vec::new()
@@ -292,10 +289,7 @@ impl TransitionModel {
             .filter(|&(_, count)| *count >= min_count.max(1))
             .map(|(act, count)| (act.clone(), *count as f64 / total as f64))
             .collect();
-        results.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         results
     }
 
@@ -310,10 +304,7 @@ impl TransitionModel {
             .filter(|&(_, count)| *count >= min_count.max(1))
             .map(|(act, count)| (act.clone(), *count as f64 / total as f64))
             .collect();
-        results.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         results
     }
 }
@@ -464,10 +455,8 @@ impl EventLogImputation {
         }
 
         // Build set of event IDs that have timestamp issues (were reordered)
-        let reordered_ids: HashSet<u64> = timestamp_issues
-            .iter()
-            .filter_map(|i| i.event_id)
-            .collect();
+        let reordered_ids: HashSet<u64> =
+            timestamp_issues.iter().filter_map(|i| i.event_id).collect();
 
         // Build repaired events
         let mut seen_activities: HashSet<(String, u64)> = HashSet::new();
@@ -623,13 +612,19 @@ impl EventLogImputation {
 
                 // Check if any expected activity could bridge the gap
                 for (expected_act, prob) in expected {
-                    if model.is_expected_transition(&expected_act, to, config.min_transition_support)
-                    {
+                    if model.is_expected_transition(
+                        &expected_act,
+                        to,
+                        config.min_transition_support,
+                    ) {
                         issues.push(LogIssue {
                             issue_type: IssueType::MissingEvent,
                             case_id: case_id.to_string(),
                             position: Some(
-                                events.iter().position(|e| e.id == window[1].id).unwrap_or(0),
+                                events
+                                    .iter()
+                                    .position(|e| e.id == window[1].id)
+                                    .unwrap_or(0),
                             ),
                             event_id: None,
                             description: format!(
@@ -664,7 +659,8 @@ impl EventLogImputation {
         let first_activity = &events.first().unwrap().activity;
         let expected_starts = model.expected_starts(config.min_transition_support);
 
-        if !expected_starts.iter().any(|(a, _)| a == first_activity) && !expected_starts.is_empty() {
+        if !expected_starts.iter().any(|(a, _)| a == first_activity) && !expected_starts.is_empty()
+        {
             let most_common_start = &expected_starts[0].0;
             issues.push(LogIssue {
                 issue_type: IssueType::IncompleteTrace,
@@ -888,9 +884,14 @@ mod tests {
         // Should suggest C is missing between B and D
         // (This depends on the model having enough support)
         // The detection is based on statistical patterns
-        assert!(result.stats.issues_by_type.contains_key(&IssueType::MissingEvent)
-            || missing_issues.is_empty(), // May not detect if not enough support
-            "Missing event detection should work or gracefully handle low support");
+        assert!(
+            result
+                .stats
+                .issues_by_type
+                .contains_key(&IssueType::MissingEvent)
+                || missing_issues.is_empty(), // May not detect if not enough support
+            "Missing event detection should work or gracefully handle low support"
+        );
     }
 
     #[test]
@@ -923,7 +924,11 @@ mod tests {
 
         // Repairs should have been applied
         assert!(
-            !ts_repairs.is_empty() || result.stats.repairs_by_type.contains_key(&RepairType::CorrectTimestamp),
+            !ts_repairs.is_empty()
+                || result
+                    .stats
+                    .repairs_by_type
+                    .contains_key(&RepairType::CorrectTimestamp),
             "Should repair timestamp issues"
         );
     }

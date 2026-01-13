@@ -88,7 +88,11 @@ pub fn register_all(
     registry.register_metadata(anomaly::LocalOutlierFactor::new().metadata().clone())?;
 
     // Streaming anomaly detection kernels (2)
-    registry.register_metadata(streaming::StreamingIsolationForest::new().metadata().clone())?;
+    registry.register_metadata(
+        streaming::StreamingIsolationForest::new()
+            .metadata()
+            .clone(),
+    )?;
     registry.register_metadata(streaming::AdaptiveThreshold::new().metadata().clone())?;
 
     // Ensemble kernel (1)
@@ -110,8 +114,16 @@ pub fn register_all(
     registry.register_metadata(federated::SecureAggregation::new().metadata().clone())?;
 
     // Healthcare Analytics kernels (2)
-    registry.register_metadata(healthcare::DrugInteractionPrediction::new().metadata().clone())?;
-    registry.register_metadata(healthcare::ClinicalPathwayConformance::new().metadata().clone())?;
+    registry.register_metadata(
+        healthcare::DrugInteractionPrediction::new()
+            .metadata()
+            .clone(),
+    )?;
+    registry.register_metadata(
+        healthcare::ClinicalPathwayConformance::new()
+            .metadata()
+            .clone(),
+    )?;
 
     tracing::info!("Registered 17 statistical ML kernels");
     Ok(())

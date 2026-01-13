@@ -268,7 +268,12 @@ impl ShortCycleParticipation {
     pub fn find_high_risk_nodes(graph: &CsrGraph) -> Vec<CycleParticipationResult> {
         Self::compute_all(graph)
             .into_iter()
-            .filter(|r| matches!(r.risk_level, CycleRiskLevel::High | CycleRiskLevel::Critical))
+            .filter(|r| {
+                matches!(
+                    r.risk_level,
+                    CycleRiskLevel::High | CycleRiskLevel::Critical
+                )
+            })
             .collect()
     }
 
@@ -300,26 +305,17 @@ mod tests {
 
     fn create_triangle_graph() -> CsrGraph {
         // Undirected triangle: 0 - 1 - 2 - 0 (bidirectional edges)
-        CsrGraph::from_edges(
-            3,
-            &[(0, 1), (1, 0), (0, 2), (2, 0), (1, 2), (2, 1)],
-        )
+        CsrGraph::from_edges(3, &[(0, 1), (1, 0), (0, 2), (2, 0), (1, 2), (2, 1)])
     }
 
     fn create_square_graph() -> CsrGraph {
         // Square: 0 -> 1 -> 2 -> 3 -> 0
-        CsrGraph::from_edges(
-            4,
-            &[(0, 1), (1, 2), (2, 3), (3, 0)],
-        )
+        CsrGraph::from_edges(4, &[(0, 1), (1, 2), (2, 3), (3, 0)])
     }
 
     fn create_reciprocal_graph() -> CsrGraph {
         // Bidirectional edges: 0 <-> 1, 1 <-> 2
-        CsrGraph::from_edges(
-            3,
-            &[(0, 1), (1, 0), (1, 2), (2, 1)],
-        )
+        CsrGraph::from_edges(3, &[(0, 1), (1, 0), (1, 2), (2, 1)])
     }
 
     fn create_complex_graph() -> CsrGraph {
@@ -328,9 +324,19 @@ mod tests {
             5,
             &[
                 // Triangle 0-1-2
-                (0, 1), (1, 0), (1, 2), (2, 1), (0, 2), (2, 0),
+                (0, 1),
+                (1, 0),
+                (1, 2),
+                (2, 1),
+                (0, 2),
+                (2, 0),
                 // Triangle 2-3-4
-                (2, 3), (3, 2), (3, 4), (4, 3), (2, 4), (4, 2),
+                (2, 3),
+                (3, 2),
+                (3, 4),
+                (4, 3),
+                (2, 4),
+                (4, 2),
             ],
         )
     }
@@ -357,9 +363,21 @@ mod tests {
         let counts = ShortCycleParticipation::detect_3_cycles(&graph);
 
         // All three nodes participate in one triangle
-        assert!(counts[0] >= 1, "Node 0 should participate in triangle: got {}", counts[0]);
-        assert!(counts[1] >= 1, "Node 1 should participate in triangle: got {}", counts[1]);
-        assert!(counts[2] >= 1, "Node 2 should participate in triangle: got {}", counts[2]);
+        assert!(
+            counts[0] >= 1,
+            "Node 0 should participate in triangle: got {}",
+            counts[0]
+        );
+        assert!(
+            counts[1] >= 1,
+            "Node 1 should participate in triangle: got {}",
+            counts[1]
+        );
+        assert!(
+            counts[2] >= 1,
+            "Node 2 should participate in triangle: got {}",
+            counts[2]
+        );
     }
 
     #[test]
@@ -367,7 +385,10 @@ mod tests {
         let graph = create_triangle_graph();
         let count = ShortCycleParticipation::count_triangles(&graph);
 
-        assert_eq!(count, 1, "Should find 1 triangle in undirected triangle graph");
+        assert_eq!(
+            count, 1,
+            "Should find 1 triangle in undirected triangle graph"
+        );
     }
 
     #[test]
@@ -424,7 +445,10 @@ mod tests {
 
         assert_eq!(results.len(), 3);
         for result in &results {
-            assert!(result.cycle_count_3hop >= 1, "Each node should have at least 1 triangle participation");
+            assert!(
+                result.cycle_count_3hop >= 1,
+                "Each node should have at least 1 triangle participation"
+            );
             assert_eq!(result.cycle_count_4hop, 0);
         }
     }

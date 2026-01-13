@@ -535,7 +535,11 @@ impl ValueDistribution {
             });
 
         let range = max_val - min_val;
-        let bin_width = if range > 0.0 { range / bin_count as f64 } else { 1.0 };
+        let bin_width = if range > 0.0 {
+            range / bin_count as f64
+        } else {
+            1.0
+        };
 
         let mut dist = Self::new(node_count, bin_count);
 
@@ -823,7 +827,10 @@ mod value_similarity_tests {
         let q = vec![0.25, 0.25, 0.25, 0.25];
 
         let jsd = ValueSimilarity::jensen_shannon_divergence(&p, &q);
-        assert!(jsd.abs() < 0.001, "JSD of identical distributions should be 0");
+        assert!(
+            jsd.abs() < 0.001,
+            "JSD of identical distributions should be 0"
+        );
     }
 
     #[test]
@@ -833,7 +840,10 @@ mod value_similarity_tests {
 
         let jsd = ValueSimilarity::jensen_shannon_divergence(&p, &q);
         // JSD should be close to ln(2) for maximally different distributions
-        assert!(jsd > 0.6, "JSD should be high for very different distributions");
+        assert!(
+            jsd > 0.6,
+            "JSD should be high for very different distributions"
+        );
     }
 
     #[test]
@@ -842,7 +852,10 @@ mod value_similarity_tests {
         let q = vec![0.25, 0.25, 0.25, 0.25];
 
         let sim = ValueSimilarity::jsd_similarity(&p, &q);
-        assert!((sim - 1.0).abs() < 0.01, "Identical distributions should have similarity 1.0");
+        assert!(
+            (sim - 1.0).abs() < 0.01,
+            "Identical distributions should have similarity 1.0"
+        );
     }
 
     #[test]
@@ -851,7 +864,10 @@ mod value_similarity_tests {
         let q = vec![0.25, 0.25, 0.25, 0.25];
 
         let w1 = ValueSimilarity::wasserstein_distance(&p, &q);
-        assert!(w1.abs() < 0.001, "Wasserstein of identical distributions should be 0");
+        assert!(
+            w1.abs() < 0.001,
+            "Wasserstein of identical distributions should be 0"
+        );
     }
 
     #[test]
@@ -866,10 +882,7 @@ mod value_similarity_tests {
 
     #[test]
     fn test_value_distribution_from_values() {
-        let values = vec![
-            vec![1.0, 2.0, 3.0],
-            vec![2.0, 3.0, 4.0],
-        ];
+        let values = vec![vec![1.0, 2.0, 3.0], vec![2.0, 3.0, 4.0]];
 
         let dist = ValueDistribution::from_values(&values, 4);
 
@@ -887,7 +900,7 @@ mod value_similarity_tests {
     fn test_find_similar_nodes() {
         let values = vec![
             vec![1.0, 2.0, 3.0],
-            vec![1.0, 2.0, 3.0], // Same as node 0
+            vec![1.0, 2.0, 3.0],    // Same as node 0
             vec![10.0, 11.0, 12.0], // Different
         ];
 

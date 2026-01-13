@@ -87,7 +87,10 @@ impl SuspenseAccountDetection {
                 indicators: indicators.clone(),
             };
 
-            if matches!(risk_level, SuspenseRiskLevel::High | SuspenseRiskLevel::Critical) {
+            if matches!(
+                risk_level,
+                SuspenseRiskLevel::High | SuspenseRiskLevel::Critical
+            ) {
                 high_risk_accounts.push(account_code.clone());
             }
 
@@ -105,10 +108,7 @@ impl SuspenseAccountDetection {
             0.0
         } else {
             (high_risk_accounts.len() as f64 / candidates.len().max(1) as f64 * 50.0
-                + candidates
-                    .iter()
-                    .map(|c| c.suspense_score)
-                    .sum::<f64>()
+                + candidates.iter().map(|c| c.suspense_score).sum::<f64>()
                     / candidates.len().max(1) as f64)
                 .min(100.0)
         };
@@ -127,16 +127,8 @@ impl SuspenseAccountDetection {
 
         for entry in entries {
             // Extract debit and credit accounts
-            let debits: Vec<_> = entry
-                .lines
-                .iter()
-                .filter(|l| l.debit > 0.0)
-                .collect();
-            let credits: Vec<_> = entry
-                .lines
-                .iter()
-                .filter(|l| l.credit > 0.0)
-                .collect();
+            let debits: Vec<_> = entry.lines.iter().filter(|l| l.debit > 0.0).collect();
+            let credits: Vec<_> = entry.lines.iter().filter(|l| l.credit > 0.0).collect();
 
             // Create edges between debit and credit accounts
             for debit_line in &debits {
@@ -217,10 +209,7 @@ impl SuspenseAccountDetection {
     }
 
     /// Calculate suspense score from indicators.
-    fn calculate_suspense_score(
-        indicators: &[SuspenseIndicator],
-        metrics: &AccountMetrics,
-    ) -> f64 {
+    fn calculate_suspense_score(indicators: &[SuspenseIndicator], metrics: &AccountMetrics) -> f64 {
         let mut score = 0.0;
 
         for indicator in indicators {
@@ -403,10 +392,8 @@ impl GaapViolationDetection {
             })
             .count();
 
-        let compliance_score = (100.0
-            - (violations.len() as f64 * 2.0)
-            - (major_violations as f64 * 10.0))
-            .max(0.0);
+        let compliance_score =
+            (100.0 - (violations.len() as f64 * 2.0) - (major_violations as f64 * 10.0)).max(0.0);
 
         GaapViolationResult {
             violations,
@@ -445,8 +432,9 @@ impl GaapViolationDetection {
                             credit.account_code, debit.account_code
                         ),
                         severity: GaapViolationSeverity::Major,
-                        remediation: "Route through retained earnings or appropriate capital account"
-                            .to_string(),
+                        remediation:
+                            "Route through retained earnings or appropriate capital account"
+                                .to_string(),
                     });
                 }
             }
@@ -499,12 +487,17 @@ impl GaapViolationDetection {
     }
 
     /// Check for suspense account misuse.
-    fn check_suspense_misuse(entry: &JournalEntry, config: &GaapDetectionConfig) -> Option<GaapViolation> {
+    fn check_suspense_misuse(
+        entry: &JournalEntry,
+        config: &GaapDetectionConfig,
+    ) -> Option<GaapViolation> {
         let suspense_keywords = ["suspense", "clearing", "holding", "temporary"];
 
         for line in &entry.lines {
             let account_lower = line.account_code.to_lowercase();
-            let is_suspense = suspense_keywords.iter().any(|kw| account_lower.contains(kw));
+            let is_suspense = suspense_keywords
+                .iter()
+                .any(|kw| account_lower.contains(kw));
 
             if is_suspense {
                 let amount = line.debit.max(line.credit);
@@ -520,8 +513,9 @@ impl GaapViolationDetection {
                             amount, line.account_code
                         ),
                         severity: GaapViolationSeverity::Minor,
-                        remediation: "Clear suspense account to proper account within reporting period"
-                            .to_string(),
+                        remediation:
+                            "Clear suspense account to proper account within reporting period"
+                                .to_string(),
                     });
                 }
             }
@@ -590,8 +584,9 @@ impl GaapViolationDetection {
                             from, to
                         ),
                         severity: GaapViolationSeverity::Critical,
-                        remediation: "Review entries for potential revenue inflation or wash transactions"
-                            .to_string(),
+                        remediation:
+                            "Review entries for potential revenue inflation or wash transactions"
+                                .to_string(),
                     });
                 }
 
@@ -722,8 +717,7 @@ impl AccountGraph {
 
             // Calculate average holding period
             if metrics.first_activity > 0 && metrics.last_activity > metrics.first_activity {
-                let days =
-                    (metrics.last_activity - metrics.first_activity) as f64 / 86400.0;
+                let days = (metrics.last_activity - metrics.first_activity) as f64 / 86400.0;
                 metrics.avg_holding_days = days / metrics.transaction_count.max(1) as f64;
             }
 
@@ -839,7 +833,11 @@ mod tests {
         assert!(suspense_candidate.is_some());
 
         let candidate = suspense_candidate.unwrap();
-        assert!(candidate.indicators.contains(&SuspenseIndicator::SuspenseNaming));
+        assert!(
+            candidate
+                .indicators
+                .contains(&SuspenseIndicator::SuspenseNaming)
+        );
     }
 
     #[test]
@@ -855,7 +853,12 @@ mod tests {
 
     #[test]
     fn test_gaap_direct_revenue_expense() {
-        let entries = vec![create_test_entry(1, "SALARIES_EXPENSE", "SALES_REVENUE", 10000.0)];
+        let entries = vec![create_test_entry(
+            1,
+            "SALARIES_EXPENSE",
+            "SALES_REVENUE",
+            10000.0,
+        )];
 
         let mut account_types = HashMap::new();
         account_types.insert("SALES_REVENUE".to_string(), AccountType::Revenue);
@@ -916,7 +919,12 @@ mod tests {
 
     #[test]
     fn test_gaap_improper_asset_expense() {
-        let entries = vec![create_test_entry(1, "OFFICE_EXPENSE", "EQUIPMENT_ASSET", 15000.0)];
+        let entries = vec![create_test_entry(
+            1,
+            "OFFICE_EXPENSE",
+            "EQUIPMENT_ASSET",
+            15000.0,
+        )];
 
         let mut account_types = HashMap::new();
         account_types.insert("EQUIPMENT_ASSET".to_string(), AccountType::Asset);

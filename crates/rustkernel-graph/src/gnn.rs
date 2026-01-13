@@ -90,7 +90,7 @@ pub struct GNNWeights {
 impl GNNWeights {
     /// Create random weights for testing.
     pub fn random(input_dim: usize, config: &GNNConfig) -> Self {
-        use rand::{rng, Rng};
+        use rand::{Rng, rng};
         let mut r = rng();
 
         let mut layer_weights = Vec::new();
@@ -363,8 +363,20 @@ impl GNNInference {
     fn activate(x: f64, activation: ActivationType) -> f64 {
         match activation {
             ActivationType::ReLU => x.max(0.0),
-            ActivationType::LeakyReLU => if x > 0.0 { x } else { 0.01 * x },
-            ActivationType::ELU => if x > 0.0 { x } else { x.exp() - 1.0 },
+            ActivationType::LeakyReLU => {
+                if x > 0.0 {
+                    x
+                } else {
+                    0.01 * x
+                }
+            }
+            ActivationType::ELU => {
+                if x > 0.0 {
+                    x
+                } else {
+                    x.exp() - 1.0
+                }
+            }
             ActivationType::Sigmoid => 1.0 / (1.0 + (-x).exp()),
             ActivationType::Tanh => x.tanh(),
             ActivationType::None => x,
@@ -437,7 +449,7 @@ pub struct GATWeights {
 impl GATWeights {
     /// Create random weights for testing.
     pub fn random(input_dim: usize, config: &GraphAttentionConfig) -> Self {
-        use rand::{rng, Rng};
+        use rand::{Rng, rng};
         let mut r = rng();
 
         let scale = (2.0 / (input_dim + config.head_dim) as f64).sqrt();
@@ -449,13 +461,25 @@ impl GATWeights {
 
         for _ in 0..config.num_heads {
             let q: Vec<Vec<f64>> = (0..input_dim)
-                .map(|_| (0..config.head_dim).map(|_| r.random_range(-scale..scale)).collect())
+                .map(|_| {
+                    (0..config.head_dim)
+                        .map(|_| r.random_range(-scale..scale))
+                        .collect()
+                })
                 .collect();
             let k: Vec<Vec<f64>> = (0..input_dim)
-                .map(|_| (0..config.head_dim).map(|_| r.random_range(-scale..scale)).collect())
+                .map(|_| {
+                    (0..config.head_dim)
+                        .map(|_| r.random_range(-scale..scale))
+                        .collect()
+                })
                 .collect();
             let v: Vec<Vec<f64>> = (0..input_dim)
-                .map(|_| (0..config.head_dim).map(|_| r.random_range(-scale..scale)).collect())
+                .map(|_| {
+                    (0..config.head_dim)
+                        .map(|_| r.random_range(-scale..scale))
+                        .collect()
+                })
                 .collect();
             let a: Vec<f64> = (0..config.head_dim * 2)
                 .map(|_| r.random_range(-scale..scale))
@@ -584,12 +608,7 @@ impl GraphAttention {
         // Combine heads
         let combined: Vec<Vec<f64>> = if config.concat_heads {
             (0..n)
-                .map(|i| {
-                    head_outputs
-                        .iter()
-                        .flat_map(|h| h[i].clone())
-                        .collect()
-                })
+                .map(|i| head_outputs.iter().flat_map(|h| h[i].clone()).collect())
                 .collect()
         } else {
             // Average heads
@@ -663,11 +682,7 @@ impl GraphAttention {
                 let mut concat = queries[i].clone();
                 concat.extend(keys[j].iter().cloned());
 
-                let score: f64 = concat
-                    .iter()
-                    .zip(attn_vec.iter())
-                    .map(|(c, a)| c * a)
-                    .sum();
+                let score: f64 = concat.iter().zip(attn_vec.iter()).map(|(c, a)| c * a).sum();
 
                 // LeakyReLU
                 let score = if score > 0.0 {
@@ -755,11 +770,7 @@ mod tests {
 
     fn create_test_graph() -> CsrGraph {
         // Simple triangle graph: 0 -- 1 -- 2 -- 0
-        CsrGraph::from_edges(3, &[
-            (0, 1),
-            (1, 2),
-            (2, 0),
-        ])
+        CsrGraph::from_edges(3, &[(0, 1), (1, 2), (2, 0)])
     }
 
     #[test]
@@ -771,11 +782,7 @@ mod tests {
     #[test]
     fn test_gnn_inference_basic() {
         let graph = create_test_graph();
-        let features = vec![
-            vec![1.0, 0.0],
-            vec![0.0, 1.0],
-            vec![1.0, 1.0],
-        ];
+        let features = vec![vec![1.0, 0.0], vec![0.0, 1.0], vec![1.0, 1.0]];
 
         let config = GNNConfig {
             num_layers: 2,
@@ -795,13 +802,14 @@ mod tests {
     #[test]
     fn test_gnn_aggregation_types() {
         let graph = create_test_graph();
-        let features = vec![
-            vec![1.0, 0.0],
-            vec![0.0, 1.0],
-            vec![1.0, 1.0],
-        ];
+        let features = vec![vec![1.0, 0.0], vec![0.0, 1.0], vec![1.0, 1.0]];
 
-        for agg in [AggregationType::Sum, AggregationType::Mean, AggregationType::Max, AggregationType::SAGE] {
+        for agg in [
+            AggregationType::Sum,
+            AggregationType::Mean,
+            AggregationType::Max,
+            AggregationType::SAGE,
+        ] {
             let config = GNNConfig {
                 aggregation: agg,
                 num_layers: 1,
@@ -861,11 +869,7 @@ mod tests {
     #[test]
     fn test_attention_weights_sum_to_one() {
         let graph = create_test_graph();
-        let features = vec![
-            vec![1.0, 0.0],
-            vec![0.0, 1.0],
-            vec![1.0, 1.0],
-        ];
+        let features = vec![vec![1.0, 0.0], vec![0.0, 1.0], vec![1.0, 1.0]];
 
         let config = GraphAttentionConfig {
             num_heads: 1,
@@ -885,7 +889,11 @@ mod tests {
 
         // Each source's attention should sum to ~1
         for (_, sum) in sums {
-            assert!((sum - 1.0).abs() < 0.01, "Attention should sum to 1, got {}", sum);
+            assert!(
+                (sum - 1.0).abs() < 0.01,
+                "Attention should sum to 1, got {}",
+                sum
+            );
         }
     }
 

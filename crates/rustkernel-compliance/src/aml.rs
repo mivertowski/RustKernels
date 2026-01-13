@@ -1244,10 +1244,10 @@ pub struct FlowReversalConfig {
 impl Default for FlowReversalConfig {
     fn default() -> Self {
         Self {
-            max_window_seconds: 86400, // 24 hours
+            max_window_seconds: 86400,       // 24 hours
             suspicious_window_seconds: 3600, // 1 hour
-            critical_window_seconds: 300, // 5 minutes
-            min_amount_match_ratio: 0.9, // 90% match
+            critical_window_seconds: 300,    // 5 minutes
+            min_amount_match_ratio: 0.9,     // 90% match
         }
     }
 }
@@ -1404,10 +1404,7 @@ impl FlowSplitRatio {
                     risk_level,
                 });
 
-                if matches!(
-                    risk_level,
-                    SplitRiskLevel::High | SplitRiskLevel::Critical
-                ) {
+                if matches!(risk_level, SplitRiskLevel::High | SplitRiskLevel::Critical) {
                     structuring_entities.insert(source_id);
                 }
             }
@@ -1481,7 +1478,8 @@ impl FlowSplitRatio {
     ) -> Vec<crate::types::FlowSplitPattern> {
         // Sort by risk level (highest first), then by total amount
         splits.sort_by(|a, b| {
-            let risk_ord = Self::risk_level_ord(&b.risk_level).cmp(&Self::risk_level_ord(&a.risk_level));
+            let risk_ord =
+                Self::risk_level_ord(&b.risk_level).cmp(&Self::risk_level_ord(&a.risk_level));
             if risk_ord == std::cmp::Ordering::Equal {
                 b.total_amount
                     .partial_cmp(&a.total_amount)

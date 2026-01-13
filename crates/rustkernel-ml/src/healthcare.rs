@@ -175,10 +175,13 @@ impl DrugInteractionPrediction {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            metadata: KernelMetadata::batch("ml/drug-interaction-prediction", Domain::StatisticalML)
-                .with_description("Multi-drug interaction prediction using mechanism features")
-                .with_throughput(5_000)
-                .with_latency_us(200.0),
+            metadata: KernelMetadata::batch(
+                "ml/drug-interaction-prediction",
+                Domain::StatisticalML,
+            )
+            .with_description("Multi-drug interaction prediction using mechanism features")
+            .with_throughput(5_000)
+            .with_latency_us(200.0),
         }
     }
 
@@ -208,9 +211,7 @@ impl DrugInteractionPrediction {
 
                 // Check known interactions
                 if let Some(known) = knowledge_base.get_known_interaction(&drug_ids) {
-                    if config.include_known
-                        && config.severity_filter.contains(&known.severity)
-                    {
+                    if config.include_known && config.severity_filter.contains(&known.severity) {
                         interactions.push(PredictedInteraction {
                             drug_ids: drug_ids.clone(),
                             drug_names: drug_names.clone(),
@@ -264,12 +265,8 @@ impl DrugInteractionPrediction {
                             drugs[k].id.clone(),
                         ];
 
-                        let (severity, confidence) = Self::predict_triplet(
-                            &drugs[i],
-                            &drugs[j],
-                            &drugs[k],
-                            knowledge_base,
-                        );
+                        let (severity, confidence) =
+                            Self::predict_triplet(&drugs[i], &drugs[j], &drugs[k], knowledge_base);
 
                         if confidence >= config.min_confidence {
                             interactions.push(PredictedInteraction {
@@ -454,7 +451,10 @@ impl DrugInteractionPrediction {
         }
     }
 
-    fn calculate_polypharmacy_risk(drug_count: usize, interactions: &[PredictedInteraction]) -> f64 {
+    fn calculate_polypharmacy_risk(
+        drug_count: usize,
+        interactions: &[PredictedInteraction],
+    ) -> f64 {
         // Base risk from drug count
         let count_risk = (drug_count as f64 - 1.0).max(0.0) * 0.1;
 
@@ -481,7 +481,10 @@ impl DrugInteractionPrediction {
             ));
         }
 
-        let major_count = interactions.iter().filter(|i| i.severity == Severity::Major).count();
+        let major_count = interactions
+            .iter()
+            .filter(|i| i.severity == Severity::Major)
+            .count();
         if major_count > 0 {
             recommendations.push(format!(
                 "Review {} major interactions before prescribing.",
@@ -490,9 +493,8 @@ impl DrugInteractionPrediction {
         }
 
         if interactions.len() > 5 {
-            recommendations.push(
-                "Consider medication review to reduce polypharmacy risk.".to_string(),
-            );
+            recommendations
+                .push("Consider medication review to reduce polypharmacy risk.".to_string());
         }
 
         recommendations
@@ -693,10 +695,13 @@ impl ClinicalPathwayConformance {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            metadata: KernelMetadata::batch("ml/clinical-pathway-conformance", Domain::StatisticalML)
-                .with_description("Clinical guideline and pathway conformance checking")
-                .with_throughput(10_000)
-                .with_latency_us(50.0),
+            metadata: KernelMetadata::batch(
+                "ml/clinical-pathway-conformance",
+                Domain::StatisticalML,
+            )
+            .with_description("Clinical guideline and pathway conformance checking")
+            .with_throughput(10_000)
+            .with_latency_us(50.0),
         }
     }
 
@@ -733,7 +738,9 @@ impl ClinicalPathwayConformance {
                 .filter(|e| {
                     e.step_id.as_ref() == Some(&step.id)
                         || (e.category == step.category
-                            && e.description.to_lowercase().contains(&step.name.to_lowercase()))
+                            && e.description
+                                .to_lowercase()
+                                .contains(&step.name.to_lowercase()))
                 })
                 .collect();
 
@@ -838,9 +845,8 @@ impl ClinicalPathwayConformance {
 
         // Apply documented deviation allowance
         if config.allow_documented_deviations {
-            deviations.retain(|d| {
-                !(d.reason_documented && d.severity != DeviationSeverity::Critical)
-            });
+            deviations
+                .retain(|d| !(d.reason_documented && d.severity != DeviationSeverity::Critical));
         }
 
         // Calculate scores
@@ -860,16 +866,20 @@ impl ClinicalPathwayConformance {
             })
             .sum();
 
-        let conformance_score = (1.0 - deviation_penalty).max(0.0)
-            * (completion_percentage / 100.0);
+        let conformance_score =
+            (1.0 - deviation_penalty).max(0.0) * (completion_percentage / 100.0);
 
         let is_conformant = match config.strictness {
             ConformanceStrictness::Relaxed => conformance_score >= 0.7,
-            ConformanceStrictness::Standard => conformance_score >= 0.85 && missing_steps.is_empty(),
+            ConformanceStrictness::Standard => {
+                conformance_score >= 0.85 && missing_steps.is_empty()
+            }
             ConformanceStrictness::Strict => {
                 conformance_score >= 0.95
                     && missing_steps.is_empty()
-                    && deviations.iter().all(|d| d.severity == DeviationSeverity::Info)
+                    && deviations
+                        .iter()
+                        .all(|d| d.severity == DeviationSeverity::Info)
             }
         };
 
@@ -1019,7 +1029,12 @@ mod tests {
         let config = DrugInteractionConfig::default();
         let result = DrugInteractionPrediction::predict(&drugs, &kb, &config);
 
-        assert!(result.interactions.iter().any(|i| i.is_known && i.severity == Severity::Major));
+        assert!(
+            result
+                .interactions
+                .iter()
+                .any(|i| i.is_known && i.severity == Severity::Major)
+        );
     }
 
     #[test]
@@ -1129,7 +1144,12 @@ mod tests {
         let result = ClinicalPathwayConformance::check_conformance(&pathway, &events, &config);
 
         assert!(!result.is_conformant);
-        assert!(result.deviations.iter().any(|d| d.deviation_type == DeviationType::MissedStep));
+        assert!(
+            result
+                .deviations
+                .iter()
+                .any(|d| d.deviation_type == DeviationType::MissedStep)
+        );
     }
 
     #[test]

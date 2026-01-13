@@ -144,7 +144,8 @@ impl DegreeRatio {
             .collect();
 
         let mean = degrees.iter().sum::<f64>() / degrees.len() as f64;
-        let variance = degrees.iter().map(|d| (d - mean).powi(2)).sum::<f64>() / degrees.len() as f64;
+        let variance =
+            degrees.iter().map(|d| (d - mean).powi(2)).sum::<f64>() / degrees.len() as f64;
 
         variance
     }
@@ -416,10 +417,7 @@ mod tests {
     fn create_star_graph() -> CsrGraph {
         // Star graph: node 0 is hub, connected to 1,2,3,4
         // 0 -> 1, 0 -> 2, 0 -> 3, 0 -> 4 (out-star)
-        CsrGraph::from_edges(
-            5,
-            &[(0, 1), (0, 2), (0, 3), (0, 4)],
-        )
+        CsrGraph::from_edges(5, &[(0, 1), (0, 2), (0, 3), (0, 4)])
     }
 
     fn create_bidirectional_star() -> CsrGraph {
@@ -427,8 +425,14 @@ mod tests {
         CsrGraph::from_edges(
             5,
             &[
-                (0, 1), (0, 2), (0, 3), (0, 4),
-                (1, 0), (2, 0), (3, 0), (4, 0),
+                (0, 1),
+                (0, 2),
+                (0, 3),
+                (0, 4),
+                (1, 0),
+                (2, 0),
+                (3, 0),
+                (4, 0),
             ],
         )
     }
@@ -438,8 +442,12 @@ mod tests {
         CsrGraph::from_edges(
             5,
             &[
-                (0, 1), (0, 2), (0, 3), (0, 4), // Hub edges
-                (1, 2), (2, 1), // Inter-spoke edge (bidirectional)
+                (0, 1),
+                (0, 2),
+                (0, 3),
+                (0, 4), // Hub edges
+                (1, 2),
+                (2, 1), // Inter-spoke edge (bidirectional)
             ],
         )
     }
@@ -492,8 +500,15 @@ mod tests {
         // Bidirectional star - should be Mixed type
         assert_eq!(result.spoke_count, 4);
         assert_eq!(result.inter_spoke_edges, 0);
-        assert!((result.star_score - 1.0).abs() < 0.01, "Star score should be 1.0 for perfect star");
-        assert_eq!(result.star_type, StarType::Mixed, "Bidirectional star should be Mixed type");
+        assert!(
+            (result.star_score - 1.0).abs() < 0.01,
+            "Star score should be 1.0 for perfect star"
+        );
+        assert_eq!(
+            result.star_type,
+            StarType::Mixed,
+            "Bidirectional star should be Mixed type"
+        );
     }
 
     #[test]
@@ -503,10 +518,16 @@ mod tests {
 
         assert_eq!(result.spoke_count, 4);
         // One bidirectional inter-spoke edge between 1 and 2
-        assert!(result.inter_spoke_edges >= 1, "Should detect inter-spoke edge");
+        assert!(
+            result.inter_spoke_edges >= 1,
+            "Should detect inter-spoke edge"
+        );
         // 6 possible inter-spoke edges, 1 exists -> score = 1 - 1/6 ≈ 0.83
-        assert!(result.star_score > 0.5 && result.star_score < 1.0,
-                "Star score {} should be between 0.5 and 1.0", result.star_score);
+        assert!(
+            result.star_score > 0.5 && result.star_score < 1.0,
+            "Star score {} should be between 0.5 and 1.0",
+            result.star_score
+        );
     }
 
     #[test]

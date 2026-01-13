@@ -7,8 +7,8 @@
 
 use crate::types::CsrGraph;
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
-use std::collections::{BinaryHeap, HashMap, VecDeque};
 use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap, VecDeque};
 
 // ============================================================================
 // Shortest Path Results
@@ -175,7 +175,10 @@ impl ShortestPath {
 
         // Priority queue: (negative distance, node) - negated for min-heap behavior
         let mut heap = BinaryHeap::new();
-        heap.push(HeapNode { dist: 0.0, node: source });
+        heap.push(HeapNode {
+            dist: 0.0,
+            node: source,
+        });
 
         while let Some(HeapNode { dist, node: v }) = heap.pop() {
             if dist > distances[v] {
@@ -183,7 +186,11 @@ impl ShortestPath {
             }
 
             let neighbors = graph.neighbors(v as u64);
-            let edge_start = if v == 0 { 0 } else { graph.row_offsets[v] as usize };
+            let edge_start = if v == 0 {
+                0
+            } else {
+                graph.row_offsets[v] as usize
+            };
 
             for (i, &w) in neighbors.iter().enumerate() {
                 let w = w as usize;
@@ -194,7 +201,10 @@ impl ShortestPath {
                     distances[w] = new_dist;
                     predecessors[w] = v as i64;
                     hop_counts[w] = hop_counts[v] + 1;
-                    heap.push(HeapNode { dist: new_dist, node: w });
+                    heap.push(HeapNode {
+                        dist: new_dist,
+                        node: w,
+                    });
                 }
             }
         }
@@ -235,7 +245,11 @@ impl ShortestPath {
     }
 
     /// Reconstruct path from source to target.
-    pub fn reconstruct_path(sssp: &[ShortestPathResult], source: usize, target: usize) -> Option<Vec<usize>> {
+    pub fn reconstruct_path(
+        sssp: &[ShortestPathResult],
+        source: usize,
+        target: usize,
+    ) -> Option<Vec<usize>> {
         if !sssp[target].is_reachable {
             return None;
         }
@@ -308,7 +322,9 @@ impl ShortestPath {
                 let edges_to_avoid = Self::collect_edges_to_avoid(&result_paths, &root_path);
 
                 // Find path in modified graph
-                if let Some(spur_path) = Self::compute_path_avoiding(graph, spur_node, target, &edges_to_avoid) {
+                if let Some(spur_path) =
+                    Self::compute_path_avoiding(graph, spur_node, target, &edges_to_avoid)
+                {
                     let mut total_path = root_path.clone();
                     total_path.extend(spur_path.node_path.into_iter().skip(1));
 
@@ -415,7 +431,10 @@ impl ShortestPath {
         })
     }
 
-    fn collect_edges_to_avoid(result_paths: &[PathResult], root_path: &[usize]) -> Vec<(usize, usize)> {
+    fn collect_edges_to_avoid(
+        result_paths: &[PathResult],
+        root_path: &[usize],
+    ) -> Vec<(usize, usize)> {
         let mut edges = Vec::new();
 
         for path in result_paths {
@@ -495,7 +514,10 @@ impl Eq for HeapNode {}
 impl Ord for HeapNode {
     fn cmp(&self, other: &Self) -> Ordering {
         // Reverse ordering for min-heap
-        other.dist.partial_cmp(&self.dist).unwrap_or(Ordering::Equal)
+        other
+            .dist
+            .partial_cmp(&self.dist)
+            .unwrap_or(Ordering::Equal)
     }
 }
 
@@ -511,10 +533,7 @@ mod tests {
 
     fn create_line_graph() -> CsrGraph {
         // Line: 0 - 1 - 2 - 3
-        CsrGraph::from_edges(
-            4,
-            &[(0, 1), (1, 0), (1, 2), (2, 1), (2, 3), (3, 2)],
-        )
+        CsrGraph::from_edges(4, &[(0, 1), (1, 0), (1, 2), (2, 1), (2, 3), (3, 2)])
     }
 
     fn create_complete_graph() -> CsrGraph {
@@ -522,20 +541,25 @@ mod tests {
         CsrGraph::from_edges(
             4,
             &[
-                (0, 1), (0, 2), (0, 3),
-                (1, 0), (1, 2), (1, 3),
-                (2, 0), (2, 1), (2, 3),
-                (3, 0), (3, 1), (3, 2),
+                (0, 1),
+                (0, 2),
+                (0, 3),
+                (1, 0),
+                (1, 2),
+                (1, 3),
+                (2, 0),
+                (2, 1),
+                (2, 3),
+                (3, 0),
+                (3, 1),
+                (3, 2),
             ],
         )
     }
 
     fn create_disconnected_graph() -> CsrGraph {
         // Two disconnected pairs: 0-1 and 2-3
-        CsrGraph::from_edges(
-            4,
-            &[(0, 1), (1, 0), (2, 3), (3, 2)],
-        )
+        CsrGraph::from_edges(4, &[(0, 1), (1, 0), (2, 3), (3, 2)])
     }
 
     #[test]

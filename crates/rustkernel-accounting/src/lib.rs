@@ -84,11 +84,7 @@ pub fn register_all(
             .metadata()
             .clone(),
     )?;
-    registry.register_metadata(
-        detection::GaapViolationDetection::new()
-            .metadata()
-            .clone(),
-    )?;
+    registry.register_metadata(detection::GaapViolationDetection::new().metadata().clone())?;
 
     tracing::info!("Registered 9 accounting kernels");
     Ok(())

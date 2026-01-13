@@ -204,9 +204,7 @@ impl EmbeddingGeneration {
                 }
                 result
             }
-            PoolingStrategy::CLS => {
-                embeddings[0].clone()
-            }
+            PoolingStrategy::CLS => embeddings[0].clone(),
             PoolingStrategy::AttentionWeighted => {
                 // Simple attention: weight by position (earlier = higher weight)
                 let mut result = vec![0.0; config.dimension];
@@ -406,7 +404,10 @@ impl SemanticSimilarity {
 
         let mut grouped: HashMap<usize, Vec<(usize, f64)>> = HashMap::new();
         for m in result.matches {
-            grouped.entry(m.query_idx).or_default().push((m.match_idx, m.score));
+            grouped
+                .entry(m.query_idx)
+                .or_default()
+                .push((m.match_idx, m.score));
         }
 
         // Sort each group by score descending
@@ -460,9 +461,7 @@ impl SemanticSimilarity {
                     .sqrt();
                 1.0 / (1.0 + dist)
             }
-            SimilarityMetric::DotProduct => {
-                a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
-            }
+            SimilarityMetric::DotProduct => a.iter().zip(b.iter()).map(|(x, y)| x * y).sum(),
             SimilarityMetric::Manhattan => {
                 let dist: f64 = a.iter().zip(b.iter()).map(|(x, y)| (x - y).abs()).sum();
                 1.0 / (1.0 + dist)
@@ -471,10 +470,7 @@ impl SemanticSimilarity {
     }
 
     /// Deduplicate a corpus based on similarity threshold.
-    pub fn deduplicate(
-        embeddings: &[Vec<f64>],
-        threshold: f64,
-    ) -> Vec<usize> {
+    pub fn deduplicate(embeddings: &[Vec<f64>], threshold: f64) -> Vec<usize> {
         if embeddings.is_empty() {
             return Vec::new();
         }
@@ -537,7 +533,11 @@ mod tests {
 
         let result = EmbeddingGeneration::compute(&["test text"], &config);
 
-        let norm: f64 = result.embeddings[0].iter().map(|x| x * x).sum::<f64>().sqrt();
+        let norm: f64 = result.embeddings[0]
+            .iter()
+            .map(|x| x * x)
+            .sum::<f64>()
+            .sqrt();
         assert!((norm - 1.0).abs() < 0.001);
     }
 
@@ -552,7 +552,12 @@ mod tests {
     fn test_pooling_strategies() {
         let texts = vec!["a b c d e"];
 
-        for pooling in [PoolingStrategy::Mean, PoolingStrategy::Max, PoolingStrategy::CLS, PoolingStrategy::AttentionWeighted] {
+        for pooling in [
+            PoolingStrategy::Mean,
+            PoolingStrategy::Max,
+            PoolingStrategy::CLS,
+            PoolingStrategy::AttentionWeighted,
+        ] {
             let config = EmbeddingConfig {
                 pooling,
                 ..Default::default()
@@ -573,9 +578,9 @@ mod tests {
     fn test_semantic_similarity_basic() {
         let queries = vec![vec![1.0, 0.0, 0.0]];
         let corpus = vec![
-            vec![1.0, 0.0, 0.0],  // Same as query
-            vec![0.0, 1.0, 0.0],  // Orthogonal
-            vec![0.7, 0.7, 0.0],  // Partially similar
+            vec![1.0, 0.0, 0.0], // Same as query
+            vec![0.0, 1.0, 0.0], // Orthogonal
+            vec![0.7, 0.7, 0.0], // Partially similar
         ];
 
         let config = SimilarityConfig {
@@ -597,9 +602,18 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![1.0, 2.0, 3.0];
 
-        for metric in [SimilarityMetric::Cosine, SimilarityMetric::Euclidean, SimilarityMetric::DotProduct, SimilarityMetric::Manhattan] {
+        for metric in [
+            SimilarityMetric::Cosine,
+            SimilarityMetric::Euclidean,
+            SimilarityMetric::DotProduct,
+            SimilarityMetric::Manhattan,
+        ] {
             let sim = SemanticSimilarity::compute_similarity(&a, &b, metric);
-            assert!(sim > 0.0, "Identical vectors should have positive similarity for {:?}", metric);
+            assert!(
+                sim > 0.0,
+                "Identical vectors should have positive similarity for {:?}",
+                metric
+            );
         }
     }
 
@@ -607,7 +621,7 @@ mod tests {
     fn test_deduplicate() {
         let embeddings = vec![
             vec![1.0, 0.0],
-            vec![0.99, 0.01],  // Very similar to first
+            vec![0.99, 0.01], // Very similar to first
             vec![0.0, 1.0],   // Different
             vec![0.01, 0.99], // Very similar to third
         ];
