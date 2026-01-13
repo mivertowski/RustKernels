@@ -1,10 +1,10 @@
 # Statistical ML
 
 **Crate**: `rustkernel-ml`
-**Kernels**: 8
+**Kernels**: 17
 **Feature**: `ml` (included in default features)
 
-Machine learning kernels for clustering, anomaly detection, and regression.
+Machine learning kernels for clustering, anomaly detection, NLP, federated learning, and healthcare analytics.
 
 ## Kernel Overview
 
@@ -30,6 +30,40 @@ Machine learning kernels for clustering, anomaly detection, and regression.
 |--------|-----|-------|-------------|
 | LinearRegression | `ml/linear-regression` | Batch, Ring | Ordinary least squares |
 | RidgeRegression | `ml/ridge-regression` | Batch, Ring | L2-regularized regression |
+
+### NLP / Embeddings (2)
+
+| Kernel | ID | Modes | Description |
+|--------|-----|-------|-------------|
+| EmbeddingGeneration | `ml/embedding-generation` | Batch | Generate text embeddings from documents |
+| SemanticSimilarity | `ml/semantic-similarity` | Batch | Compute similarity between document embeddings |
+
+### Federated Learning (1)
+
+| Kernel | ID | Modes | Description |
+|--------|-----|-------|-------------|
+| SecureAggregation | `ml/secure-aggregation` | Batch | Privacy-preserving distributed model training |
+
+### Healthcare Analytics (2)
+
+| Kernel | ID | Modes | Description |
+|--------|-----|-------|-------------|
+| DrugInteractionPrediction | `ml/drug-interaction` | Batch | Predict multi-drug interaction risks |
+| ClinicalPathwayConformance | `ml/clinical-pathway` | Batch | Check treatment guideline compliance |
+
+### Streaming ML (2)
+
+| Kernel | ID | Modes | Description |
+|--------|-----|-------|-------------|
+| StreamingIsolationForest | `ml/streaming-iforest` | Batch, Ring | Online anomaly detection |
+| AdaptiveThreshold | `ml/adaptive-threshold` | Batch, Ring | Self-adjusting anomaly thresholds |
+
+### Explainability (2)
+
+| Kernel | ID | Modes | Description |
+|--------|-----|-------|-------------|
+| SHAPValues | `ml/shap-values` | Batch | GPU-accelerated SHAP explanations |
+| FeatureImportance | `ml/feature-importance` | Batch | Real-time feature attribution |
 
 ---
 
@@ -200,6 +234,135 @@ pub struct LinearRegressionOutput {
     /// R-squared score
     pub r_squared: f64,
 }
+```
+
+---
+
+### EmbeddingGeneration
+
+Generates text embeddings from documents using TF-IDF and n-gram features.
+
+**ID**: `ml/embedding-generation`
+**Modes**: Batch
+
+#### Example
+
+```rust
+use rustkernel::ml::nlp::{EmbeddingGeneration, EmbeddingConfig};
+
+let kernel = EmbeddingGeneration::new();
+
+let config = EmbeddingConfig {
+    embedding_dim: 128,
+    ngram_range: (1, 2),
+    max_features: 10000,
+    use_idf: true,
+};
+
+let documents = vec!["financial transaction", "bank transfer"];
+let embeddings = kernel.generate(&documents, &config)?;
+```
+
+---
+
+### SemanticSimilarity
+
+Computes cosine similarity between document embeddings.
+
+**ID**: `ml/semantic-similarity`
+**Modes**: Batch
+
+#### Example
+
+```rust
+use rustkernel::ml::nlp::{SemanticSimilarity, SimilarityConfig};
+
+let kernel = SemanticSimilarity::new();
+
+let similar = kernel.find_similar(
+    &embeddings,
+    query_index,
+    &SimilarityConfig { top_k: 10, threshold: 0.5, include_self: false }
+)?;
+```
+
+---
+
+### SecureAggregation
+
+Privacy-preserving federated learning with differential privacy.
+
+**ID**: `ml/secure-aggregation`
+**Modes**: Batch
+
+Aggregates model updates from multiple clients while preserving privacy through noise injection and gradient clipping.
+
+#### Example
+
+```rust
+use rustkernel::ml::federated::{SecureAggregation, AggregationConfig};
+
+let kernel = SecureAggregation::new();
+
+let config = AggregationConfig {
+    num_clients: 10,
+    clip_threshold: 1.0,
+    noise_multiplier: 0.1,
+    secure_mode: true,
+};
+
+let global_update = kernel.aggregate(&client_updates, &config)?;
+```
+
+---
+
+### DrugInteractionPrediction
+
+Predicts multi-drug interaction risks using hypergraph neural networks.
+
+**ID**: `ml/drug-interaction`
+**Modes**: Batch
+
+#### Example
+
+```rust
+use rustkernel::ml::healthcare::{DrugInteractionPrediction, DrugProfile};
+
+let kernel = DrugInteractionPrediction::new();
+
+let drugs = vec![
+    DrugProfile { id: "D001", features: moa_features.clone() },
+    DrugProfile { id: "D002", features: target_features.clone() },
+];
+
+let result = kernel.predict(&drugs)?;
+println!("Interaction risk: {:.2}", result.risk_score);
+```
+
+---
+
+### ClinicalPathwayConformance
+
+Checks treatment event sequences against clinical guidelines.
+
+**ID**: `ml/clinical-pathway`
+**Modes**: Batch
+
+#### Example
+
+```rust
+use rustkernel::ml::healthcare::{ClinicalPathwayConformance, ClinicalPathway};
+
+let kernel = ClinicalPathwayConformance::new();
+
+let pathway = ClinicalPathway {
+    name: "Sepsis Protocol".to_string(),
+    required_steps: vec!["blood_culture", "antibiotics", "fluids"],
+    max_time_hours: 3.0,
+};
+
+let result = kernel.check_conformance(&events, &pathway)?;
+println!("Conformance: {:.1}%", result.conformance_score * 100.0);
 ```
 
 ---

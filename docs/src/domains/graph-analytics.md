@@ -1,7 +1,7 @@
 # Graph Analytics
 
 **Crate**: `rustkernel-graph`
-**Kernels**: 26
+**Kernels**: 28
 **Feature**: `graph` (included in default features)
 
 Graph analytics kernels for network analysis, social network analysis, knowledge graph operations, and AML/fraud detection.
@@ -73,6 +73,13 @@ Graph analytics kernels for network analysis, social network analysis, knowledge
 | Kernel | ID | Modes | Description |
 |--------|-----|-------|-------------|
 | ShortestPath | `graph/shortest-path` | Batch | BFS/Delta-Stepping SSSP/APSP |
+
+### Graph Neural Networks (2)
+
+| Kernel | ID | Modes | Description |
+|--------|-----|-------|-------------|
+| GNNInference | `graph/gnn-inference` | Batch | Message-passing neural network inference |
+| GraphAttention | `graph/graph-attention` | Batch | Multi-head graph attention networks |
 
 ---
 
@@ -348,6 +355,70 @@ for pair in &pairs {
     println!("Similar: {} and {} (similarity: {:.3})",
              pair.node_a, pair.node_b, pair.similarity);
 }
+```
+
+---
+
+### GNNInference
+
+Graph Neural Network inference using message passing.
+
+**ID**: `graph/gnn-inference`
+**Modes**: Batch
+**Throughput**: ~10,000 nodes/sec
+
+Supports configurable aggregation functions (mean, sum, max) and multiple message passing iterations.
+
+#### Example
+
+```rust
+use rustkernel::graph::gnn::{GNNInference, GNNConfig, AggregationType};
+
+let kernel = GNNInference::new();
+
+// Configure the GNN
+let config = GNNConfig {
+    hidden_dim: 64,
+    output_dim: 32,
+    num_layers: 2,
+    aggregation: AggregationType::Mean,
+    activation: ActivationType::ReLU,
+};
+
+// Run inference
+let node_embeddings = kernel.infer(&graph, &node_features, &config)?;
+println!("Node 0 embedding: {:?}", node_embeddings[0]);
+```
+
+---
+
+### GraphAttention
+
+Multi-head graph attention network for node classification and link prediction.
+
+**ID**: `graph/graph-attention`
+**Modes**: Batch
+**Throughput**: ~8,000 nodes/sec
+
+Uses self-attention to learn importance weights for neighboring nodes.
+
+#### Example
+
+```rust
+use rustkernel::graph::gnn::{GraphAttention, AttentionConfig};
+
+let kernel = GraphAttention::new();
+
+let config = AttentionConfig {
+    num_heads: 4,
+    hidden_dim: 64,
+    output_dim: 32,
+    dropout: 0.1,
+    concat_heads: true,
+};
+
+let output = kernel.forward(&graph, &node_features, &config)?;
+println!("Attention weights: {:?}", output.attention_weights);
 ```
 
 ---

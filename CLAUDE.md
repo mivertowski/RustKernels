@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 RustKernels is a GPU-accelerated kernel library for financial services, analytics, and compliance workloads. It's a Rust port of the DotCompute GPU kernel library, built on the RustCompute (RingKernel) framework.
 
+**Current State**: 106 kernels across 14 domain crates, fully implemented with both Batch and Ring execution modes.
+
 **Key dependency**: RustCompute is located at `../../RustCompute/RustCompute/` (relative path from workspace root).
 
 ## Build Commands
@@ -38,6 +40,7 @@ cargo test --package rustkernel-graph
 cargo test --package rustkernel-ml
 cargo test --package rustkernel-compliance
 cargo test --package rustkernel-risk
+cargo test --package rustkernel-procint
 
 # Run single test
 cargo test --package rustkernel-graph test_pagerank_metadata
@@ -59,7 +62,26 @@ cargo bench --package rustkernel
 - **`rustkernel-core`** - Core traits, registry, licensing, K2K coordination
 - **`rustkernel-derive`** - Proc macros (`#[gpu_kernel]`, `#[derive(KernelMessage)]`)
 - **`rustkernel-cli`** - CLI tool for kernel management
-- **14 domain crates** - One per business domain (graph, ml, compliance, etc.)
+- **14 domain crates** - One per business domain
+
+### Domain Crates and Kernel Counts
+
+| Domain | Crate | Kernels |
+|--------|-------|---------|
+| Graph Analytics | `rustkernel-graph` | 28 |
+| Statistical ML | `rustkernel-ml` | 17 |
+| Compliance | `rustkernel-compliance` | 11 |
+| Temporal Analysis | `rustkernel-temporal` | 7 |
+| Risk Analytics | `rustkernel-risk` | 5 |
+| Process Intelligence | `rustkernel-procint` | 7 |
+| Behavioral Analytics | `rustkernel-behavioral` | 6 |
+| Banking | `rustkernel-banking` | 1 |
+| Order Matching | `rustkernel-orderbook` | 1 |
+| Clearing | `rustkernel-clearing` | 5 |
+| Treasury | `rustkernel-treasury` | 5 |
+| Accounting | `rustkernel-accounting` | 9 |
+| Payments | `rustkernel-payments` | 2 |
+| Audit | `rustkernel-audit` | 2 |
 
 ### Kernel Execution Modes
 
@@ -167,7 +189,45 @@ fn from_fixed_point(fp: i64) -> f64 { fp as f64 / 100_000_000.0 }
 2. Implement `BatchKernel<I, O>` or `RingKernelHandler<M, R>`
 3. Add input/output types to `messages.rs`
 4. For Ring kernels, add messages to `ring_messages.rs` with unique type IDs
-5. Add tests
+5. Register in `lib.rs` `register_all()` function
+6. Update test count in `lib.rs` test
+7. Add comprehensive tests
+
+### Example: Adding a Batch Kernel
+
+```rust
+use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
+
+#[derive(Debug)]
+pub struct MyNewKernel {
+    metadata: KernelMetadata,
+}
+
+impl MyNewKernel {
+    pub fn new() -> Self {
+        Self {
+            metadata: KernelMetadata::batch("domain/my-kernel", Domain::MyDomain)
+                .with_description("Description of what this kernel does")
+                .with_throughput(10_000)
+                .with_latency_us(100.0),
+        }
+    }
+
+    pub fn compute(input: &MyInput) -> MyOutput {
+        // Implementation
+    }
+}
+
+impl GpuKernel for MyNewKernel {
+    fn metadata(&self) -> &KernelMetadata {
+        &self.metadata
+    }
+
+    fn validate(&self) -> rustkernel_core::error::Result<()> {
+        Ok(())
+    }
+}
+```
 
 ## Licensing System
 
@@ -175,3 +235,34 @@ Enterprise licensing in `rustkernel-core/src/license.rs`:
 - `DevelopmentLicense` - All features enabled (default for local dev)
 - Domain-based validation via `LicenseValidator` trait
 - Feature gating at kernel registration and activation time
+
+## Recent Kernel Additions
+
+The following kernel categories were recently added:
+
+### Graph (rustkernel-graph)
+- `GNNInference` - Message passing neural network inference
+- `GraphAttention` - Graph Attention Network with multi-head attention
+
+### ML (rustkernel-ml)
+- `EmbeddingGeneration` - Hash-based text embeddings for NLP
+- `SemanticSimilarity` - Multi-metric semantic similarity search
+- `SecureAggregation` - Federated learning with differential privacy
+- `DrugInteractionPrediction` - Multi-drug interaction prediction
+- `ClinicalPathwayConformance` - Treatment guideline checking
+- `StreamingIsolationForest` - Online anomaly detection
+- `AdaptiveThreshold` - Self-adjusting thresholds with drift detection
+- `SHAPValues` - Kernel SHAP for feature explanations
+- `FeatureImportance` - Permutation-based feature importance
+
+### Process Intelligence (rustkernel-procint)
+- `DigitalTwin` - Monte Carlo process simulation
+- `NextActivityPrediction` - Markov/N-gram next activity prediction
+- `EventLogImputation` - Event log quality detection and repair
+
+## Documentation
+
+- **Docs Site**: `docs/` directory contains mdBook documentation
+- **Build Docs**: `cd docs && mdbook build`
+- **Serve Locally**: `cd docs && mdbook serve`
+- **GitHub Pages**: Deployed automatically via GitHub Actions

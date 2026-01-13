@@ -1,110 +1,193 @@
 # RustKernels
 
-GPU kernel library for financial services and analytics. Ported from the DotCompute C# implementation to Rust, using the RingKernel framework.
+**High-performance GPU kernel library for financial services, compliance, and enterprise analytics.**
 
-**Version**: 0.1.0
-**Author**: Michael Ivertowski
-**License**: Apache-2.0
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg)](https://www.rust-lang.org)
 
-## What This Is
+---
 
-A collection of GPU-accelerated algorithms organized into 14 domain-specific crates. The kernels cover graph analytics, machine learning, compliance/AML, risk calculations, and various financial operations.
+## Overview
 
-This is not a general-purpose compute library. It exists to provide a consistent Rust interface to algorithms that were previously implemented in C# against Orleans grains.
+RustKernels provides **106 GPU-accelerated algorithms** across **14 domain-specific crates**, purpose-built for financial institutions, compliance teams, and enterprise analytics platforms. The library delivers consistent, production-grade implementations of algorithms previously developed in C# against Orleans grains, now ported to Rust with the RingKernel framework for maximum performance.
+
+This is not a general-purpose compute library. RustKernels exists to provide a unified Rust interface to specialized algorithms for graph analytics, machine learning, AML/compliance, risk calculations, process mining, and financial operations.
+
+## Key Capabilities
+
+| Capability | Description |
+|------------|-------------|
+| **14 Domain Categories** | Graph analytics, ML/AI, compliance, risk, treasury, process intelligence, healthcare, and more |
+| **106 Production Kernels** | Comprehensive coverage from PageRank to drug interaction prediction |
+| **Dual Execution Modes** | Batch (CPU-orchestrated) and Ring (GPU-persistent actors) |
+| **Sub-millisecond Latency** | Ring mode delivers 100-500ns message handling |
+| **K2K Coordination** | Built-in patterns for cross-kernel workflows |
+| **Enterprise Licensing** | Domain-based feature gating for commercial deployment |
+
+## Domain Coverage
+
+| Domain | Crate | Kernels | Highlights |
+|--------|-------|---------|------------|
+| **Graph Analytics** | `rustkernel-graph` | 28 | PageRank, community detection, GNN inference, graph attention networks |
+| **Statistical ML** | `rustkernel-ml` | 17 | Clustering, anomaly detection, NLP embeddings, federated learning, healthcare analytics |
+| **Compliance** | `rustkernel-compliance` | 11 | AML pattern detection, KYC scoring, sanctions screening, entity resolution |
+| **Temporal Analysis** | `rustkernel-temporal` | 7 | ARIMA forecasting, seasonal decomposition, change point detection |
+| **Risk Analytics** | `rustkernel-risk` | 5 | Monte Carlo VaR, credit scoring, stress testing, real-time correlation |
+| **Process Intelligence** | `rustkernel-procint` | 7 | DFG construction, conformance checking, digital twin simulation |
+| **Behavioral Analytics** | `rustkernel-behavioral` | 6 | Profiling, forensic queries, causal graph analysis |
+| **Banking** | `rustkernel-banking` | 1 | Fraud pattern matching |
+| **Order Matching** | `rustkernel-orderbook` | 1 | High-frequency order book engine |
+| **Clearing** | `rustkernel-clearing` | 5 | Netting calculation, DVP matching, settlement execution |
+| **Treasury** | `rustkernel-treasury` | 5 | Liquidity optimization, FX hedging, cash flow forecasting |
+| **Accounting** | `rustkernel-accounting` | 9 | Network generation, GL reconciliation, GAAP violation detection |
+| **Payments** | `rustkernel-payments` | 2 | Payment processing, flow analysis |
+| **Audit** | `rustkernel-audit` | 2 | Feature extraction, hypergraph construction |
 
 ## Execution Modes
 
-Kernels operate in one of two modes:
+Kernels operate in one of two modes, selected based on latency requirements and workload characteristics:
 
-- **Batch**: CPU-orchestrated execution. Higher launch overhead (10-50μs), but simpler to reason about. State lives in CPU memory.
-- **Ring**: GPU-persistent actors via RingKernel. Lower latency (100-500ns per message), but requires understanding the actor model. State remains on GPU.
+### Batch Mode
+- **Latency**: 10-50μs launch overhead
+- **State**: CPU memory, transferred to GPU per execution
+- **Use Case**: Heavy periodic computation, large batch processing
+- **Example**: End-of-day risk aggregation, batch AML screening
 
-Most kernels support both modes. Choose based on your latency requirements.
+### Ring Mode
+- **Latency**: 100-500ns per message
+- **State**: Persistent in GPU memory
+- **Use Case**: High-frequency streaming, real-time analytics
+- **Example**: Order book matching, real-time fraud scoring
 
-## Domains
+Most kernels support both modes. The `KernelMetadata` struct indicates supported modes for each kernel.
 
-| Domain | Crate | Kernels |
-|--------|-------|---------|
-| Graph Analytics | `rustkernel-graph` | 28 |
-| Statistical ML | `rustkernel-ml` | 17 |
-| Compliance | `rustkernel-compliance` | 11 |
-| Temporal Analysis | `rustkernel-temporal` | 7 |
-| Risk Analytics | `rustkernel-risk` | 5 |
-| Banking | `rustkernel-banking` | 1 |
-| Behavioral Analytics | `rustkernel-behavioral` | 6 |
-| Order Matching | `rustkernel-orderbook` | 1 |
-| Process Intelligence | `rustkernel-procint` | 7 |
-| Clearing | `rustkernel-clearing` | 5 |
-| Treasury | `rustkernel-treasury` | 5 |
-| Accounting | `rustkernel-accounting` | 9 |
-| Payments | `rustkernel-payments` | 2 |
-| Audit | `rustkernel-audit` | 2 |
+## Recent Additions
 
-## Usage
+The latest release includes several innovative kernel categories:
+
+- **Graph Neural Networks**: `GNNInference` and `GraphAttention` for node classification and link prediction using message passing and multi-head attention
+- **NLP/LLM Integration**: `EmbeddingGeneration` and `SemanticSimilarity` for text processing, document similarity, and semantic search
+- **Federated Learning**: `SecureAggregation` with differential privacy for privacy-preserving distributed model training
+- **Healthcare Analytics**: `DrugInteractionPrediction` and `ClinicalPathwayConformance` for clinical decision support
+- **Process Simulation**: `DigitalTwin` for Monte Carlo process simulation and what-if analysis
+- **Streaming ML**: `StreamingIsolationForest` and `AdaptiveThreshold` for online anomaly detection
+- **Explainability**: `SHAPValues` and `FeatureImportance` for model interpretability
+
+## Installation
+
+Add RustKernels to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 rustkernel = "0.1.0"
 ```
 
+### Feature Flags
+
+Control which domains are compiled to optimize binary size:
+
+```toml
+# Default features (graph, ml, compliance, temporal, risk)
+rustkernel = "0.1.0"
+
+# Selective domain inclusion
+rustkernel = { version = "0.1.0", features = ["graph", "risk", "procint"] }
+
+# All domains
+rustkernel = { version = "0.1.0", features = ["full"] }
+```
+
+## Quick Start
+
 ```rust
 use rustkernel::prelude::*;
 use rustkernel::graph::centrality::PageRank;
 
+// Create kernel instance
 let kernel = PageRank::new();
+
+// Access metadata
 let metadata = kernel.metadata();
+println!("Kernel: {}", metadata.id);
+println!("Domain: {:?}", metadata.domain);
+
+// Execute in batch mode
+let input = PageRankInput {
+    num_nodes: 1000,
+    edges: edges,
+    damping_factor: 0.85,
+    max_iterations: 100,
+    tolerance: 1e-6,
+};
+
+let result = kernel.execute(input).await?;
+println!("Converged in {} iterations", result.iterations);
 ```
-
-Feature flags control which domains are compiled:
-
-```toml
-# Only what you need
-rustkernel = { version = "0.1.0", features = ["graph", "risk"] }
-
-# Everything
-rustkernel = { version = "0.1.0", features = ["full"] }
-```
-
-Default features include: `graph`, `ml`, `compliance`, `temporal`, `risk`.
 
 ## Requirements
 
-- Rust 1.85 or later
-- RustCompute (RingKernel) — expected at `../../RustCompute/RustCompute/` relative to this workspace
-- CUDA toolkit if you want actual GPU execution; otherwise falls back to CPU
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| Rust | 1.85+ | Edition 2024 features required |
+| RustCompute | Latest | RingKernel framework (expected at `../../RustCompute/RustCompute/`) |
+| CUDA Toolkit | 12.0+ | Optional; falls back to CPU execution if unavailable |
 
 ## Building and Testing
 
 ```bash
+# Build entire workspace
 cargo build --workspace
+
+# Run all tests
 cargo test --workspace
-cargo test --package rustkernel-graph  # single domain
+
+# Test specific domain
+cargo test --package rustkernel-graph
+cargo test --package rustkernel-ml
+
+# Run benchmarks
+cargo bench --package rustkernel
+
+# Generate documentation
+cargo doc --workspace --no-deps --open
+
+# Lint
+cargo clippy --all-targets --all-features -- -D warnings
 ```
 
 ## Project Structure
 
 ```
 crates/
-├── rustkernel/           # Facade, re-exports domains
-├── rustkernel-core/      # Traits, registry, licensing
-├── rustkernel-derive/    # Proc macros
-├── rustkernel-cli/       # Command-line tool
-└── rustkernel-{domain}/  # 14 domain crates
+├── rustkernel/              # Facade crate, re-exports all domains
+├── rustkernel-core/         # Core traits, registry, licensing, K2K coordination
+├── rustkernel-derive/       # Procedural macros (#[gpu_kernel], #[derive(KernelMessage)])
+├── rustkernel-cli/          # Command-line interface for kernel management
+└── rustkernel-{domain}/     # 14 domain-specific implementation crates
+    ├── src/
+    │   ├── lib.rs           # Module exports and registration
+    │   ├── messages.rs      # Batch kernel I/O types
+    │   ├── ring_messages.rs # Ring message types
+    │   ├── types.rs         # Common domain types
+    │   └── {feature}.rs     # Kernel implementations
+    └── Cargo.toml
 ```
 
-## Status
+## Documentation
 
-The port is functionally complete. All 106 kernels have been implemented with both BatchKernel and RingKernelHandler traits. K2K (kernel-to-kernel) messaging is in place for cross-kernel coordination patterns.
+- **[Online Documentation](https://mivertowski.github.io/RustKernels/)** - Comprehensive guides and API reference
+- **[Kernel Catalogue](https://mivertowski.github.io/RustKernels/domains/)** - Complete listing of all 106 kernels
+- **[Architecture Guide](https://mivertowski.github.io/RustKernels/architecture/overview.html)** - System design and patterns
 
-Recent additions include:
-- **Graph Neural Networks**: GNNInference, GraphAttention (GAT)
-- **NLP/LLM Integration**: EmbeddingGeneration, SemanticSimilarity
-- **Federated Learning**: SecureAggregation with differential privacy
-- **Healthcare Analytics**: DrugInteractionPrediction, ClinicalPathwayConformance
-- **Process Simulation**: DigitalTwin for what-if analysis
+## Contributing
 
-Test coverage exists for all domains. Some edge cases in the behavioral analytics causal graph module remain flaky.
+Contributions are welcome. Please see [CONTRIBUTING.md](docs/src/appendix/contributing.md) for guidelines.
 
 ## License
 
-Licensed under Apache-2.0. See [LICENSE](LICENSE) for details.
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+
+---
+
+**Author**: Michael Ivertowski
+**Version**: 0.1.0

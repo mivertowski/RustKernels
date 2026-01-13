@@ -1,7 +1,7 @@
 # Process Intelligence
 
 **Crate**: `rustkernel-procint`
-**Kernels**: 4
+**Kernels**: 7
 **Feature**: `procint`
 
 Process mining and analysis kernels for business process optimization.
@@ -14,6 +14,9 @@ Process mining and analysis kernels for business process optimization.
 | PartialOrderAnalysis | `procint/partial-order-analysis` | Batch | Analyze process concurrency |
 | ConformanceChecking | `procint/conformance-checking` | Batch, Ring | Check process compliance |
 | OCPMPatternMatching | `procint/ocpm-pattern-matching` | Batch | Object-Centric Process Mining |
+| NextActivityPrediction | `procint/next-activity-prediction` | Batch | Predict next activity in process |
+| EventLogImputation | `procint/event-log-imputation` | Batch | Handle missing events in logs |
+| DigitalTwin | `procint/digital-twin` | Batch | Process simulation for what-if analysis |
 
 ---
 
@@ -177,6 +180,86 @@ for bottleneck in result.bottlenecks {
 
 ---
 
+### NextActivityPrediction
+
+Predicts the next activity in a process using sequence models.
+
+**ID**: `procint/next-activity-prediction`
+**Modes**: Batch
+
+#### Example
+
+```rust
+use rustkernel::procint::prediction::{NextActivityPrediction, PredictionConfig};
+
+let kernel = NextActivityPrediction::new();
+
+let config = PredictionConfig {
+    sequence_length: 10,
+    top_k: 3,
+};
+
+let predictions = kernel.predict(&event_sequence, &config)?;
+for (activity, prob) in predictions {
+    println!("{}: {:.1}%", activity, prob * 100.0);
+}
+```
+
+---
+
+### EventLogImputation
+
+Handles missing events, incorrect timestamps, and duplicates in event logs.
+
+**ID**: `procint/event-log-imputation`
+**Modes**: Batch
+
+#### Example
+
+```rust
+use rustkernel::procint::imputation::{EventLogImputation, ImputationConfig};
+
+let kernel = EventLogImputation::new();
+
+let config = ImputationConfig {
+    detect_missing: true,
+    fix_timestamps: true,
+    remove_duplicates: true,
+};
+
+let cleaned_log = kernel.impute(&raw_events, &config)?;
+println!("Fixed {} issues", cleaned_log.issues_fixed);
+```
+
+---
+
+### DigitalTwin
+
+Process simulation for what-if analysis and optimization using Monte Carlo methods.
+
+**ID**: `procint/digital-twin`
+**Modes**: Batch
+
+#### Example
+
+```rust
+use rustkernel::procint::simulation::{DigitalTwin, ProcessModel, SimulationConfig};
+
+let kernel = DigitalTwin::new();
+
+let config = SimulationConfig {
+    num_simulations: 1000,
+    time_horizon_hours: 24.0,
+    seed: Some(42),
+};
+
+let result = kernel.simulate(&process_model, &config)?;
+println!("Avg completion time: {:.2}h", result.avg_completion_time_hours);
+println!("Bottleneck: {}", result.bottlenecks[0].activity);
+```
+
+---
+
 ## Use Cases
 
 ### Process Discovery
@@ -193,6 +276,12 @@ for bottleneck in result.bottlenecks {
 
 ### Process Optimization
 
-- Identify bottlenecks
+- Identify bottlenecks using DigitalTwin simulation
 - Analyze resource utilization
-- Recommend improvements
+- Run what-if scenarios for capacity planning
+
+### Predictive Analytics
+
+- Predict next activities for proactive intervention
+- Clean and impute event logs for better analysis
+- Estimate remaining process time

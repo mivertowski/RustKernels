@@ -1,48 +1,50 @@
 # Kernel Catalogue
 
-RustKernels provides **82 GPU-accelerated kernels** across **14 domain-specific crates**. This catalogue organizes kernels by business domain.
+RustKernels provides **106 GPU-accelerated kernels** across **14 domain-specific crates**. This catalogue organizes kernels by business domain.
 
 ## Quick Reference
 
 | Domain | Crate | Kernels | Primary Use Cases |
 |--------|-------|---------|-------------------|
-| [Graph Analytics](graph-analytics.md) | `rustkernel-graph` | 21 | Centrality, community detection, similarity |
-| [Statistical ML](statistical-ml.md) | `rustkernel-ml` | 8 | Clustering, anomaly detection, regression |
-| [Compliance](compliance.md) | `rustkernel-compliance` | 9 | AML, KYC, sanctions screening |
+| [Graph Analytics](graph-analytics.md) | `rustkernel-graph` | 28 | Centrality, GNN inference, community detection |
+| [Statistical ML](statistical-ml.md) | `rustkernel-ml` | 17 | Clustering, NLP, federated learning, healthcare |
+| [Compliance](compliance.md) | `rustkernel-compliance` | 11 | AML, KYC, sanctions screening |
 | [Temporal Analysis](temporal-analysis.md) | `rustkernel-temporal` | 7 | Forecasting, seasonality, anomalies |
-| [Risk Analytics](risk-analytics.md) | `rustkernel-risk` | 4 | Credit, market, portfolio risk |
+| [Risk Analytics](risk-analytics.md) | `rustkernel-risk` | 5 | Credit, market, portfolio risk |
 | [Banking](banking.md) | `rustkernel-banking` | 1 | Fraud pattern matching |
 | [Behavioral Analytics](behavioral-analytics.md) | `rustkernel-behavioral` | 6 | Profiling, forensics, correlation |
 | [Order Matching](order-matching.md) | `rustkernel-orderbook` | 1 | Order book matching engine |
-| [Process Intelligence](process-intelligence.md) | `rustkernel-procint` | 4 | DFG, conformance checking |
+| [Process Intelligence](process-intelligence.md) | `rustkernel-procint` | 7 | DFG, conformance, digital twin simulation |
 | [Clearing](clearing.md) | `rustkernel-clearing` | 5 | Netting, settlement, DVP |
 | [Treasury](treasury.md) | `rustkernel-treasury` | 5 | Cash flow, FX, liquidity |
-| [Accounting](accounting.md) | `rustkernel-accounting` | 7 | Network generation, reconciliation |
+| [Accounting](accounting.md) | `rustkernel-accounting` | 9 | Network generation, reconciliation |
 | [Payments](payments.md) | `rustkernel-payments` | 2 | Payment processing, flow analysis |
 | [Audit](audit.md) | `rustkernel-audit` | 2 | Feature extraction, hypergraph |
 
 ## Kernels by Execution Mode
 
-### Batch-Only Kernels (19)
+### Batch-Only Kernels (35)
 
 Heavy computation kernels that only support batch mode:
 
-- Graph: BetweennessCentrality, FullGraphMetrics
-- ML: DBSCAN, HierarchicalClustering, IsolationForest
+- Graph: BetweennessCentrality, FullGraphMetrics, GNNInference, GraphAttention
+- ML: DBSCAN, HierarchicalClustering, IsolationForest, SecureAggregation, DrugInteractionPrediction
 - Compliance: EntityResolution, TransactionMonitoring
+- Process: NextActivityPrediction, EventLogImputation, DigitalTwin
 - And more...
 
 ### Ring-Only Kernels (0)
 
 Currently all Ring-capable kernels also support Batch mode.
 
-### Dual-Mode Kernels (63)
+### Dual-Mode Kernels (71)
 
 Kernels supporting both Batch and Ring execution:
 
 - All centrality measures (PageRank, Degree, Closeness, etc.)
 - All clustering algorithms (KMeans, Louvain, etc.)
 - All risk calculations (VaR, Credit Scoring, etc.)
+- Streaming ML (StreamingIsolationForest, AdaptiveThreshold)
 - And more...
 
 ## Using the Catalogue
