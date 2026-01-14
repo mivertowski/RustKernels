@@ -155,7 +155,8 @@ check_crate_published() {
     local crate=$1
     local version=$2
     # Check if crate version exists on crates.io
-    local response=$(curl -s "https://crates.io/api/v1/crates/$crate/$version" 2>/dev/null)
+    # Note: User-Agent header is required by crates.io API policy
+    local response=$(curl -s -H "User-Agent: rustkernel-publish-script/0.1.0" "https://crates.io/api/v1/crates/$crate/$version" 2>/dev/null)
     if echo "$response" | grep -q '"version"'; then
         return 0
     fi
