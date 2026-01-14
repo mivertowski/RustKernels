@@ -51,16 +51,15 @@ rustkernel-accounting = { path = "crates/rustkernel-accounting" }
 rustkernel-payments = { path = "crates/rustkernel-payments" }
 rustkernel-audit = { path = "crates/rustkernel-audit" }
 
-# RustCompute / RingKernel dependencies
-# Note: RustCompute is at /home/michael/DEV/Repos/RustCompute/RustCompute/
-ringkernel = { path = "../../RustCompute/RustCompute/crates/ringkernel" }
-ringkernel-core = { path = "../../RustCompute/RustCompute/crates/ringkernel-core" }
-ringkernel-derive = { path = "../../RustCompute/RustCompute/crates/ringkernel-derive" }
-ringkernel-cuda = { path = "../../RustCompute/RustCompute/crates/ringkernel-cuda" }
-ringkernel-wgpu = { path = "../../RustCompute/RustCompute/crates/ringkernel-wgpu" }
-ringkernel-cpu = { path = "../../RustCompute/RustCompute/crates/ringkernel-cpu" }
-ringkernel-ecosystem = { path = "../../RustCompute/RustCompute/crates/ringkernel-ecosystem" }
-ringkernel-codegen = { path = "../../RustCompute/RustCompute/crates/ringkernel-codegen" }
+# RustCompute / RingKernel dependencies (from crates.io)
+ringkernel = "0.2.0"
+ringkernel-core = "0.2.0"
+ringkernel-derive = "0.2.0"
+ringkernel-cuda = "0.2.0"
+ringkernel-wgpu = "0.2.0"
+ringkernel-cpu = "0.2.0"
+ringkernel-ecosystem = "0.2.0"
+ringkernel-codegen = "0.2.0"
 
 # Async runtime
 tokio = { version = "1.43", features = ["full"] }

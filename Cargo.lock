@@ -1425,6 +1425,8 @@ dependencies = [
 [[package]]
 name = "ringkernel"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1798af93d404b3a2385d0cdc66aaf9a22f8775c70d419b1d48d4763b98d5040c"
 dependencies = [
  "async-trait",
  "cfg-if",
@@ -1442,6 +1444,8 @@ dependencies = [
 [[package]]
 name = "ringkernel-codegen"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d9cf673dca75e299400bb3d1b68ed6788e059944ff7f81c516f7bb3865cd5ce"
 dependencies = [
  "handlebars",
  "proc-macro2",
@@ -1455,6 +1459,8 @@ dependencies = [
 [[package]]
 name = "ringkernel-core"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd0e87bb9d2f4910aacdc9769a05868da138270f9c9047cd537bdf88834d00c0"
 dependencies = [
  "async-trait",
  "atomic",
@@ -1476,6 +1482,8 @@ dependencies = [
 [[package]]
 name = "ringkernel-cpu"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2be135c199477eee466dca268b7003219dbbb68e74000f5ee3956dc87f581341"
 dependencies = [
  "async-trait",
  "crossbeam",
@@ -1493,6 +1501,8 @@ dependencies = [
 [[package]]
 name = "ringkernel-derive"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e1ed6a8a4098044a2ea9b8219f3438956bce1aa7da10ebffd5a15f096ba749a"
 dependencies = [
  "darling",
  "proc-macro2",
