@@ -24,52 +24,12 @@ use rustkernel_core::{
     kernel::KernelMetadata,
     traits::{BatchKernel, GpuKernel, RingKernelHandler},
 };
-use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::time::Instant;
 
 // ============================================================================
 // PageRank Kernel
 // ============================================================================
-
-/// PageRank operation type.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum PageRankOp {
-    /// Query the current PageRank score for a node.
-    Query,
-    /// Perform one iteration of PageRank.
-    Iterate,
-    /// Reset all scores.
-    Reset,
-    /// Initialize with a graph.
-    Initialize,
-}
-
-/// PageRank request.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PageRankRequest {
-    /// Node ID to query (for Query operation).
-    pub node_id: Option<u64>,
-    /// Operation type.
-    pub operation: PageRankOp,
-    /// Graph data (for Initialize operation).
-    pub graph: Option<CsrGraph>,
-    /// Damping factor (default: 0.85).
-    pub damping: Option<f32>,
-}
-
-/// PageRank response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PageRankResponse {
-    /// Score for the queried node.
-    pub score: Option<f64>,
-    /// Whether the algorithm has converged.
-    pub converged: bool,
-    /// Current iteration count.
-    pub iteration: u32,
-    /// Full result (for Query after convergence).
-    pub result: Option<CentralityResult>,
-}
 
 /// PageRank kernel state.
 #[derive(Debug, Clone, Default)]

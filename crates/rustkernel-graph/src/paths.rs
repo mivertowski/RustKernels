@@ -8,7 +8,7 @@
 use crate::types::CsrGraph;
 use rustkernel_core::{domain::Domain, kernel::KernelMetadata, traits::GpuKernel};
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap, VecDeque};
+use std::collections::{BinaryHeap, VecDeque};
 
 // ============================================================================
 // Shortest Path Results

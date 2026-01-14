@@ -190,7 +190,7 @@ impl SHAPValues {
 
         // Sample random coalitions
         for _ in 2..n_samples {
-            let coalition: Vec<bool> = (0..n_features).map(|_| rng.gen_bool(0.5)).collect();
+            let coalition: Vec<bool> = (0..n_features).map(|_| rng.random_bool(0.5)).collect();
 
             let z: usize = coalition.iter().filter(|&&b| b).count();
             let weight = Self::kernel_shap_weight(n_features, z);

@@ -196,7 +196,6 @@ impl MotifDetection {
         let n = graph.num_nodes;
         let mut triangles = 0u64;
         let mut wedges = 0u64;
-        let mut edges = 0u64;
 
         // Count triangles and wedges
         for u in 0..n {
@@ -226,7 +225,7 @@ impl MotifDetection {
         triangles /= 3;
 
         // Edges count
-        edges = graph.num_edges as u64 / 2; // Undirected edges
+        let edges = graph.num_edges as u64 / 2; // Undirected edges
 
         let mut motif_counts = std::collections::HashMap::new();
         motif_counts.insert("triangles".to_string(), triangles);

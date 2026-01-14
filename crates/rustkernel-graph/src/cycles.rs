@@ -86,8 +86,6 @@ impl ShortCycleParticipation {
 
         // For each edge, check if reciprocal exists
         for u in 0..n {
-            let neighbors_u: HashSet<u64> = graph.neighbors(u as u64).iter().copied().collect();
-
             for &v in graph.neighbors(u as u64) {
                 // Check if edge v -> u exists (reciprocal)
                 if graph.neighbors(v).contains(&(u as u64)) {
