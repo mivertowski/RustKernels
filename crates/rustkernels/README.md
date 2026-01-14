@@ -1,8 +1,8 @@
-# rustkernel
+# rustkernels
 
-[![Crates.io](https://img.shields.io/crates/v/rustkernel.svg)](https://crates.io/crates/rustkernel)
-[![Documentation](https://docs.rs/rustkernel/badge.svg)](https://docs.rs/rustkernel)
-[![License](https://img.shields.io/crates/l/rustkernel.svg)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/rustkernels.svg)](https://crates.io/crates/rustkernels)
+[![Documentation](https://docs.rs/rustkernels/badge.svg)](https://docs.rs/rustkernels)
+[![License](https://img.shields.io/crates/l/rustkernels.svg)](LICENSE)
 
 GPU-accelerated kernel library for financial services, analytics, and compliance workloads.
 
@@ -43,19 +43,19 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustkernel = "0.1.0"
+rustkernels = "0.1.1"
 ```
 
 ## Quick Start
 
 ```rust
-use rustkernel::prelude::*;
+use rustkernels::prelude::*;
 
 // Create a kernel registry
 let registry = KernelRegistry::new();
 
 // Register all kernels
-rustkernel::register_all(&registry)?;
+rustkernels::register_all(&registry)?;
 
 // Use a specific kernel
 let pagerank = PageRank::new();

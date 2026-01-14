@@ -1,5 +1,5 @@
 [package]
-name = "rustkernel"
+name = "rustkernels"
 description = "GPU-accelerated kernel library for financial services, analytics, and compliance workloads"
 version.workspace = true
 edition.workspace = true

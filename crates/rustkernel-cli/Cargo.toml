@@ -14,7 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 rustkernel-core = { workspace = true }
-rustkernel = { workspace = true, features = ["full"] }
+rustkernels = { workspace = true, features = ["full"] }
 
 tokio = { workspace = true }
 clap = { workspace = true }

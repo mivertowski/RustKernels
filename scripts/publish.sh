@@ -18,7 +18,7 @@
 #   Tier 1 (no deps):     rustkernel-core
 #   Tier 2 (core deps):   rustkernel-derive
 #   Tier 3 (domain):      All 14 domain crates (graph, ml, compliance, etc.)
-#   Tier 4 (facade):      rustkernel
+#   Tier 4 (facade):      rustkernels
 #   Tier 5 (cli):         rustkernel-cli
 #
 
@@ -116,10 +116,10 @@ CRATES=(
     "rustkernel-audit"       # depends on: core
 
     # Tier 4: Facade crate (re-exports all domains)
-    "rustkernel"             # depends on: core, all domain crates
+    "rustkernels"            # depends on: core, all domain crates
 
     # Tier 5: CLI (depends on main crate)
-    "rustkernel-cli"         # depends on: rustkernel, core
+    "rustkernel-cli"         # depends on: rustkernels, core
 )
 
 # Tier 1 crates can be verified independently
@@ -359,7 +359,7 @@ if [ ${#PENDING_CRATES[@]} -eq 0 ]; then
     print_success "All crates are already published at version $VERSION!"
     echo ""
     echo "View your crates at:"
-    echo "  https://crates.io/crates/rustkernel"
+    echo "  https://crates.io/crates/rustkernels"
     exit 0
 fi
 
@@ -495,7 +495,7 @@ if [ $failed -eq 0 ]; then
             print_success "All crates are now published!"
             echo ""
             echo "View your crates at:"
-            echo "  https://crates.io/crates/rustkernel"
+            echo "  https://crates.io/crates/rustkernels"
             echo "  https://crates.io/crates/rustkernel-core"
             echo "  https://crates.io/crates/rustkernel-graph"
         else

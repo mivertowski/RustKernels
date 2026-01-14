@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/rustkernel",
+    "crates/rustkernels",
     "crates/rustkernel-core",
     "crates/rustkernel-derive",
     "crates/rustkernel-graph",
@@ -33,7 +33,7 @@ categories = ["science", "mathematics", "finance"]
 
 [workspace.dependencies]
 # Internal crates (version required for crates.io publishing)
-rustkernel = { version = "0.1.1", path = "crates/rustkernel" }
+rustkernels = { version = "0.1.1", path = "crates/rustkernels" }
 rustkernel-core = { version = "0.1.1", path = "crates/rustkernel-core" }
 rustkernel-derive = { version = "0.1.1", path = "crates/rustkernel-derive" }
 rustkernel-graph = { version = "0.1.1", path = "crates/rustkernel-graph" }

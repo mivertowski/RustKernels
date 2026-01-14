@@ -3,7 +3,7 @@
 //! Provides commands for kernel management, discovery, and validation.
 
 use clap::{Parser, Subcommand};
-use rustkernel::catalog::{DomainInfo, domains, enabled_domains, total_kernel_count};
+use rustkernels::catalog::{DomainInfo, domains, enabled_domains, total_kernel_count};
 use rustkernel_core::{domain::Domain, kernel::KernelMode, registry::KernelRegistry};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -826,10 +826,10 @@ fn cmd_check(all_backends: bool) -> anyhow::Result<()> {
     println!("║                  System Compatibility Check                      ║");
     println!("╚══════════════════════════════════════════════════════════════════╝\n");
 
-    println!("RustKernels Version: {}", rustkernel::version::VERSION);
+    println!("RustKernels Version: {}", rustkernels::version::VERSION);
     println!(
         "Min RingKernel:      {}",
-        rustkernel::version::MIN_RINGKERNEL_VERSION
+        rustkernels::version::MIN_RINGKERNEL_VERSION
     );
     println!();
 
