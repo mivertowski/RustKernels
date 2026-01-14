@@ -32,24 +32,24 @@ keywords = ["gpu", "kernels", "cuda", "compute", "finance"]
 categories = ["science", "mathematics", "finance"]
 
 [workspace.dependencies]
-# Internal crates
-rustkernel = { path = "crates/rustkernel" }
-rustkernel-core = { path = "crates/rustkernel-core" }
-rustkernel-derive = { path = "crates/rustkernel-derive" }
-rustkernel-graph = { path = "crates/rustkernel-graph" }
-rustkernel-ml = { path = "crates/rustkernel-ml" }
-rustkernel-compliance = { path = "crates/rustkernel-compliance" }
-rustkernel-temporal = { path = "crates/rustkernel-temporal" }
-rustkernel-risk = { path = "crates/rustkernel-risk" }
-rustkernel-banking = { path = "crates/rustkernel-banking" }
-rustkernel-behavioral = { path = "crates/rustkernel-behavioral" }
-rustkernel-orderbook = { path = "crates/rustkernel-orderbook" }
-rustkernel-procint = { path = "crates/rustkernel-procint" }
-rustkernel-clearing = { path = "crates/rustkernel-clearing" }
-rustkernel-treasury = { path = "crates/rustkernel-treasury" }
-rustkernel-accounting = { path = "crates/rustkernel-accounting" }
-rustkernel-payments = { path = "crates/rustkernel-payments" }
-rustkernel-audit = { path = "crates/rustkernel-audit" }
+# Internal crates (version required for crates.io publishing)
+rustkernel = { version = "0.1.0", path = "crates/rustkernel" }
+rustkernel-core = { version = "0.1.0", path = "crates/rustkernel-core" }
+rustkernel-derive = { version = "0.1.0", path = "crates/rustkernel-derive" }
+rustkernel-graph = { version = "0.1.0", path = "crates/rustkernel-graph" }
+rustkernel-ml = { version = "0.1.0", path = "crates/rustkernel-ml" }
+rustkernel-compliance = { version = "0.1.0", path = "crates/rustkernel-compliance" }
+rustkernel-temporal = { version = "0.1.0", path = "crates/rustkernel-temporal" }
+rustkernel-risk = { version = "0.1.0", path = "crates/rustkernel-risk" }
+rustkernel-banking = { version = "0.1.0", path = "crates/rustkernel-banking" }
+rustkernel-behavioral = { version = "0.1.0", path = "crates/rustkernel-behavioral" }
+rustkernel-orderbook = { version = "0.1.0", path = "crates/rustkernel-orderbook" }
+rustkernel-procint = { version = "0.1.0", path = "crates/rustkernel-procint" }
+rustkernel-clearing = { version = "0.1.0", path = "crates/rustkernel-clearing" }
+rustkernel-treasury = { version = "0.1.0", path = "crates/rustkernel-treasury" }
+rustkernel-accounting = { version = "0.1.0", path = "crates/rustkernel-accounting" }
+rustkernel-payments = { version = "0.1.0", path = "crates/rustkernel-payments" }
+rustkernel-audit = { version = "0.1.0", path = "crates/rustkernel-audit" }
 
 # RustCompute / RingKernel dependencies (from crates.io)
 ringkernel = "0.2.0"
