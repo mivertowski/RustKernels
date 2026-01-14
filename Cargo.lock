@@ -1554,7 +1554,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "criterion",
@@ -1582,7 +1582,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-accounting"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "ringkernel-core",
@@ -1596,7 +1596,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-audit"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "ringkernel-core",
@@ -1610,7 +1610,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-banking"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "ringkernel-core",
@@ -1624,7 +1624,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-behavioral"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "ringkernel-core",
@@ -1638,7 +1638,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-clearing"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "ringkernel-core",
@@ -1652,7 +1652,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1665,7 +1665,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-compliance"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "inventory",
@@ -1682,7 +1682,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "actix",
  "async-trait",
@@ -1704,7 +1704,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-derive"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1716,7 +1716,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-graph"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "inventory",
@@ -1736,7 +1736,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-ml"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "inventory",
@@ -1758,7 +1758,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-orderbook"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "inventory",
@@ -1775,7 +1775,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-payments"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "ringkernel-core",
@@ -1789,7 +1789,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-procint"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "rand",
@@ -1804,7 +1804,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-risk"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "inventory",
@@ -1821,7 +1821,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-temporal"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "inventory",
@@ -1838,7 +1838,7 @@ dependencies = [
 
 [[package]]
 name = "rustkernel-treasury"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "ringkernel-core",
