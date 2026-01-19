@@ -1,0 +1,60 @@
+[package]
+name = "rustkernel-ecosystem"
+description = "Web framework integrations for RustKernels: Axum REST, Tower middleware, gRPC, Actix actors"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+
+# Web framework integrations
+axum = ["dep:axum", "dep:axum-extra", "dep:tower-http"]
+tower = ["dep:tower"]
+grpc = ["dep:tonic", "dep:prost"]
+actix = ["dep:actix", "dep:actix-rt"]
+
+# Full feature set
+full = ["axum", "tower", "grpc"]
+
+[dependencies]
+rustkernel-core = { workspace = true }
+ringkernel-core = { workspace = true }
+
+# Core dependencies
+tokio = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Axum REST (optional)
+axum = { workspace = true, optional = true }
+axum-extra = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true }
+
+# Tower middleware (optional)
+tower = { workspace = true, optional = true }
+
+# gRPC (optional)
+tonic = { workspace = true, optional = true }
+prost = { workspace = true, optional = true }
+
+# Actix (optional)
+actix = { workspace = true, optional = true }
+actix-rt = { workspace = true, optional = true }
+
+# HTTP types
+http = { workspace = true }
+http-body-util = { workspace = true }
+bytes = { workspace = true }
+
+# UUID for request IDs
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }

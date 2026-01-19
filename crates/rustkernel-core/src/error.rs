@@ -117,6 +117,20 @@ pub enum KernelError {
     /// K2K (Kernel-to-Kernel) communication error.
     #[error("K2K error: {0}")]
     K2KError(String),
+
+    // Enterprise errors (0.3.1)
+
+    /// Unauthorized access.
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
+
+    /// Resource exhausted (quota exceeded, rate limited, etc.).
+    #[error("Resource exhausted: {0}")]
+    ResourceExhausted(String),
+
+    /// Service unavailable (circuit open, degraded, etc.).
+    #[error("Service unavailable: {0}")]
+    ServiceUnavailable(String),
 }
 
 impl KernelError {
