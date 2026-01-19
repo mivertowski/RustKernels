@@ -18,6 +18,16 @@
 
 ---
 
+# Enterprise Features (0.2.0)
+
+- [Security](enterprise/security.md)
+- [Observability](enterprise/observability.md)
+- [Resilience](enterprise/resilience.md)
+- [Runtime](enterprise/runtime.md)
+- [Service Deployment](enterprise/ecosystem.md)
+
+---
+
 # Kernel Catalogue
 
 - [Domain Overview](domains/README.md)

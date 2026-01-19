@@ -23,7 +23,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Michael Ivertowski"]
@@ -34,23 +34,23 @@ categories = ["science", "mathematics", "finance"]
 
 [workspace.dependencies]
 # Internal crates (version required for crates.io publishing)
-rustkernels = { version = "0.1.1", path = "crates/rustkernels" }
-rustkernel-core = { version = "0.1.1", path = "crates/rustkernel-core" }
-rustkernel-derive = { version = "0.1.1", path = "crates/rustkernel-derive" }
-rustkernel-graph = { version = "0.1.1", path = "crates/rustkernel-graph" }
-rustkernel-ml = { version = "0.1.1", path = "crates/rustkernel-ml" }
-rustkernel-compliance = { version = "0.1.1", path = "crates/rustkernel-compliance" }
-rustkernel-temporal = { version = "0.1.1", path = "crates/rustkernel-temporal" }
-rustkernel-risk = { version = "0.1.1", path = "crates/rustkernel-risk" }
-rustkernel-banking = { version = "0.1.1", path = "crates/rustkernel-banking" }
-rustkernel-behavioral = { version = "0.1.1", path = "crates/rustkernel-behavioral" }
-rustkernel-orderbook = { version = "0.1.1", path = "crates/rustkernel-orderbook" }
-rustkernel-procint = { version = "0.1.1", path = "crates/rustkernel-procint" }
-rustkernel-clearing = { version = "0.1.1", path = "crates/rustkernel-clearing" }
-rustkernel-treasury = { version = "0.1.1", path = "crates/rustkernel-treasury" }
-rustkernel-accounting = { version = "0.1.1", path = "crates/rustkernel-accounting" }
-rustkernel-payments = { version = "0.1.1", path = "crates/rustkernel-payments" }
-rustkernel-audit = { version = "0.1.1", path = "crates/rustkernel-audit" }
+rustkernels = { version = "0.2.0", path = "crates/rustkernels" }
+rustkernel-core = { version = "0.2.0", path = "crates/rustkernel-core" }
+rustkernel-derive = { version = "0.2.0", path = "crates/rustkernel-derive" }
+rustkernel-graph = { version = "0.2.0", path = "crates/rustkernel-graph" }
+rustkernel-ml = { version = "0.2.0", path = "crates/rustkernel-ml" }
+rustkernel-compliance = { version = "0.2.0", path = "crates/rustkernel-compliance" }
+rustkernel-temporal = { version = "0.2.0", path = "crates/rustkernel-temporal" }
+rustkernel-risk = { version = "0.2.0", path = "crates/rustkernel-risk" }
+rustkernel-banking = { version = "0.2.0", path = "crates/rustkernel-banking" }
+rustkernel-behavioral = { version = "0.2.0", path = "crates/rustkernel-behavioral" }
+rustkernel-orderbook = { version = "0.2.0", path = "crates/rustkernel-orderbook" }
+rustkernel-procint = { version = "0.2.0", path = "crates/rustkernel-procint" }
+rustkernel-clearing = { version = "0.2.0", path = "crates/rustkernel-clearing" }
+rustkernel-treasury = { version = "0.2.0", path = "crates/rustkernel-treasury" }
+rustkernel-accounting = { version = "0.2.0", path = "crates/rustkernel-accounting" }
+rustkernel-payments = { version = "0.2.0", path = "crates/rustkernel-payments" }
+rustkernel-audit = { version = "0.2.0", path = "crates/rustkernel-audit" }
 
 # RustCompute / RingKernel dependencies (from crates.io) - 0.3.1 with enterprise features
 ringkernel = "0.3.1"

@@ -5,6 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg)](https://www.rust-lang.org)
 [![Documentation](https://img.shields.io/badge/docs-online-green.svg)](https://mivertowski.github.io/RustKernels/)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](CHANGELOG.md)
 
 ---
 
@@ -41,6 +42,10 @@ RustKernels provides **106 GPU-accelerated algorithms** across **14 domain-speci
 | Production reliability concerns | Ported from battle-tested C# implementations |
 | GPU availability uncertainty | Automatic CPU fallback when CUDA unavailable |
 | Regulatory explainability | SHAP values and feature importance kernels |
+| Enterprise security requirements | Auth, RBAC, multi-tenancy, secrets management |
+| Production observability | Metrics, tracing, logging, alerting |
+| Fault tolerance | Circuit breakers, retry, health checks |
+| Service deployment | REST, gRPC, Actix actor integrations |
 
 ---
 
@@ -194,13 +199,71 @@ The latest release introduces innovative kernel categories:
 
 ---
 
+## Enterprise Features (0.2.0)
+
+RustKernels 0.2.0 introduces production-ready enterprise capabilities:
+
+### Security
+```rust
+use rustkernel_core::security::{SecurityContext, Role, KernelPermission};
+
+let ctx = SecurityContext::new(user_id, tenant_id)
+    .with_roles(vec![Role::KernelExecutor])
+    .with_permissions(vec![KernelPermission::Execute]);
+
+// Execute with security context
+kernel.execute_with_context(&ctx, input).await?;
+```
+
+### Resilience
+```rust
+use rustkernel_core::resilience::{CircuitBreaker, CircuitBreakerConfig};
+
+let cb = CircuitBreaker::new(CircuitBreakerConfig {
+    failure_threshold: 5,
+    success_threshold: 2,
+    timeout: Duration::from_secs(30),
+    ..Default::default()
+});
+
+// Execute with circuit breaker protection
+cb.call(|| kernel.execute(input)).await?;
+```
+
+### Production Configuration
+```rust
+use rustkernel_core::config::ProductionConfig;
+
+// Load from environment
+let config = ProductionConfig::from_env()?;
+
+// Or use presets
+let config = ProductionConfig::production();
+
+// Validate before use
+config.validate()?;
+```
+
+### Service Deployment
+```rust
+use rustkernel_ecosystem::axum::{KernelRouter, RouterConfig};
+
+let router = KernelRouter::new(registry, RouterConfig::default());
+let app = router.into_router();
+
+// Endpoints: /kernels, /execute, /health, /metrics
+axum::serve(listener, app).await?;
+```
+
+---
+
 ## Installation
 
 Add RustKernels to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustkernel = "0.1.0"
+rustkernels = "0.2.0"
 ```
 
 ### Feature Flags
@@ -209,13 +272,16 @@ Control which domains are compiled to optimize binary size:
 
 ```toml
 # Default features (graph, ml, compliance, temporal, risk)
-rustkernel = "0.1.0"
+rustkernels = "0.2.0"
 
 # Selective domain inclusion
-rustkernel = { version = "0.1.0", features = ["graph", "compliance", "procint"] }
+rustkernels = { version = "0.2.0", features = ["graph", "compliance", "procint"] }
 
 # All domains
-rustkernel = { version = "0.1.0", features = ["full"] }
+rustkernels = { version = "0.2.0", features = ["full"] }
+
+# Enterprise ecosystem (REST/gRPC service)
+rustkernel-ecosystem = { version = "0.2.0", features = ["axum", "grpc"] }
 ```
 
 ---
@@ -262,15 +328,18 @@ async fn main() -> Result<()> {
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         rustkernel                               │
+│                         rustkernels                              │
 │                    (facade crate, re-exports)                    │
 ├─────────────────────────────────────────────────────────────────┤
-│  rustkernel-core          │  rustkernel-derive                  │
-│  - GpuKernel trait        │  - #[gpu_kernel] macro              │
-│  - BatchKernel trait      │  - #[derive(RingMessage)]           │
-│  - RingKernelHandler      │                                     │
-│  - K2K coordination       │                                     │
-│  - License validation     │                                     │
+│  rustkernel-core (0.2.0)     │  rustkernel-ecosystem (0.2.0)    │
+│  ├── traits (Gpu/Batch/Ring) │  ├── axum (REST API)             │
+│  ├── security (auth, RBAC)   │  ├── tower (middleware)          │
+│  ├── observability (metrics) │  ├── grpc (Tonic server)         │
+│  ├── resilience (circuit)    │  └── actix (actors)              │
+│  ├── runtime (lifecycle)     ├──────────────────────────────────┤
+│  ├── memory (pooling)        │  rustkernel-derive               │
+│  ├── config (production)     │  - #[gpu_kernel] macro           │
+│  └── k2k (coordination)      │  - #[derive(RingMessage)]        │
 ├─────────────────────────────────────────────────────────────────┤
 │                    Domain Crates (14)                            │
 │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐   │
@@ -286,7 +355,7 @@ async fn main() -> Result<()> {
 │  │   (1)   │ │   (1)   │ │   (2)   │ │   (2)   │               │
 │  └─────────┘ └─────────┘ └─────────┘ └─────────┘               │
 ├─────────────────────────────────────────────────────────────────┤
-│                    RustCompute / RingKernel                      │
+│                    RustCompute / RingKernel 0.3.1                │
 │                    (GPU execution framework)                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -349,5 +418,6 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for detai
 ---
 
 **Author**: Michael Ivertowski
-**Version**: 0.1.0
+**Version**: 0.2.0
 **Kernels**: 106 across 14 domains
+**Crates**: 19 (including rustkernel-ecosystem)
