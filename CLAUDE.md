@@ -8,7 +8,9 @@ RustKernels is a GPU-accelerated kernel library for financial services, analytic
 
 **Current State**: 106 kernels across 14 domain crates, fully implemented with both Batch and Ring execution modes.
 
-**Key dependency**: RustCompute is located at `../../RustCompute/RustCompute/` (relative path from workspace root).
+**Version**: 0.3.1 - Enterprise-ready with security, observability, resilience, and service APIs.
+
+**Key dependency**: RustCompute (RingKernel) 0.3.1 - located at `../../RustCompute/RustCompute/` (relative path from workspace root).
 
 ## Build Commands
 
@@ -56,11 +58,12 @@ cargo bench --package rustkernel
 
 ### Workspace Structure
 
-18 crates organized by concern:
+19 crates organized by concern:
 
 - **`rustkernel`** - Facade crate, re-exports all domains
-- **`rustkernel-core`** - Core traits, registry, licensing, K2K coordination
+- **`rustkernel-core`** - Core traits, registry, licensing, K2K coordination, enterprise modules
 - **`rustkernel-derive`** - Proc macros (`#[gpu_kernel]`, `#[derive(KernelMessage)]`)
+- **`rustkernel-ecosystem`** - REST/gRPC service integrations (Axum, Tower, Tonic, Actix)
 - **`rustkernel-cli`** - CLI tool for kernel management
 - **14 domain crates** - One per business domain
 
@@ -104,17 +107,24 @@ Two execution modes with different latency/overhead tradeoffs:
 trait GpuKernel: Send + Sync + Debug {
     fn metadata(&self) -> &KernelMetadata;
     fn validate(&self) -> Result<()>;
+    fn health_check(&self) -> HealthStatus { HealthStatus::Healthy }
+    async fn shutdown(&self) -> Result<()> { Ok(()) }
+    fn refresh_config(&mut self, config: &KernelConfig) -> Result<()> { Ok(()) }
 }
 
 // Batch execution
 trait BatchKernel<I, O>: GpuKernel {
     async fn execute(&self, input: I) -> Result<O>;
+    // With auth/tenant/tracing context
+    async fn execute_with_context(&self, ctx: &ExecutionContext, input: I) -> Result<O>;
 }
 
 // Ring (persistent actor) execution
 trait RingKernelHandler<M, R>: GpuKernel
 where M: RingMessage, R: RingMessage {
     async fn handle(&self, ctx: &mut RingContext, msg: M) -> Result<R>;
+    // With security context
+    async fn handle_secure(&self, ctx: &mut SecureRingContext, msg: M) -> Result<R>;
 }
 
 // Multi-pass algorithms (PageRank, K-Means)
@@ -122,6 +132,19 @@ trait IterativeKernel<S, I, O>: GpuKernel {
     fn initial_state(&self, input: &I) -> S;
     async fn iterate(&self, state: &mut S, input: &I) -> Result<IterationResult<O>>;
     fn converged(&self, state: &S, threshold: f64) -> bool;
+}
+
+// Checkpointable for recovery
+trait CheckpointableKernel: GpuKernel {
+    type Checkpoint: Serialize + DeserializeOwned;
+    async fn checkpoint(&self) -> Result<Self::Checkpoint>;
+    async fn restore(&mut self, checkpoint: Self::Checkpoint) -> Result<()>;
+}
+
+// Graceful degradation
+trait DegradableKernel: GpuKernel {
+    fn degrade(&mut self, level: DegradationLevel);
+    fn current_degradation(&self) -> DegradationLevel;
 }
 ```
 
@@ -259,6 +282,122 @@ The following kernel categories were recently added:
 - `DigitalTwin` - Monte Carlo process simulation
 - `NextActivityPrediction` - Markov/N-gram next activity prediction
 - `EventLogImputation` - Event log quality detection and repair
+
+## Enterprise Modules (0.3.1)
+
+### Security (`rustkernel-core/src/security/`)
+
+- **Authentication**: JWT and API key validation via `AuthConfig`
+- **RBAC**: Role-based access control with `KernelPermission` (Execute, Configure, Monitor, Admin)
+- **Multi-tenancy**: Tenant isolation with `TenantId` and resource quotas
+- **Secrets**: `SecretStore` abstraction for credential management
+
+```rust
+use rustkernel_core::security::{SecurityContext, AuthConfig, Role};
+
+let ctx = SecurityContext::new(user_id, tenant_id)
+    .with_roles(vec![Role::KernelExecutor])
+    .with_permissions(vec![KernelPermission::Execute]);
+```
+
+### Observability (`rustkernel-core/src/observability/`)
+
+- **Metrics**: Prometheus-compatible metrics via `KernelMetrics`
+- **Tracing**: Distributed tracing with OTLP export via `KernelTracing`
+- **Logging**: Structured logging with kernel context
+- **Alerting**: SLO-based alerts with `AlertRule`
+
+```rust
+use rustkernel_core::observability::{ObservabilityConfig, MetricsConfig};
+
+let config = ObservabilityConfig::production()
+    .with_metrics(MetricsConfig::default())
+    .with_tracing_enabled(true);
+```
+
+### Resilience (`rustkernel-core/src/resilience/`)
+
+- **Circuit Breaker**: Failure isolation with `CircuitBreaker`
+- **Retry**: Exponential backoff with jitter via `RetryConfig`
+- **Timeouts**: Deadline propagation with `DeadlineContext`
+- **Health Checks**: Liveness/readiness probes via `HealthProbe`
+
+```rust
+use rustkernel_core::resilience::{CircuitBreaker, CircuitBreakerConfig};
+
+let cb = CircuitBreaker::new(CircuitBreakerConfig {
+    failure_threshold: 5,
+    success_threshold: 2,
+    timeout: Duration::from_secs(30),
+    ..Default::default()
+});
+```
+
+### Runtime (`rustkernel-core/src/runtime/`)
+
+- **Lifecycle**: State machine with `LifecycleState` (Starting, Running, Draining, Stopped)
+- **Configuration**: `RuntimeConfig` with presets (development, production, high-performance)
+- **Graceful Shutdown**: Drain period and connection tracking
+
+```rust
+use rustkernel_core::runtime::{RuntimeBuilder, RuntimePreset};
+
+let runtime = RuntimeBuilder::new()
+    .preset(RuntimePreset::Production)
+    .with_graceful_shutdown(Duration::from_secs(30))
+    .build()?;
+```
+
+### Memory (`rustkernel-core/src/memory/`)
+
+- **Pooling**: Size-stratified memory pools via `KernelMemoryManager`
+- **Pressure Handling**: Configurable thresholds with `PressureLevel`
+- **Reductions**: Multi-phase GPU reductions via `InterPhaseReduction`
+- **Analytics Contexts**: Workload-specific buffers with `AnalyticsContextManager`
+
+```rust
+use rustkernel_core::memory::{MemoryConfig, KernelMemoryManager};
+
+let config = MemoryConfig::high_performance();
+let manager = KernelMemoryManager::new(config);
+```
+
+### Production Config (`rustkernel-core/src/config/`)
+
+Unified configuration for production deployments:
+
+```rust
+use rustkernel_core::config::{ProductionConfig, ProductionConfigBuilder};
+
+// From environment
+let config = ProductionConfig::from_env()?;
+
+// From file
+let config = ProductionConfig::from_file("config/production.toml")?;
+
+// Using builder
+let config = ProductionConfigBuilder::production()
+    .service_name("my-service")
+    .environment("staging")
+    .build()?;
+```
+
+### Ecosystem (`rustkernel-ecosystem/`)
+
+Service integrations for deploying RustKernels as a standalone service:
+
+- **Axum**: REST API with `KernelRouter` (endpoints: `/kernels`, `/execute`, `/health`, `/metrics`)
+- **Tower**: Middleware (`TimeoutLayer`, `RateLimiterLayer`, `KernelService`)
+- **Tonic**: gRPC server via `KernelGrpcServer`
+- **Actix**: Actor integration via `KernelActor`
+
+```rust
+use rustkernel_ecosystem::axum::{KernelRouter, RouterConfig};
+
+let router = KernelRouter::new(registry, RouterConfig::default());
+let app = router.into_router();
+// Serve with axum::Server
+```
 
 ## Documentation
 
