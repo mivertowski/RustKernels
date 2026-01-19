@@ -2623,6 +2623,7 @@ dependencies = [
  "rustkernel-core",
  "rustkernels",
  "tokio",
+ "toml",
  "tracing",
  "tracing-subscriber",
 ]

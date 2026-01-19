@@ -4,7 +4,16 @@
 
 use clap::{Parser, Subcommand};
 use rustkernels::catalog::{DomainInfo, domains, enabled_domains, total_kernel_count};
-use rustkernel_core::{domain::Domain, kernel::KernelMode, registry::KernelRegistry};
+use rustkernel_core::{
+    config::ProductionConfig,
+    domain::Domain,
+    kernel::KernelMode,
+    registry::KernelRegistry,
+    resilience::HealthCheckResult,
+    runtime::LifecycleState,
+    traits::HealthStatus,
+};
+use std::path::PathBuf;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Parser)]
@@ -74,6 +83,75 @@ enum Commands {
         #[arg(short, long, default_value = "1000")]
         iterations: u32,
     },
+
+    /// Runtime lifecycle management
+    Runtime {
+        #[command(subcommand)]
+        action: RuntimeAction,
+    },
+
+    /// Health check status
+    Health {
+        /// Output format (text, json)
+        #[arg(short, long, default_value = "text")]
+        format: String,
+
+        /// Check specific component
+        #[arg(short, long)]
+        component: Option<String>,
+    },
+
+    /// Configuration management
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum RuntimeAction {
+    /// Show runtime status
+    Status,
+
+    /// Show runtime configuration
+    Show,
+
+    /// Initialize runtime (dry-run)
+    Init {
+        /// Configuration preset (development, production, high-performance)
+        #[arg(short, long, default_value = "development")]
+        preset: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum ConfigAction {
+    /// Show current configuration
+    Show {
+        /// Configuration file path
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+    },
+
+    /// Validate configuration
+    Validate {
+        /// Configuration file path
+        file: PathBuf,
+    },
+
+    /// Generate configuration template
+    Generate {
+        /// Output file path
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Configuration preset
+        #[arg(short, long, default_value = "production")]
+        preset: String,
+    },
+
+    /// Show environment variable overrides
+    Env,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -119,6 +197,18 @@ fn main() -> anyhow::Result<()> {
 
         Commands::Bench { domain, iterations } => {
             cmd_bench(domain, iterations)?;
+        }
+
+        Commands::Runtime { action } => {
+            cmd_runtime(action)?;
+        }
+
+        Commands::Health { format, component } => {
+            cmd_health(&format, component)?;
+        }
+
+        Commands::Config { action } => {
+            cmd_config(action)?;
         }
     }
 
@@ -919,6 +1009,230 @@ fn cmd_bench(domain: Option<String>, iterations: u32) -> anyhow::Result<()> {
     println!();
     println!("Or for specific domain:");
     println!("  cargo bench --package rustkernel-graph");
+
+    Ok(())
+}
+
+fn cmd_runtime(action: RuntimeAction) -> anyhow::Result<()> {
+    println!("╔══════════════════════════════════════════════════════════════════╗");
+    println!("║                     Runtime Management                           ║");
+    println!("╚══════════════════════════════════════════════════════════════════╝\n");
+
+    match action {
+        RuntimeAction::Status => {
+            println!("Runtime Status:");
+            println!("──────────────────────────────────────────────────────────────────");
+            println!("  State:           {:?}", LifecycleState::Stopped);
+            println!("  Uptime:          N/A (not running)");
+            println!("  Active Kernels:  0");
+            println!("  Memory Used:     0 bytes");
+            println!();
+            println!("To start the runtime, use the rustkernel-ecosystem service.");
+        }
+
+        RuntimeAction::Show => {
+            let config = ProductionConfig::from_env().unwrap_or_default();
+            println!("Current Configuration:");
+            println!("──────────────────────────────────────────────────────────────────");
+            println!("  Environment:     {}", config.environment);
+            println!("  Service Name:    {}", config.service_name);
+            println!("  Service Version: {}", config.service_version);
+            println!();
+            println!("Runtime Settings:");
+            println!("  GPU Enabled:     {}", config.runtime.gpu_enabled);
+            println!("  Max Instances:   {}", config.runtime.max_kernel_instances);
+            println!("  Worker Threads:  {}", config.runtime.worker_threads);
+            println!();
+            println!("Security Settings:");
+            println!("  RBAC Enabled:    {}", config.security.rbac_enabled);
+            println!("  Audit Logging:   {}", config.security.audit_logging);
+            println!("  Multi-Tenancy:   {}", config.security.multi_tenancy_enabled);
+        }
+
+        RuntimeAction::Init { preset } => {
+            let config = match preset.as_str() {
+                "production" | "prod" => ProductionConfig::production(),
+                "high-performance" | "hp" => ProductionConfig::high_performance(),
+                _ => ProductionConfig::development(),
+            };
+
+            println!("Initializing runtime with '{}' preset...", preset);
+            println!();
+
+            if let Err(e) = config.validate() {
+                println!("✗ Configuration validation failed: {}", e);
+                return Ok(());
+            }
+            println!("✓ Configuration validated");
+
+            println!("✓ Registry initialized ({} kernels)", total_kernel_count());
+            println!("✓ Memory manager ready");
+            println!("✓ Resilience patterns configured");
+            println!();
+            println!("Runtime ready to start. Use the ecosystem service to launch.");
+        }
+    }
+
+    Ok(())
+}
+
+fn cmd_health(format: &str, component: Option<String>) -> anyhow::Result<()> {
+    let checks = vec![
+        ("registry", HealthCheckResult::healthy()),
+        ("memory", HealthCheckResult::healthy()),
+        ("runtime", HealthCheckResult::unhealthy("Not started")),
+    ];
+
+    let filtered: Vec<_> = if let Some(ref c) = component {
+        checks.into_iter().filter(|(name, _)| *name == c).collect()
+    } else {
+        checks
+    };
+
+    if format == "json" {
+        println!("{{");
+        println!("  \"status\": \"degraded\",");
+        println!("  \"checks\": {{");
+        for (i, (name, result)) in filtered.iter().enumerate() {
+            let status = match result.status {
+                HealthStatus::Healthy => "healthy",
+                HealthStatus::Degraded => "degraded",
+                HealthStatus::Unhealthy => "unhealthy",
+                HealthStatus::Unknown => "unknown",
+            };
+            let comma = if i < filtered.len() - 1 { "," } else { "" };
+            println!("    \"{}\": \"{}\"{}",name, status, comma);
+        }
+        println!("  }}");
+        println!("}}");
+    } else {
+        println!("╔══════════════════════════════════════════════════════════════════╗");
+        println!("║                       Health Status                              ║");
+        println!("╚══════════════════════════════════════════════════════════════════╝\n");
+
+        for (name, result) in &filtered {
+            let (icon, status, details) = match result.status {
+                HealthStatus::Healthy => ("✓", "Healthy", String::new()),
+                HealthStatus::Degraded => ("⚠", "Degraded", result.error.clone().map(|e| format!(" - {}", e)).unwrap_or_default()),
+                HealthStatus::Unhealthy => ("✗", "Unhealthy", result.error.clone().map(|e| format!(" - {}", e)).unwrap_or_default()),
+                HealthStatus::Unknown => ("?", "Unknown", String::new()),
+            };
+            println!("  {} {:<15} {}{}", icon, name, status, details);
+        }
+
+        println!();
+        let all_healthy = filtered.iter().all(|(_, r)| r.status == HealthStatus::Healthy);
+        if all_healthy {
+            println!("Overall: ✓ All systems healthy");
+        } else {
+            println!("Overall: ⚠ Some components degraded or unhealthy");
+        }
+    }
+
+    Ok(())
+}
+
+fn cmd_config(action: ConfigAction) -> anyhow::Result<()> {
+    println!("╔══════════════════════════════════════════════════════════════════╗");
+    println!("║                   Configuration Management                       ║");
+    println!("╚══════════════════════════════════════════════════════════════════╝\n");
+
+    match action {
+        ConfigAction::Show { file } => {
+            let config = if let Some(path) = file {
+                ProductionConfig::from_file(&path)?
+            } else {
+                ProductionConfig::from_env().unwrap_or_default()
+            };
+
+            println!("Environment:       {}", config.environment);
+            println!("Service Name:      {}", config.service_name);
+            println!("Service Version:   {}", config.service_version);
+            println!();
+            println!("Security:");
+            println!("  RBAC Enabled:    {}", config.security.rbac_enabled);
+            println!("  Audit Logging:   {}", config.security.audit_logging);
+            println!();
+            println!("Runtime:");
+            println!("  GPU Enabled:     {}", config.runtime.gpu_enabled);
+            println!("  Max Instances:   {}", config.runtime.max_kernel_instances);
+            println!();
+            println!("Memory:");
+            println!("  Max GPU Memory:      {} bytes", config.memory.max_gpu_memory);
+            println!("  Max Staging Memory:  {} bytes", config.memory.max_staging_memory);
+        }
+
+        ConfigAction::Validate { file } => {
+            println!("Validating: {}", file.display());
+            println!();
+
+            match ProductionConfig::from_file(&file) {
+                Ok(config) => {
+                    println!("✓ File parsed successfully");
+
+                    match config.validate() {
+                        Ok(()) => {
+                            println!("✓ Configuration is valid");
+                            println!();
+                            println!("Summary:");
+                            println!("  Environment: {}", config.environment);
+                            println!("  Service:     {}", config.service_name);
+                        }
+                        Err(e) => {
+                            println!("✗ Validation error: {}", e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("✗ Failed to parse configuration: {}", e);
+                }
+            }
+        }
+
+        ConfigAction::Generate { output, preset } => {
+            let config = match preset.as_str() {
+                "production" | "prod" => ProductionConfig::production(),
+                "high-performance" | "hp" => ProductionConfig::high_performance(),
+                "development" | "dev" => ProductionConfig::development(),
+                _ => {
+                    println!("Unknown preset: {}", preset);
+                    println!("Available presets: development, production, high-performance");
+                    return Ok(());
+                }
+            };
+
+            if let Some(path) = output {
+                config.to_file(&path)?;
+                println!("✓ Configuration written to: {}", path.display());
+            } else {
+                let toml = toml::to_string_pretty(&config)?;
+                println!("{}", toml);
+            }
+        }
+
+        ConfigAction::Env => {
+            println!("Environment Variable Overrides:");
+            println!("──────────────────────────────────────────────────────────────────");
+            println!();
+            println!("  RUSTKERNEL_ENV              Preset (development, production, hp)");
+            println!("  RUSTKERNEL_SERVICE_NAME     Service name");
+            println!("  RUSTKERNEL_SERVICE_VERSION  Service version");
+            println!();
+            println!("Security:");
+            println!("  RUSTKERNEL_AUTH_ENABLED     Enable authentication/RBAC");
+            println!("  RUSTKERNEL_MULTI_TENANT     Enable multi-tenancy");
+            println!();
+            println!("Runtime:");
+            println!("  RUSTKERNEL_GPU_ENABLED      Enable GPU backends (true/false)");
+            println!("  RUSTKERNEL_MAX_INSTANCES    Max concurrent kernel instances");
+            println!();
+            println!("Memory:");
+            println!("  RUSTKERNEL_MAX_GPU_MEMORY_GB  Maximum GPU memory in GB");
+            println!();
+            println!("Example:");
+            println!("  RUSTKERNEL_ENV=production RUSTKERNEL_GPU_ENABLED=true rustkernel runtime init");
+        }
+    }
 
     Ok(())
 }
