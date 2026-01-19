@@ -97,7 +97,8 @@ CRATES=(
     "rustkernel-core"
 
     # Tier 2: Depends only on Tier 1
-    "rustkernel-derive"      # depends on: core
+    "rustkernel-derive"      # depends on: core (dev-dependency)
+    "rustkernel-ecosystem"   # depends on: core
 
     # Tier 3: Domain crates (depend on core and/or derive)
     "rustkernel-graph"       # depends on: core, derive
@@ -118,8 +119,8 @@ CRATES=(
     # Tier 4: Facade crate (re-exports all domains)
     "rustkernels"            # depends on: core, all domain crates
 
-    # Tier 5: CLI (depends on main crate)
-    "rustkernel-cli"         # depends on: rustkernels, core
+    # Tier 5: CLI (depends on core only, can publish earlier but keeping here for consistency)
+    "rustkernel-cli"         # depends on: core
 )
 
 # Tier 1 crates can be verified independently
