@@ -750,10 +750,12 @@ mod tests {
     #[test]
     fn test_fraud_check_large_payment() {
         let accounts = create_test_accounts();
-        let mut config = ProcessingConfig::default();
-        config.large_payment_threshold = Some(5000.0);
-        config.max_amount = Some(100000.0);
-        config.velocity_limit = Some(1000.0); // Increase to avoid velocity check triggering
+        let config = ProcessingConfig {
+            large_payment_threshold: Some(5000.0),
+            max_amount: Some(100000.0),
+            velocity_limit: Some(1000.0), // Increase to avoid velocity check triggering
+            ..ProcessingConfig::default()
+        };
 
         let mut payment = create_test_payment("P001", "ACC001", "ACC002", 8000.0);
         payment.payment_type = PaymentType::RealTime;
@@ -773,8 +775,10 @@ mod tests {
     #[test]
     fn test_payment_type_disabled() {
         let accounts = create_test_accounts();
-        let mut config = ProcessingConfig::default();
-        config.enabled_payment_types = vec![PaymentType::ACH]; // Only ACH enabled
+        let config = ProcessingConfig {
+            enabled_payment_types: vec![PaymentType::ACH], // Only ACH enabled
+            ..ProcessingConfig::default()
+        };
 
         let mut payment = create_test_payment("P001", "ACC001", "ACC002", 100.0);
         payment.payment_type = PaymentType::Wire;
@@ -794,9 +798,11 @@ mod tests {
     #[test]
     fn test_amount_limits() {
         let accounts = create_test_accounts();
-        let mut config = ProcessingConfig::default();
-        config.min_amount = Some(10.0);
-        config.max_amount = Some(1000.0);
+        let config = ProcessingConfig {
+            min_amount: Some(10.0),
+            max_amount: Some(1000.0),
+            ..ProcessingConfig::default()
+        };
 
         // Test below minimum
         let p1 = create_test_payment("P001", "ACC001", "ACC002", 5.0);

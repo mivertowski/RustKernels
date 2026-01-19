@@ -119,13 +119,22 @@ pub enum RuntimeEvent {
     /// Runtime has stopped
     Stopped,
     /// A kernel was registered
-    KernelRegistered { id: String },
+    KernelRegistered {
+        /// The ID of the registered kernel
+        id: String,
+    },
     /// A kernel was unregistered
-    KernelUnregistered { id: String },
+    KernelUnregistered {
+        /// The ID of the unregistered kernel
+        id: String,
+    },
     /// Configuration was reloaded
     ConfigReloaded,
     /// Health check completed
-    HealthCheckCompleted { healthy: bool },
+    HealthCheckCompleted {
+        /// Whether the health check passed
+        healthy: bool,
+    },
 }
 
 /// Callback for runtime events

@@ -71,8 +71,8 @@ pub mod prelude {
 
     // Runtime lifecycle (0.3.1)
     pub use crate::runtime::{
-        KernelRuntime, LifecycleState, RuntimeBuilder, RuntimeConfig, RuntimeHandle,
-        RuntimePreset, RuntimeStats,
+        KernelRuntime, LifecycleState, RuntimeBuilder, RuntimeConfig, RuntimeHandle, RuntimePreset,
+        RuntimeStats,
     };
 
     // Resilience patterns (0.3.1)

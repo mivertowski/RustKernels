@@ -104,7 +104,11 @@ impl PermissionSet {
     /// Union with another permission set
     pub fn union(&self, other: &PermissionSet) -> PermissionSet {
         PermissionSet {
-            permissions: self.permissions.union(&other.permissions).cloned().collect(),
+            permissions: self
+                .permissions
+                .union(&other.permissions)
+                .cloned()
+                .collect(),
         }
     }
 

@@ -216,6 +216,7 @@ impl StreamingITree {
         self.path_length_node(&self.root, point, 0)
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn path_length_node(&self, node: &StreamingINode, point: &[f64], depth: usize) -> f64 {
         match node {
             StreamingINode::External { size } => depth as f64 + Self::c_factor(*size),
@@ -633,10 +634,10 @@ impl AdaptiveThreshold {
 
         // Store window stats for next drift detection
         // Only update baseline when: no previous baseline, or drift was detected (reset)
-        if state.score_window.len() == config.window_size {
-            if state.prev_window_stats.is_none() || state.drift_detected {
-                state.prev_window_stats = Some(state.curr_window_stats.clone());
-            }
+        if state.score_window.len() == config.window_size
+            && (state.prev_window_stats.is_none() || state.drift_detected)
+        {
+            state.prev_window_stats = Some(state.curr_window_stats.clone());
         }
 
         let is_anomaly = score >= state.threshold;

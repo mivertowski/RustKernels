@@ -142,6 +142,7 @@ impl EmbeddingGeneration {
     }
 
     /// Generate embedding from token using hash-based approach.
+    #[allow(clippy::needless_range_loop)]
     fn hash_embedding(token: &str, dimension: usize, vocab_size: usize) -> Vec<f64> {
         let mut embedding = vec![0.0; dimension];
 
@@ -425,7 +426,7 @@ impl SemanticSimilarity {
                         matches
                             .iter()
                             .map(|(idx, score)| {
-                                let label = labels.map(|l| l.get(*idx).cloned()).flatten();
+                                let label = labels.and_then(|l| l.get(*idx).cloned());
                                 (*idx, *score, label)
                             })
                             .collect()

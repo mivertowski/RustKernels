@@ -107,15 +107,24 @@ impl TimeoutConfig {
 pub enum TimeoutError {
     /// Operation timed out
     #[error("Operation timed out after {timeout:?}")]
-    Timeout { timeout: Duration },
+    Timeout {
+        /// The timeout duration that was exceeded
+        timeout: Duration,
+    },
 
     /// Deadline exceeded
     #[error("Deadline exceeded (remaining: {remaining:?})")]
-    DeadlineExceeded { remaining: Duration },
+    DeadlineExceeded {
+        /// The remaining time when the deadline was exceeded
+        remaining: Duration,
+    },
 
     /// Invalid timeout value
     #[error("Invalid timeout: {reason}")]
-    Invalid { reason: String },
+    Invalid {
+        /// The reason the timeout value is invalid
+        reason: String,
+    },
 }
 
 /// Deadline context for propagating deadlines
@@ -261,7 +270,9 @@ impl TimeoutGuard {
                 timeout = ?self.timeout,
                 "Timeout exceeded"
             );
-            Err(ResilienceError::Timeout { timeout: self.timeout })
+            Err(ResilienceError::Timeout {
+                timeout: self.timeout,
+            })
         } else {
             Ok(())
         }

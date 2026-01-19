@@ -80,6 +80,7 @@ impl ShortCycleParticipation {
     }
 
     /// Detect 2-cycles (reciprocal edges) for all nodes.
+    #[allow(clippy::needless_range_loop)]
     pub fn detect_2_cycles(graph: &CsrGraph) -> Vec<u32> {
         let n = graph.num_nodes;
         let mut cycle_counts = vec![0u32; n];
@@ -137,6 +138,7 @@ impl ShortCycleParticipation {
     /// Detect 4-cycles (squares) for all nodes.
     ///
     /// This is the CRITICAL AML INDICATOR for organized laundering.
+    #[allow(clippy::needless_range_loop)]
     pub fn detect_4_cycles(graph: &CsrGraph) -> Vec<u32> {
         let n = graph.num_nodes;
         let mut cycle_counts = vec![0u32; n];
@@ -306,6 +308,7 @@ mod tests {
         CsrGraph::from_edges(3, &[(0, 1), (1, 0), (0, 2), (2, 0), (1, 2), (2, 1)])
     }
 
+    #[allow(dead_code)]
     fn create_square_graph() -> CsrGraph {
         // Square: 0 -> 1 -> 2 -> 3 -> 0
         CsrGraph::from_edges(4, &[(0, 1), (1, 2), (2, 3), (3, 0)])

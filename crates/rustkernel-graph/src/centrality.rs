@@ -565,6 +565,7 @@ impl ClosenessCentrality {
     /// Compute closeness centrality using BFS from each node.
     ///
     /// For disconnected graphs, uses harmonic mean variant.
+    #[allow(clippy::needless_range_loop)]
     pub fn compute(graph: &CsrGraph, harmonic: bool) -> CentralityResult {
         let n = graph.num_nodes;
         let mut centrality = vec![0.0f64; n];
@@ -669,6 +670,7 @@ impl EigenvectorCentrality {
     }
 
     /// Compute eigenvector centrality using power iteration.
+    #[allow(clippy::needless_range_loop)]
     pub fn compute(graph: &CsrGraph, max_iterations: u32, tolerance: f64) -> CentralityResult {
         let n = graph.num_nodes;
         if n == 0 {
@@ -780,6 +782,7 @@ impl KatzCentrality {
     /// * `beta` - Base score for each node (default 1.0)
     /// * `max_iterations` - Maximum iterations for power iteration
     /// * `tolerance` - Convergence threshold
+    #[allow(clippy::needless_range_loop)]
     pub fn compute(
         graph: &CsrGraph,
         alpha: f64,

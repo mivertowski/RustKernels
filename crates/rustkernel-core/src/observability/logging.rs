@@ -28,7 +28,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Log level
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
     /// Trace level (most verbose)
@@ -36,17 +36,12 @@ pub enum LogLevel {
     /// Debug level
     Debug,
     /// Info level
+    #[default]
     Info,
     /// Warning level
     Warn,
     /// Error level
     Error,
-}
-
-impl Default for LogLevel {
-    fn default() -> Self {
-        Self::Info
-    }
 }
 
 impl std::fmt::Display for LogLevel {
@@ -151,7 +146,7 @@ impl LogConfig {
 
     /// Initialize logging
     pub fn init(&self) -> crate::error::Result<()> {
-        use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+        use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
         let filter = EnvFilter::try_from_default_env()
             .unwrap_or_else(|_| EnvFilter::new(self.level.to_string()));
@@ -180,21 +175,16 @@ impl LogConfig {
 }
 
 /// Log output target
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LogOutput {
     /// Standard output
+    #[default]
     Stdout,
     /// Standard error
     Stderr,
     /// File path
     File(String),
-}
-
-impl Default for LogOutput {
-    fn default() -> Self {
-        Self::Stdout
-    }
 }
 
 /// Structured logger builder
@@ -273,7 +263,11 @@ impl StructuredLogger {
     }
 
     /// Set trace context
-    pub fn trace_context(mut self, trace_id: impl Into<String>, span_id: impl Into<String>) -> Self {
+    pub fn trace_context(
+        mut self,
+        trace_id: impl Into<String>,
+        span_id: impl Into<String>,
+    ) -> Self {
         self.trace_id = Some(trace_id.into());
         self.span_id = Some(span_id.into());
         self
@@ -366,7 +360,12 @@ pub struct AuditLog {
 
 impl AuditLog {
     /// Create a new audit log entry
-    pub fn new(event_type: AuditEventType, actor: impl Into<String>, resource: impl Into<String>, action: impl Into<String>) -> Self {
+    pub fn new(
+        event_type: AuditEventType,
+        actor: impl Into<String>,
+        resource: impl Into<String>,
+        action: impl Into<String>,
+    ) -> Self {
         Self {
             timestamp: chrono::Utc::now(),
             event_type,

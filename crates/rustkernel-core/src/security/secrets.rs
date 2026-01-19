@@ -119,11 +119,7 @@ pub trait SecretStore: Send + Sync {
     fn get(&self, secret_ref: &SecretRef) -> Result<SecretValue, super::SecurityError>;
 
     /// Set a secret
-    fn set(
-        &self,
-        secret_ref: &SecretRef,
-        value: SecretValue,
-    ) -> Result<(), super::SecurityError>;
+    fn set(&self, secret_ref: &SecretRef, value: SecretValue) -> Result<(), super::SecurityError>;
 
     /// Delete a secret
     fn delete(&self, secret_ref: &SecretRef) -> Result<(), super::SecurityError>;
@@ -147,14 +143,16 @@ impl InMemorySecretStore {
     }
 
     /// Get a secret (async version)
-    pub async fn get_async(&self, secret_ref: &SecretRef) -> Result<SecretValue, super::SecurityError> {
+    pub async fn get_async(
+        &self,
+        secret_ref: &SecretRef,
+    ) -> Result<SecretValue, super::SecurityError> {
         let secrets = self.secrets.read().await;
-        secrets
-            .get(&secret_ref.path())
-            .cloned()
-            .ok_or_else(|| super::SecurityError::SecretNotFound {
+        secrets.get(&secret_ref.path()).cloned().ok_or_else(|| {
+            super::SecurityError::SecretNotFound {
                 name: secret_ref.path(),
-            })
+            }
+        })
     }
 
     /// Set a secret (async version)
@@ -213,11 +211,7 @@ impl EnvSecretStore {
 
     /// Get the env var name for a secret
     fn env_name(&self, secret_ref: &SecretRef) -> String {
-        let name = secret_ref
-            .name
-            .to_uppercase()
-            .replace('-', "_")
-            .replace('/', "_");
+        let name = secret_ref.name.to_uppercase().replace(['-', '/'], "_");
 
         match &self.prefix {
             Some(prefix) => format!("{}_{}", prefix.to_uppercase(), name),

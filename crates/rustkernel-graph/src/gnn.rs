@@ -170,6 +170,7 @@ impl GNNInference {
     }
 
     /// Run GNN inference on a graph.
+    #[allow(clippy::needless_range_loop)]
     pub fn compute(
         graph: &CsrGraph,
         node_features: &[Vec<f64>],
@@ -249,6 +250,7 @@ impl GNNInference {
     }
 
     /// Single message passing layer.
+    #[allow(clippy::needless_range_loop)]
     fn message_passing_layer(
         embeddings: &[Vec<f64>],
         adj: &[Vec<usize>],
@@ -308,7 +310,7 @@ impl GNNInference {
         agg_type: AggregationType,
     ) -> Vec<f64> {
         if neighbors.is_empty() {
-            return vec![0.0; embeddings.get(0).map(|e| e.len()).unwrap_or(0)];
+            return vec![0.0; embeddings.first().map(|e| e.len()).unwrap_or(0)];
         }
 
         let dim = embeddings[neighbors[0]].len();
@@ -554,6 +556,7 @@ impl GraphAttention {
     }
 
     /// Compute graph attention layer.
+    #[allow(clippy::needless_range_loop)]
     pub fn compute(
         graph: &CsrGraph,
         node_features: &[Vec<f64>],
@@ -640,6 +643,7 @@ impl GraphAttention {
     }
 
     /// Compute single attention head.
+    #[allow(clippy::type_complexity)]
     fn compute_head(
         features: &[Vec<f64>],
         adj: &[Vec<usize>],

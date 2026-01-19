@@ -35,8 +35,8 @@ pub use reduction::{
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use tokio::sync::RwLock;
 
 /// Memory configuration
@@ -65,10 +65,10 @@ impl Default for MemoryConfig {
             max_staging_memory: 1024 * 1024 * 1024, // 1GB
             pooling_enabled: true,
             bucket_sizes: vec![
-                64 * 1024,       // 64KB
-                256 * 1024,      // 256KB
-                1024 * 1024,     // 1MB
-                4 * 1024 * 1024, // 4MB
+                64 * 1024,        // 64KB
+                256 * 1024,       // 256KB
+                1024 * 1024,      // 1MB
+                4 * 1024 * 1024,  // 4MB
                 16 * 1024 * 1024, // 16MB
                 64 * 1024 * 1024, // 64MB
             ],
@@ -83,7 +83,7 @@ impl MemoryConfig {
     /// Create development configuration (smaller limits)
     pub fn development() -> Self {
         Self {
-            max_gpu_memory: 512 * 1024 * 1024, // 512MB
+            max_gpu_memory: 512 * 1024 * 1024,     // 512MB
             max_staging_memory: 256 * 1024 * 1024, // 256MB
             pooling_enabled: false,
             ..Default::default()
@@ -98,7 +98,7 @@ impl MemoryConfig {
     /// Create high-performance configuration
     pub fn high_performance() -> Self {
         Self {
-            max_gpu_memory: 16 * 1024 * 1024 * 1024, // 16GB
+            max_gpu_memory: 16 * 1024 * 1024 * 1024,    // 16GB
             max_staging_memory: 4 * 1024 * 1024 * 1024, // 4GB
             pooling_enabled: true,
             auto_defrag: true,
@@ -137,7 +137,10 @@ impl SizeBucket {
         let count = self.allocated.fetch_add(1, Ordering::Relaxed) + 1;
         let mut peak = self.peak.load(Ordering::Relaxed);
         while count > peak {
-            match self.peak.compare_exchange_weak(peak, count, Ordering::Relaxed, Ordering::Relaxed) {
+            match self
+                .peak
+                .compare_exchange_weak(peak, count, Ordering::Relaxed, Ordering::Relaxed)
+            {
                 Ok(_) => break,
                 Err(p) => peak = p,
             }
@@ -224,9 +227,10 @@ pub enum MemoryError {
 }
 
 /// Memory pressure level
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PressureLevel {
     /// Normal operation
+    #[default]
     Normal,
     /// Elevated usage, start cleanup
     Warning,
@@ -272,12 +276,6 @@ pub struct MemoryStats {
     pub pool_hit_rate: f64,
     /// Current pressure level
     pub pressure_level: PressureLevel,
-}
-
-impl Default for PressureLevel {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 /// Kernel memory manager
@@ -383,12 +381,15 @@ impl KernelMemoryManager {
             is_gpu: true,
         };
 
-        self.buffers.write().await.insert(id, MemoryBuffer {
+        self.buffers.write().await.insert(
             id,
-            size,
-            bucket_index,
-            is_gpu: true,
-        });
+            MemoryBuffer {
+                id,
+                size,
+                bucket_index,
+                is_gpu: true,
+            },
+        );
 
         Ok(buffer)
     }
@@ -404,7 +405,9 @@ impl KernelMemoryManager {
             self.buckets[idx].record_dealloc();
         }
 
-        self.stats.gpu_used.fetch_sub(buffer.size, Ordering::Relaxed);
+        self.stats
+            .gpu_used
+            .fetch_sub(buffer.size, Ordering::Relaxed);
         self.stats.deallocations.fetch_add(1, Ordering::Relaxed);
 
         Ok(())
@@ -431,12 +434,15 @@ impl KernelMemoryManager {
             is_gpu: false,
         };
 
-        self.buffers.write().await.insert(id, MemoryBuffer {
+        self.buffers.write().await.insert(
             id,
-            size,
-            bucket_index: None,
-            is_gpu: false,
-        });
+            MemoryBuffer {
+                id,
+                size,
+                bucket_index: None,
+                is_gpu: false,
+            },
+        );
 
         Ok(buffer)
     }
@@ -448,7 +454,9 @@ impl KernelMemoryManager {
             return Err(MemoryError::InvalidBuffer { id: buffer.id });
         }
 
-        self.stats.staging_used.fetch_sub(buffer.size, Ordering::Relaxed);
+        self.stats
+            .staging_used
+            .fetch_sub(buffer.size, Ordering::Relaxed);
         self.stats.deallocations.fetch_add(1, Ordering::Relaxed);
 
         Ok(())
@@ -498,14 +506,15 @@ impl KernelMemoryManager {
     /// Request garbage collection
     pub async fn request_gc(&self) {
         // Clear unused pool buffers
-        tracing::info!("Memory GC requested, pressure level: {:?}", self.pressure_level());
+        tracing::info!(
+            "Memory GC requested, pressure level: {:?}",
+            self.pressure_level()
+        );
     }
 
     /// Find appropriate bucket for size
     fn find_bucket(&self, size: u64) -> Option<usize> {
-        self.buckets
-            .iter()
-            .position(|b| b.size >= size)
+        self.buckets.iter().position(|b| b.size >= size)
     }
 }
 
@@ -673,7 +682,8 @@ impl AnalyticsContextManager {
 
     /// Create a new analytics context
     pub async fn create_context(&self) -> Arc<AnalyticsContext> {
-        self.create_context_with_size(self.default_working_set).await
+        self.create_context_with_size(self.default_working_set)
+            .await
     }
 
     /// Create a context with specific working set size

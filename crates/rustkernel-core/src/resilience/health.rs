@@ -115,7 +115,7 @@ impl HealthCheckResult {
 }
 
 /// Additional health check details
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HealthDetails {
     /// Queue depth
     pub queue_depth: Option<u64>,
@@ -129,19 +129,6 @@ pub struct HealthDetails {
     pub gpu_memory_bytes: Option<u64>,
     /// Custom metrics
     pub custom: std::collections::HashMap<String, serde_json::Value>,
-}
-
-impl Default for HealthDetails {
-    fn default() -> Self {
-        Self {
-            queue_depth: None,
-            messages_processed: None,
-            error_rate: None,
-            avg_latency_us: None,
-            gpu_memory_bytes: None,
-            custom: std::collections::HashMap::new(),
-        }
-    }
 }
 
 impl HealthDetails {

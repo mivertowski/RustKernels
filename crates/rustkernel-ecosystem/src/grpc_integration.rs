@@ -16,7 +16,7 @@
 //!     .await?;
 //! ```
 
-use crate::{EcosystemError, RequestMetadata, ResponseMetadata};
+use crate::EcosystemError;
 use rustkernel_core::registry::KernelRegistry;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -156,7 +156,7 @@ impl From<EcosystemError> for GrpcError {
             EcosystemError::PermissionDenied(_) => (7, err.to_string()), // PERMISSION_DENIED
             EcosystemError::RateLimitExceeded => (8, err.to_string()), // RESOURCE_EXHAUSTED
             EcosystemError::ServiceUnavailable(_) => (14, err.to_string()), // UNAVAILABLE
-            _ => (13, err.to_string()), // INTERNAL
+            _ => (13, err.to_string()),                                // INTERNAL
         };
 
         Self {
@@ -197,21 +197,17 @@ impl KernelGrpcServer {
         let request_id = uuid::Uuid::new_v4().to_string();
 
         // Validate kernel exists
-        let _kernel_meta = self
-            .registry
-            .get(&request.kernel_id)
-            .ok_or_else(|| {
-                GrpcError::from(EcosystemError::KernelNotFound(request.kernel_id.clone()))
-            })?;
+        let _kernel_meta = self.registry.get(&request.kernel_id).ok_or_else(|| {
+            GrpcError::from(EcosystemError::KernelNotFound(request.kernel_id.clone()))
+        })?;
 
         // Parse input
-        let _input: serde_json::Value = serde_json::from_str(&request.input_json)
-            .map_err(|e| {
-                GrpcError::from(EcosystemError::InvalidRequest(format!(
-                    "Invalid JSON input: {}",
-                    e
-                )))
-            })?;
+        let _input: serde_json::Value = serde_json::from_str(&request.input_json).map_err(|e| {
+            GrpcError::from(EcosystemError::InvalidRequest(format!(
+                "Invalid JSON input: {}",
+                e
+            )))
+        })?;
 
         // Execute (placeholder - actual execution will use runtime)
         let duration_us = start.elapsed().as_micros() as u64;
@@ -229,12 +225,9 @@ impl KernelGrpcServer {
 
     /// Get kernel info
     pub async fn get_kernel(&self, request: GetKernelRequest) -> Result<KernelInfo, GrpcError> {
-        let kernel_meta = self
-            .registry
-            .get(&request.kernel_id)
-            .ok_or_else(|| {
-                GrpcError::from(EcosystemError::KernelNotFound(request.kernel_id.clone()))
-            })?;
+        let kernel_meta = self.registry.get(&request.kernel_id).ok_or_else(|| {
+            GrpcError::from(EcosystemError::KernelNotFound(request.kernel_id.clone()))
+        })?;
 
         Ok(KernelInfo {
             id: kernel_meta.id.clone(),

@@ -125,6 +125,7 @@ impl LinearRegression {
     }
 
     /// Compute X^T y.
+    #[allow(clippy::needless_range_loop)]
     fn matrix_vector_multiply_transpose(x: &DataMatrix, y: &[f64]) -> Vec<f64> {
         let n = x.n_samples;
         let d = x.n_features;
@@ -259,6 +260,7 @@ impl RidgeRegression {
     /// * `y` - Target vector (n_samples)
     /// * `alpha` - Regularization strength
     /// * `fit_intercept` - Whether to fit an intercept term
+    #[allow(clippy::needless_range_loop)]
     pub fn compute(x: &DataMatrix, y: &[f64], alpha: f64, fit_intercept: bool) -> RegressionResult {
         let n = x.n_samples;
         let d = x.n_features;

@@ -234,9 +234,7 @@ impl SecurityContext {
 
     /// Check if context can access a specific tenant
     pub fn can_access_tenant(&self, tenant_id: &TenantId) -> bool {
-        self.is_system
-            || self.tenant_id.as_ref() == Some(tenant_id)
-            || self.has_role(&Role::Admin)
+        self.is_system || self.tenant_id.as_ref() == Some(tenant_id) || self.has_role(&Role::Admin)
     }
 }
 
@@ -255,7 +253,10 @@ pub enum SecurityError {
 
     /// Token validation failed
     #[error("Invalid token: {reason}")]
-    InvalidToken { reason: String },
+    InvalidToken {
+        /// The reason for token validation failure
+        reason: String,
+    },
 
     /// Token has expired
     #[error("Token expired")]
@@ -264,29 +265,46 @@ pub enum SecurityError {
     /// Permission denied
     #[error("Permission denied: {permission} for user {user_id:?}")]
     PermissionDenied {
+        /// The permission that was denied
         permission: String,
+        /// The user ID if available
         user_id: Option<String>,
     },
 
     /// Tenant access denied
     #[error("Tenant access denied: {tenant_id}")]
-    TenantAccessDenied { tenant_id: String },
+    TenantAccessDenied {
+        /// The tenant ID that was denied access
+        tenant_id: String,
+    },
 
     /// Resource quota exceeded
     #[error("Resource quota exceeded: {resource}")]
-    QuotaExceeded { resource: String },
+    QuotaExceeded {
+        /// The resource that exceeded quota
+        resource: String,
+    },
 
     /// Secret not found
     #[error("Secret not found: {name}")]
-    SecretNotFound { name: String },
+    SecretNotFound {
+        /// The name of the secret that was not found
+        name: String,
+    },
 
     /// Encryption error
     #[error("Encryption error: {reason}")]
-    EncryptionError { reason: String },
+    EncryptionError {
+        /// The reason for encryption failure
+        reason: String,
+    },
 
     /// Configuration error
     #[error("Security configuration error: {reason}")]
-    ConfigError { reason: String },
+    ConfigError {
+        /// The configuration error reason
+        reason: String,
+    },
 }
 
 impl From<SecurityError> for crate::error::KernelError {

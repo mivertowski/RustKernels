@@ -27,23 +27,18 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 /// Alert severity levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AlertSeverity {
     /// Informational alert
     Info,
     /// Warning - may need attention
+    #[default]
     Warning,
     /// Critical - needs immediate attention
     Critical,
     /// Page - wake someone up
     Page,
-}
-
-impl Default for AlertSeverity {
-    fn default() -> Self {
-        Self::Warning
-    }
 }
 
 impl std::fmt::Display for AlertSeverity {
@@ -58,10 +53,11 @@ impl std::fmt::Display for AlertSeverity {
 }
 
 /// Alert state
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AlertState {
     /// Alert is not firing
+    #[default]
     Ok,
     /// Alert condition is pending (within for_duration)
     Pending,
@@ -71,12 +67,6 @@ pub enum AlertState {
     Acknowledged,
     /// Alert has been resolved
     Resolved,
-}
-
-impl Default for AlertState {
-    fn default() -> Self {
-        Self::Ok
-    }
 }
 
 /// Alert configuration
@@ -242,7 +232,10 @@ impl AlertRule {
             .condition("avg_latency_ms > 100")
             .severity(AlertSeverity::Warning)
             .for_duration(Duration::from_secs(60))
-            .annotation("summary", "Kernel {{ $labels.kernel_id }} has high latency ({{ $value }}ms)")
+            .annotation(
+                "summary",
+                "Kernel {{ $labels.kernel_id }} has high latency ({{ $value }}ms)",
+            )
     }
 
     /// High error rate rule
@@ -252,7 +245,10 @@ impl AlertRule {
             .condition("error_rate > 0.01")
             .severity(AlertSeverity::Warning)
             .for_duration(Duration::from_secs(300))
-            .annotation("summary", "Kernel {{ $labels.kernel_id }} has high error rate ({{ $value }})")
+            .annotation(
+                "summary",
+                "Kernel {{ $labels.kernel_id }} has high error rate ({{ $value }})",
+            )
     }
 
     /// Queue depth rule
@@ -262,7 +258,10 @@ impl AlertRule {
             .condition("queue_depth > 1000")
             .severity(AlertSeverity::Warning)
             .for_duration(Duration::from_secs(60))
-            .annotation("summary", "Kernel {{ $labels.kernel_id }} queue depth is high ({{ $value }})")
+            .annotation(
+                "summary",
+                "Kernel {{ $labels.kernel_id }} queue depth is high ({{ $value }})",
+            )
     }
 
     /// GPU memory rule
@@ -272,7 +271,10 @@ impl AlertRule {
             .condition("gpu_memory_percent > 90")
             .severity(AlertSeverity::Critical)
             .for_duration(Duration::from_secs(60))
-            .annotation("summary", "GPU memory usage is critically high ({{ $value }}%)")
+            .annotation(
+                "summary",
+                "GPU memory usage is critically high ({{ $value }}%)",
+            )
     }
 
     /// SLO violation rule
@@ -284,7 +286,10 @@ impl AlertRule {
             .severity(AlertSeverity::Warning)
             .for_duration(Duration::from_secs(300))
             .label("slo", name.clone())
-            .annotation("summary", format!("SLO '{}' compliance is below target", name))
+            .annotation(
+                "summary",
+                format!("SLO '{}' compliance is below target", name),
+            )
     }
 }
 
@@ -382,17 +387,23 @@ impl AlertReceiver {
 
     /// Slack receiver
     pub fn slack(name: impl Into<String>, webhook_url: impl Into<String>) -> Self {
-        Self::new(name, ReceiverType::Slack {
-            webhook_url: webhook_url.into(),
-            channel: None,
-        })
+        Self::new(
+            name,
+            ReceiverType::Slack {
+                webhook_url: webhook_url.into(),
+                channel: None,
+            },
+        )
     }
 
     /// PagerDuty receiver
     pub fn pagerduty(name: impl Into<String>, service_key: impl Into<String>) -> Self {
-        Self::new(name, ReceiverType::PagerDuty {
-            service_key: service_key.into(),
-        })
+        Self::new(
+            name,
+            ReceiverType::PagerDuty {
+                service_key: service_key.into(),
+            },
+        )
     }
 
     /// Webhook receiver
@@ -407,21 +418,28 @@ impl AlertReceiver {
 pub enum ReceiverType {
     /// Slack webhook
     Slack {
+        /// Slack webhook URL
         webhook_url: String,
+        /// Slack channel override
         channel: Option<String>,
     },
     /// PagerDuty
     PagerDuty {
+        /// PagerDuty service key
         service_key: String,
     },
     /// Generic webhook
     Webhook {
+        /// Webhook URL
         url: String,
     },
     /// Email
     Email {
+        /// Email recipients
         to: Vec<String>,
+        /// Sender address
         from: String,
+        /// SMTP server address
         smtp_server: String,
     },
     /// Log only (for testing)

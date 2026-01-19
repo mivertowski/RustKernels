@@ -101,6 +101,7 @@ impl KMeans {
 
     /// Perform one E-step (assignment) on internal state.
     /// Returns the total inertia (sum of squared distances).
+    #[allow(clippy::needless_range_loop)]
     pub fn assign_step(&self) -> f64 {
         let mut state = self.state.write().unwrap();
 
@@ -223,6 +224,7 @@ impl KMeans {
     /// * `k` - Number of clusters
     /// * `max_iterations` - Maximum number of iterations
     /// * `tolerance` - Convergence threshold for centroid movement
+    #[allow(clippy::needless_range_loop)]
     pub fn compute(
         data: &DataMatrix,
         k: usize,
@@ -327,6 +329,7 @@ impl KMeans {
     }
 
     /// K-Means++ initialization.
+    #[allow(clippy::needless_range_loop)]
     fn kmeans_plus_plus_init(data: &DataMatrix, k: usize) -> Vec<f64> {
         let n = data.n_samples;
         let d = data.n_features;
@@ -466,6 +469,7 @@ impl RingKernelHandler<KMeansQueryRing, KMeansQueryResponse> for KMeans {
 /// Aggregates partial centroid contributions from distributed workers.
 #[async_trait::async_trait]
 impl RingKernelHandler<K2KPartialCentroid, K2KCentroidAggregation> for KMeans {
+    #[allow(clippy::needless_range_loop)]
     async fn handle(
         &self,
         _ctx: &mut RingContext,
@@ -599,6 +603,7 @@ impl DBSCAN {
     /// * `eps` - Maximum distance for neighborhood
     /// * `min_samples` - Minimum points to form a dense region
     /// * `metric` - Distance metric to use
+    #[allow(clippy::needless_range_loop)]
     pub fn compute(
         data: &DataMatrix,
         eps: f64,
@@ -788,6 +793,7 @@ impl HierarchicalClustering {
     /// * `n_clusters` - Number of clusters to form
     /// * `linkage` - Linkage method
     /// * `metric` - Distance metric
+    #[allow(clippy::needless_range_loop)]
     pub fn compute(
         data: &DataMatrix,
         n_clusters: usize,

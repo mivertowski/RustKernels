@@ -89,6 +89,7 @@ impl ChangePointDetection {
     }
 
     /// PELT (Pruned Exact Linear Time) algorithm.
+    #[allow(clippy::needless_range_loop)]
     fn pelt(series: &TimeSeries, penalty: f64, min_segment: usize) -> ChangePointResult {
         let n = series.len();
         let values = &series.values;
@@ -371,7 +372,7 @@ impl ChangePointDetection {
                     } else {
                         penalty
                     };
-                    (cost_reduction / penalty).min(1.0).max(0.0)
+                    (cost_reduction / penalty).clamp(0.0, 1.0)
                 } else {
                     0.5
                 }
@@ -590,6 +591,7 @@ impl TimeSeriesAnomalyDetection {
     }
 
     /// Moving average deviation detection.
+    #[allow(clippy::needless_range_loop)]
     fn moving_average_detection(
         series: &TimeSeries,
         threshold: f64,
@@ -804,7 +806,7 @@ mod tests {
 
         // CUSUM should detect the level shift
         // May detect multiple points depending on threshold
-        assert!(result.segment_means.len() >= 1);
+        assert!(!result.segment_means.is_empty());
     }
 
     #[test]

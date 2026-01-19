@@ -652,10 +652,10 @@ mod tests {
             id: MessageId(2),
             source_kernel: 111,
             entity_id: 500,
-            time_window_us: 3600_000_000, // 1 hour
+            time_window_us: 3_600_000_000, // 1 hour
         };
         assert_eq!(msg.entity_id, 500);
-        assert_eq!(msg.time_window_us, 3600_000_000);
+        assert_eq!(msg.time_window_us, 3_600_000_000);
     }
 
     #[test]

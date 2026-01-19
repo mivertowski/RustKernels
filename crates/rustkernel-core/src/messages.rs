@@ -304,7 +304,7 @@ mod tests {
 
         // Test JSON serialization
         let json = msg.to_json().expect("serialization failed");
-        assert!(json.len() > 0);
+        assert!(!json.is_empty());
 
         // Test JSON deserialization
         let decoded: TestMessage = TestMessage::from_json(&json).expect("deserialization failed");

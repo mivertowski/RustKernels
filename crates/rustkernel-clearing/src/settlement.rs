@@ -369,7 +369,6 @@ pub enum SettlementPriority {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
 
     fn create_context() -> SettlementContext {
         let mut ctx = SettlementContext::default();

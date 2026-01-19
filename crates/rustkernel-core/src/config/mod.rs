@@ -187,9 +187,7 @@ impl ProductionConfig {
         if self.environment == "production" {
             // Production should have security enabled
             if !self.security.rbac_enabled && self.security.auth.is_none() {
-                tracing::warn!(
-                    "Production environment without authentication or RBAC enabled"
-                );
+                tracing::warn!("Production environment without authentication or RBAC enabled");
             }
         }
 

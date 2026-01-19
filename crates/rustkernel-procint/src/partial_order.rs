@@ -549,13 +549,13 @@ mod tests {
             result
                 .ordering_graph
                 .get("A")
-                .map_or(false, |s| s.contains("B"))
+                .is_some_and(|s| s.contains("B"))
         );
         assert!(
             result
                 .ordering_graph
                 .get("A")
-                .map_or(false, |s| s.contains("C"))
+                .is_some_and(|s| s.contains("C"))
         );
     }
 

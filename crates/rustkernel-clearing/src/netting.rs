@@ -544,8 +544,10 @@ mod tests {
         let mut trades = create_test_trades();
         trades[0].status = TradeStatus::Failed;
 
-        let mut config = NettingConfig::default();
-        config.include_failed = true;
+        let config = NettingConfig {
+            include_failed: true,
+            ..NettingConfig::default()
+        };
 
         let result = NettingCalculation::calculate(&trades, &config);
 

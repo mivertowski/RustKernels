@@ -346,10 +346,11 @@ impl EventLogImputation {
         let mut issues = Vec::new();
         let mut repairs = Vec::new();
         let mut repaired_traces = Vec::new();
-        let mut stats = ImputationStats::default();
-
-        stats.traces_analyzed = log.traces.len();
-        stats.events_analyzed = log.event_count();
+        let mut stats = ImputationStats {
+            traces_analyzed: log.traces.len(),
+            events_analyzed: log.event_count(),
+            ..ImputationStats::default()
+        };
 
         for trace in log.traces.values() {
             let (trace_issues, trace_repairs, repaired_trace) =

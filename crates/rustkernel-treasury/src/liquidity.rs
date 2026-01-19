@@ -130,11 +130,8 @@ impl LiquidityOptimization {
         };
 
         let is_compliant = lcr_ratio >= config.min_lcr;
-        let buffer = if is_compliant {
-            hqla - (net_outflows * config.min_lcr)
-        } else {
-            hqla - (net_outflows * config.min_lcr) // Will be negative
-        };
+        // Buffer = excess HQLA above minimum requirement (negative if non-compliant)
+        let buffer = hqla - (net_outflows * config.min_lcr);
 
         LCRResult {
             hqla,

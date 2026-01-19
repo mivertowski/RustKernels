@@ -436,8 +436,10 @@ mod tests {
         let mut trade = create_valid_trade();
         trade.buyer_id = "UNKNOWN".to_string();
 
-        let mut config = ValidationConfig::default();
-        config.check_counterparty = false;
+        let config = ValidationConfig {
+            check_counterparty: false,
+            ..ValidationConfig::default()
+        };
 
         let context = create_context();
 

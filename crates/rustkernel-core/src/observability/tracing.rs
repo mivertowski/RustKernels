@@ -78,9 +78,8 @@ impl TracingConfig {
     /// Initialize tracing
     #[cfg(feature = "otlp")]
     pub async fn init(&self) -> crate::error::Result<()> {
-        use opentelemetry::trace::TracerProvider as _;
         use opentelemetry_otlp::WithExportConfig;
-        use opentelemetry_sdk::trace::TracerProvider;
+        use opentelemetry_sdk::trace::SdkTracerProvider;
 
         if !self.enabled {
             return Ok(());
@@ -94,8 +93,8 @@ impl TracingConfig {
                 .build()
                 .map_err(|e| crate::error::KernelError::ConfigError(e.to_string()))?;
 
-            let provider = TracerProvider::builder()
-                .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
+            let provider = SdkTracerProvider::builder()
+                .with_batch_exporter(exporter)
                 .build();
 
             opentelemetry::global::set_tracer_provider(provider);
@@ -269,7 +268,7 @@ impl KernelSpan {
 
         #[cfg(feature = "otlp")]
         {
-            use tracing::{info_span, Span};
+            use tracing::info_span;
             // Record span to tracing
             let span = info_span!(
                 "kernel_execution",
@@ -323,10 +322,7 @@ mod tests {
 
     #[test]
     fn test_traceparent() {
-        let ctx = SpanContext::new(
-            "0af7651916cd43dd8448eb211c80319c",
-            "b7ad6b7169203331",
-        );
+        let ctx = SpanContext::new("0af7651916cd43dd8448eb211c80319c", "b7ad6b7169203331");
         let header = ctx.to_traceparent();
         assert!(header.starts_with("00-"));
 
@@ -349,8 +345,7 @@ mod tests {
 
     #[test]
     fn test_tracing_config() {
-        let config = TracingConfig::otlp("http://jaeger:4317")
-            .with_sampling(0.5);
+        let config = TracingConfig::otlp("http://jaeger:4317").with_sampling(0.5);
 
         assert_eq!(config.otlp_endpoint, Some("http://jaeger:4317".to_string()));
         assert_eq!(config.sampling_rate, 0.5);

@@ -13,8 +13,7 @@
 //!     .service(inner_service);
 //! ```
 
-use crate::{EcosystemError, KernelRequest, KernelResponse, RequestMetadata, ResponseMetadata};
-use async_trait::async_trait;
+use crate::{EcosystemError, KernelRequest, KernelResponse, ResponseMetadata};
 use rustkernel_core::registry::KernelRegistry;
 use std::future::Future;
 use std::pin::Pin;
@@ -305,6 +304,7 @@ pub enum RateLimitError<E> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::RequestMetadata;
 
     #[tokio::test]
     async fn test_kernel_service() {

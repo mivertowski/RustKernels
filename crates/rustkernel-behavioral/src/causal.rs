@@ -460,14 +460,14 @@ mod tests {
         let mut events = Vec::new();
 
         // Create a clear causal chain: A -> B -> C
-        for i in 0..30 {
+        for i in 0u64..30 {
             events.push(UserEvent {
                 id: i * 3,
                 user_id: 100,
                 event_type: "event_a".to_string(),
-                timestamp: base_ts + (i as u64 * 1000),
+                timestamp: base_ts + (i * 1000),
                 attributes: HashMap::new(),
-                session_id: Some(i as u64),
+                session_id: Some(i),
                 device_id: None,
                 ip_address: None,
                 location: None,
@@ -476,9 +476,9 @@ mod tests {
                 id: i * 3 + 1,
                 user_id: 100,
                 event_type: "event_b".to_string(),
-                timestamp: base_ts + (i as u64 * 1000) + 10,
+                timestamp: base_ts + (i * 1000) + 10,
                 attributes: HashMap::new(),
-                session_id: Some(i as u64),
+                session_id: Some(i),
                 device_id: None,
                 ip_address: None,
                 location: None,
@@ -487,9 +487,9 @@ mod tests {
                 id: i * 3 + 2,
                 user_id: 100,
                 event_type: "event_c".to_string(),
-                timestamp: base_ts + (i as u64 * 1000) + 20,
+                timestamp: base_ts + (i * 1000) + 20,
                 attributes: HashMap::new(),
-                session_id: Some(i as u64),
+                session_id: Some(i),
                 device_id: None,
                 ip_address: None,
                 location: None,
@@ -615,12 +615,12 @@ mod tests {
         let base_ts = 1700000000u64;
         let mut events = Vec::new();
 
-        for i in 0..20 {
+        for i in 0u64..20 {
             events.push(UserEvent {
                 id: i * 2,
                 user_id: 100,
                 event_type: "type_a".to_string(),
-                timestamp: base_ts + (i as u64 * 100),
+                timestamp: base_ts + (i * 100),
                 attributes: HashMap::new(),
                 session_id: None,
                 device_id: None,
@@ -631,7 +631,7 @@ mod tests {
                 id: i * 2 + 1,
                 user_id: 100,
                 event_type: "type_b".to_string(),
-                timestamp: base_ts + (i as u64 * 100) + 10,
+                timestamp: base_ts + (i * 100) + 10,
                 attributes: HashMap::new(),
                 session_id: None,
                 device_id: None,

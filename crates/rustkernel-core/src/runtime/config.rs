@@ -162,10 +162,7 @@ impl RuntimeConfig {
     pub fn from_file(path: &std::path::Path) -> Result<Self, ConfigError> {
         let contents = std::fs::read_to_string(path).map_err(ConfigError::IoError)?;
 
-        let ext = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("toml");
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("toml");
 
         match ext {
             "json" => serde_json::from_str(&contents).map_err(ConfigError::JsonError),
@@ -453,15 +450,24 @@ mod tests {
 
     #[test]
     fn test_config_validation() {
-        let mut config = RuntimeConfig::default();
-        config.max_kernel_instances = 0;
+        let config = RuntimeConfig {
+            max_kernel_instances: 0,
+            ..RuntimeConfig::default()
+        };
         assert!(config.validate().is_err());
 
-        config.max_kernel_instances = 100;
-        config.max_queue_depth = 0;
+        let config = RuntimeConfig {
+            max_kernel_instances: 100,
+            max_queue_depth: 0,
+            ..RuntimeConfig::default()
+        };
         assert!(config.validate().is_err());
 
-        config.max_queue_depth = 1000;
+        let config = RuntimeConfig {
+            max_kernel_instances: 100,
+            max_queue_depth: 1000,
+            ..RuntimeConfig::default()
+        };
         assert!(config.validate().is_ok());
     }
 

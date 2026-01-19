@@ -28,27 +28,22 @@
 
 use super::{ResilienceError, ResilienceResult};
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
 /// Circuit breaker state
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CircuitState {
     /// Circuit is closed, requests pass through
+    #[default]
     Closed,
     /// Circuit is open, requests fail fast
     Open,
     /// Circuit is half-open, testing recovery
     HalfOpen,
-}
-
-impl Default for CircuitState {
-    fn default() -> Self {
-        Self::Closed
-    }
 }
 
 impl std::fmt::Display for CircuitState {
@@ -221,9 +216,14 @@ impl CircuitBreaker {
             }
             CircuitState::HalfOpen => {
                 // Limit concurrent requests in half-open state
-                let current = self.inner.half_open_requests.fetch_add(1, Ordering::Relaxed);
+                let current = self
+                    .inner
+                    .half_open_requests
+                    .fetch_add(1, Ordering::Relaxed);
                 if current >= self.config.half_open_max_requests {
-                    self.inner.half_open_requests.fetch_sub(1, Ordering::Relaxed);
+                    self.inner
+                        .half_open_requests
+                        .fetch_sub(1, Ordering::Relaxed);
                     return Err(ResilienceError::CircuitOpen {
                         kernel_id: self.kernel_id.clone(),
                     });
@@ -243,7 +243,9 @@ impl CircuitBreaker {
 
         // If we were in half-open, decrement the counter
         if state == CircuitState::HalfOpen {
-            self.inner.half_open_requests.fetch_sub(1, Ordering::Relaxed);
+            self.inner
+                .half_open_requests
+                .fetch_sub(1, Ordering::Relaxed);
         }
 
         result.map_err(|e| ResilienceError::KernelError(e.into()))

@@ -585,7 +585,7 @@ mod tests {
                 events
                     .iter()
                     .find(|e| e.id == c.correlated_event_id)
-                    .map_or(false, |e| e.user_id == 100)
+                    .is_some_and(|e| e.user_id == 100)
             })
             .collect();
 
@@ -703,16 +703,16 @@ mod tests {
     fn test_causal_correlation_detection() {
         let base_ts = 1700000000u64;
         // Create events with consistent A->B pattern
-        let events: Vec<UserEvent> = (0..10)
+        let events: Vec<UserEvent> = (0u64..10)
             .flat_map(|i| {
                 vec![
                     UserEvent {
                         id: i * 2,
                         user_id: 100,
                         event_type: "cause".to_string(),
-                        timestamp: base_ts + (i as u64 * 1000),
+                        timestamp: base_ts + (i * 1000),
                         attributes: HashMap::new(),
-                        session_id: Some(i as u64),
+                        session_id: Some(i),
                         device_id: None,
                         ip_address: None,
                         location: None,
@@ -721,9 +721,9 @@ mod tests {
                         id: i * 2 + 1,
                         user_id: 100,
                         event_type: "effect".to_string(),
-                        timestamp: base_ts + (i as u64 * 1000) + 50, // Consistent 50s delay
+                        timestamp: base_ts + (i * 1000) + 50, // Consistent 50s delay
                         attributes: HashMap::new(),
-                        session_id: Some(i as u64),
+                        session_id: Some(i),
                         device_id: None,
                         ip_address: None,
                         location: None,

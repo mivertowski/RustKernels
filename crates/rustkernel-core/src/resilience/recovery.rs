@@ -94,41 +94,38 @@ impl RecoveryPolicy {
         E: Into<crate::error::KernelError> + std::fmt::Debug,
     {
         match self.strategy {
-            RecoveryStrategy::FailFast => {
-                f().await.map_err(|e| ResilienceError::KernelError(e.into()))
-            }
+            RecoveryStrategy::FailFast => f()
+                .await
+                .map_err(|e| ResilienceError::KernelError(e.into())),
             RecoveryStrategy::Retry => {
                 if let Some(ref retry) = self.retry {
                     retry.execute(f).await
                 } else {
-                    f().await.map_err(|e| ResilienceError::KernelError(e.into()))
+                    f().await
+                        .map_err(|e| ResilienceError::KernelError(e.into()))
                 }
             }
             RecoveryStrategy::Skip => {
                 // Skip strategy: return default or special value
                 // For now, just try once
-                f().await.map_err(|e| ResilienceError::KernelError(e.into()))
+                f().await
+                    .map_err(|e| ResilienceError::KernelError(e.into()))
             }
         }
     }
 }
 
 /// Recovery strategy
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RecoveryStrategy {
     /// Fail immediately without retrying
     FailFast,
     /// Retry with configured policy
+    #[default]
     Retry,
     /// Skip failed operations
     Skip,
-}
-
-impl Default for RecoveryStrategy {
-    fn default() -> Self {
-        Self::Retry
-    }
 }
 
 /// Retry configuration
@@ -187,7 +184,9 @@ impl RetryConfig {
         Self {
             max_retries,
             initial_delay,
-            backoff: BackoffStrategy::Linear { increment: initial_delay },
+            backoff: BackoffStrategy::Linear {
+                increment: initial_delay,
+            },
             ..Default::default()
         }
     }
@@ -220,9 +219,7 @@ impl RetryConfig {
     pub fn delay_for_attempt(&self, attempt: u32) -> Duration {
         let base_delay = match self.backoff {
             BackoffStrategy::Fixed => self.initial_delay,
-            BackoffStrategy::Linear { increment } => {
-                self.initial_delay + increment * attempt
-            }
+            BackoffStrategy::Linear { increment } => self.initial_delay + increment * attempt,
             BackoffStrategy::Exponential { factor } => {
                 let multiplier = factor.powi(attempt as i32);
                 Duration::from_secs_f64(self.initial_delay.as_secs_f64() * multiplier)
@@ -255,10 +252,7 @@ impl RetryConfig {
             match f().await {
                 Ok(result) => {
                     if attempt > 0 {
-                        tracing::info!(
-                            attempt = attempt,
-                            "Operation succeeded after retry"
-                        );
+                        tracing::info!(attempt = attempt, "Operation succeeded after retry");
                     }
                     return Ok(result);
                 }
@@ -291,11 +285,11 @@ impl RetryConfig {
             }
         }
 
-        Err(last_error
-            .map(ResilienceError::KernelError)
-            .unwrap_or(ResilienceError::MaxRetriesExceeded {
+        Err(last_error.map(ResilienceError::KernelError).unwrap_or(
+            ResilienceError::MaxRetriesExceeded {
                 retries: self.max_retries,
-            }))
+            },
+        ))
     }
 }
 

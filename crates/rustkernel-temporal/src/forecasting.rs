@@ -550,6 +550,7 @@ impl ProphetDecomposition {
     }
 
     /// Extract trend using centered moving average.
+    #[allow(clippy::needless_range_loop)]
     fn extract_trend(values: &[f64], window: usize) -> Vec<f64> {
         let n = values.len();
         let w = window.max(1);

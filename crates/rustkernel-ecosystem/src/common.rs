@@ -61,7 +61,7 @@ impl ServiceConfig {
     pub fn production() -> Self {
         Self {
             request_logging: false, // Use structured logging
-            cors_origins: vec![], // Configure explicitly
+            cors_origins: vec![],   // Configure explicitly
             ..Default::default()
         }
     }
@@ -185,7 +185,8 @@ impl ServiceMetrics {
     pub fn record_request(&self, latency_us: u64, is_error: bool) {
         use std::sync::atomic::Ordering;
         self.total_requests.fetch_add(1, Ordering::Relaxed);
-        self.total_latency_us.fetch_add(latency_us, Ordering::Relaxed);
+        self.total_latency_us
+            .fetch_add(latency_us, Ordering::Relaxed);
         if is_error {
             self.total_errors.fetch_add(1, Ordering::Relaxed);
         }
@@ -193,7 +194,8 @@ impl ServiceMetrics {
 
     /// Get request count
     pub fn request_count(&self) -> u64 {
-        self.total_requests.load(std::sync::atomic::Ordering::Relaxed)
+        self.total_requests
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Get error count
@@ -206,11 +208,7 @@ impl ServiceMetrics {
         use std::sync::atomic::Ordering;
         let total = self.total_latency_us.load(Ordering::Relaxed) as f64;
         let count = self.total_requests.load(Ordering::Relaxed) as f64;
-        if count > 0.0 {
-            total / count
-        } else {
-            0.0
-        }
+        if count > 0.0 { total / count } else { 0.0 }
     }
 }
 
@@ -270,7 +268,7 @@ mod tests {
             .with_tenant_id("tenant-123")
             .with_user_id("user-456");
 
-        assert!(ctx.request_id.len() > 0);
+        assert!(!ctx.request_id.is_empty());
         assert_eq!(ctx.tenant_id, Some("tenant-123".to_string()));
         assert_eq!(ctx.user_id, Some("user-456".to_string()));
     }

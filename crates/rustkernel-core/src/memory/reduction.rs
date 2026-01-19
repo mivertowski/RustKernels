@@ -37,20 +37,15 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 
 /// Synchronization mode for multi-phase reductions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum SyncMode {
     /// Use cooperative groups for GPU-wide synchronization
     Cooperative,
     /// Software barrier using atomic operations
     SoftwareBarrier,
     /// Separate kernel launches per phase
+    #[default]
     MultiLaunch,
-}
-
-impl Default for SyncMode {
-    fn default() -> Self {
-        Self::MultiLaunch
-    }
 }
 
 /// Reduction operation type
@@ -136,10 +131,13 @@ pub struct InterPhaseReduction<T> {
 impl<T: Default + Clone + Copy> InterPhaseReduction<T> {
     /// Create a new inter-phase reduction
     pub fn new(input_size: usize, sync_mode: SyncMode) -> Self {
-        Self::with_config(input_size, ReductionConfig {
-            sync_mode,
-            ..Default::default()
-        })
+        Self::with_config(
+            input_size,
+            ReductionConfig {
+                sync_mode,
+                ..Default::default()
+            },
+        )
     }
 
     /// Create with full configuration
@@ -152,7 +150,7 @@ impl<T: Default + Clone + Copy> InterPhaseReduction<T> {
         for _ in 0..num_phases {
             phase_buffers.push(vec![T::default(); size]);
             // Each phase reduces by block_size factor
-            size = (size + config.block_size as usize - 1) / config.block_size as usize;
+            size = size.div_ceil(config.block_size as usize);
             size = size.max(1);
         }
 
@@ -274,17 +272,23 @@ impl<T: Default + Clone + Copy> InterPhaseReduction<T> {
 
     /// Get mutable buffer for a phase (for writing current phase results)
     pub fn get_buffer_mut(&mut self, phase: u32) -> Option<&mut [T]> {
-        self.phase_buffers.get_mut(phase as usize).map(|v| v.as_mut_slice())
+        self.phase_buffers
+            .get_mut(phase as usize)
+            .map(|v| v.as_mut_slice())
     }
 
     /// Get buffer size for a phase
     pub fn buffer_size(&self, phase: u32) -> usize {
-        self.phase_buffers.get(phase as usize).map(|v| v.len()).unwrap_or(0)
+        self.phase_buffers
+            .get(phase as usize)
+            .map(|v| v.len())
+            .unwrap_or(0)
     }
 
     /// Set convergence value (as bits)
     pub fn set_convergence(&self, value: f64) {
-        self.convergence_value.store(value.to_bits(), Ordering::Release);
+        self.convergence_value
+            .store(value.to_bits(), Ordering::Release);
     }
 
     /// Get convergence value
@@ -380,9 +384,7 @@ pub struct GlobalReduction {
 impl GlobalReduction {
     /// Create a new global reduction
     pub fn new(participants: u32) -> Self {
-        let partial_results = (0..participants)
-            .map(|_| AtomicU64::new(0))
-            .collect();
+        let partial_results = (0..participants).map(|_| AtomicU64::new(0)).collect();
 
         Self {
             total_participants: participants,
@@ -425,7 +427,8 @@ impl GlobalReduction {
             return None;
         }
 
-        let sum: f64 = self.partial_results
+        let sum: f64 = self
+            .partial_results
             .iter()
             .map(|v| f64::from_bits(v.load(Ordering::Acquire)))
             .sum();
@@ -563,7 +566,10 @@ impl ReductionBuilder {
     }
 
     /// Build an InterPhaseReduction
-    pub fn build_reduction<T: Default + Clone + Copy>(self, input_size: usize) -> InterPhaseReduction<T> {
+    pub fn build_reduction<T: Default + Clone + Copy>(
+        self,
+        input_size: usize,
+    ) -> InterPhaseReduction<T> {
         InterPhaseReduction::with_config(input_size, self.config)
     }
 }
@@ -600,11 +606,14 @@ mod tests {
 
     #[test]
     fn test_phase_buffers() {
-        let mut reduction = InterPhaseReduction::<f64>::with_config(1000, ReductionConfig {
-            block_size: 256,
-            num_phases: 3,
-            ..Default::default()
-        });
+        let mut reduction = InterPhaseReduction::<f64>::with_config(
+            1000,
+            ReductionConfig {
+                block_size: 256,
+                num_phases: 3,
+                ..Default::default()
+            },
+        );
 
         // First phase buffer should be 1000 elements
         assert_eq!(reduction.buffer_size(0), 1000);
@@ -675,11 +684,14 @@ mod tests {
 
     #[test]
     fn test_convergence_tracking() {
-        let reduction = InterPhaseReduction::<f64>::with_config(100, ReductionConfig {
-            convergence_check: true,
-            convergence_threshold: 1e-6,
-            ..Default::default()
-        });
+        let reduction = InterPhaseReduction::<f64>::with_config(
+            100,
+            ReductionConfig {
+                convergence_check: true,
+                convergence_threshold: 1e-6,
+                ..Default::default()
+            },
+        );
 
         reduction.set_convergence(1e-3);
         assert!(!reduction.is_converged());

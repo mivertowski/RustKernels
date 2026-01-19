@@ -10,10 +10,10 @@ use super::config::RuntimeConfig;
 use super::{RuntimeEvent, RuntimeEventCallback, RuntimeStats, ShutdownSignal};
 use crate::error::{KernelError, Result};
 use crate::registry::KernelRegistry;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
-use tokio::sync::{watch, RwLock};
+use tokio::sync::{RwLock, watch};
 use tracing::{debug, info, warn};
 
 /// Runtime lifecycle states
@@ -200,10 +200,7 @@ impl KernelRuntime {
         // Transition to Draining
         *self.state.write().await = LifecycleState::Draining;
         self.emit_event(RuntimeEvent::Draining);
-        info!(
-            "Runtime draining, timeout: {:?}",
-            self.config.drain_timeout
-        );
+        info!("Runtime draining, timeout: {:?}", self.config.drain_timeout);
 
         // Signal shutdown to all tasks
         let _ = self.shutdown_tx.send(true);
@@ -223,7 +220,10 @@ impl KernelRuntime {
         // Force stop remaining work
         let remaining = self.stats.messages_in_flight.load(Ordering::Relaxed);
         if remaining > 0 {
-            warn!("Drain timeout reached with {} messages still in flight", remaining);
+            warn!(
+                "Drain timeout reached with {} messages still in flight",
+                remaining
+            );
         }
 
         // Cleanup GPU resources
@@ -299,18 +299,26 @@ impl KernelRuntime {
 
     /// Record a message being processed
     pub fn record_message_start(&self) {
-        self.stats.messages_in_flight.fetch_add(1, Ordering::Relaxed);
+        self.stats
+            .messages_in_flight
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a message completed
     pub fn record_message_complete(&self) {
-        self.stats.messages_in_flight.fetch_sub(1, Ordering::Relaxed);
-        self.stats.messages_processed.fetch_add(1, Ordering::Relaxed);
+        self.stats
+            .messages_in_flight
+            .fetch_sub(1, Ordering::Relaxed);
+        self.stats
+            .messages_processed
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record kernel registration
     pub fn record_kernel_registered(&self, id: &str) {
-        self.stats.kernels_registered.fetch_add(1, Ordering::Relaxed);
+        self.stats
+            .kernels_registered
+            .fetch_add(1, Ordering::Relaxed);
         self.emit_event(RuntimeEvent::KernelRegistered { id: id.to_string() });
     }
 
@@ -328,10 +336,7 @@ impl KernelRuntime {
     // Private methods
 
     async fn initialize_gpu_backend(&self) -> Result<()> {
-        info!(
-            "Initializing GPU backend: {}",
-            self.config.primary_backend
-        );
+        info!("Initializing GPU backend: {}", self.config.primary_backend);
         // GPU backend initialization will be implemented with ringkernel 0.3.1
         // For now, this is a placeholder that logs the intent
         Ok(())

@@ -17,20 +17,15 @@ use std::time::Instant;
 // ============================================================================
 
 /// Prediction model type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum PredictionModelType {
     /// First-order Markov chain (single previous activity).
+    #[default]
     Markov1,
     /// Second-order Markov chain (two previous activities).
     Markov2,
     /// N-gram model with configurable n.
     NGram,
-}
-
-impl Default for PredictionModelType {
-    fn default() -> Self {
-        Self::Markov1
-    }
 }
 
 /// Configuration for prediction.
@@ -222,7 +217,7 @@ impl PredictionModel {
                 if history.len() >= n - 1 {
                     let key: Vec<String> = history[history.len() - (n - 1)..].to_vec();
                     self.higher_order.get(&key)
-                } else if history.len() >= 1 {
+                } else if !history.is_empty() {
                     // Fall back to first-order
                     self.transitions.get(&history[history.len() - 1])
                 } else {
@@ -611,7 +606,6 @@ mod tests {
             top_k: 3,
             min_probability: 0.0,
             laplace_smoothing: false,
-            ..Default::default()
         };
         let model = PredictionModel::train(&log, &config);
 

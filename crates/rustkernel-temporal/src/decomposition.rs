@@ -166,6 +166,7 @@ impl SeasonalDecomposition {
     }
 
     /// Centered moving average.
+    #[allow(clippy::needless_range_loop)]
     fn centered_moving_average(values: &[f64], window: usize) -> Vec<f64> {
         let n = values.len();
         let half_w = window / 2;
@@ -220,6 +221,7 @@ impl SeasonalDecomposition {
     }
 
     /// Robust (median-based) seasonal estimation.
+    #[allow(clippy::needless_range_loop)]
     fn robust_seasonal(detrended: &[f64], period: usize) -> Vec<f64> {
         let mut seasonal = vec![0.0; period];
 
@@ -250,6 +252,7 @@ impl SeasonalDecomposition {
     }
 
     /// Lowess-style trend extraction (simplified).
+    #[allow(clippy::needless_range_loop)]
     fn lowess_trend(values: &[f64], bandwidth: usize) -> Vec<f64> {
         let n = values.len();
         let mut trend = vec![0.0; n];
@@ -413,6 +416,7 @@ impl TrendExtraction {
     }
 
     /// Centered moving average.
+    #[allow(clippy::needless_range_loop)]
     fn centered_ma(values: &[f64], window: usize) -> Vec<f64> {
         let n = values.len();
         let half_w = window / 2;
@@ -428,6 +432,7 @@ impl TrendExtraction {
     }
 
     /// Lowess (Locally Weighted Scatterplot Smoothing).
+    #[allow(clippy::needless_range_loop)]
     fn lowess(values: &[f64], bandwidth: usize) -> Vec<f64> {
         let n = values.len();
         let mut result = vec![0.0; n];

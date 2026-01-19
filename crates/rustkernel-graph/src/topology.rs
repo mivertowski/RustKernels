@@ -144,10 +144,7 @@ impl DegreeRatio {
             .collect();
 
         let mean = degrees.iter().sum::<f64>() / degrees.len() as f64;
-        let variance =
-            degrees.iter().map(|d| (d - mean).powi(2)).sum::<f64>() / degrees.len() as f64;
-
-        variance
+        degrees.iter().map(|d| (d - mean).powi(2)).sum::<f64>() / degrees.len() as f64
     }
 
     /// Compute degree ratios for all nodes.

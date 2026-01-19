@@ -269,6 +269,7 @@ impl MonteCarloVaR {
     }
 
     /// Calculate component VaR.
+    #[allow(clippy::needless_range_loop)]
     fn calculate_component_var(
         portfolio: &Portfolio,
         total_var: f64,
@@ -307,6 +308,7 @@ impl MonteCarloVaR {
     }
 
     /// Calculate marginal VaR.
+    #[allow(clippy::needless_range_loop)]
     fn calculate_marginal_var(
         portfolio: &Portfolio,
         params: VaRParams,

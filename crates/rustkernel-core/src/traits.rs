@@ -27,9 +27,10 @@ use uuid::Uuid;
 // ============================================================================
 
 /// Health status for kernel health checks
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum HealthStatus {
     /// Kernel is healthy and operational
+    #[default]
     Healthy,
     /// Kernel is degraded but still operational
     Degraded,
@@ -37,12 +38,6 @@ pub enum HealthStatus {
     Unhealthy,
     /// Health status is unknown (check failed)
     Unknown,
-}
-
-impl Default for HealthStatus {
-    fn default() -> Self {
-        Self::Healthy
-    }
 }
 
 impl std::fmt::Display for HealthStatus {

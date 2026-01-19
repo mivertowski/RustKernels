@@ -799,7 +799,7 @@ mod tests {
         let result = HypergraphConstruction::construct(&records, &config);
 
         // Should only have entity nodes
-        for (_, node) in &result.hypergraph.nodes {
+        for node in result.hypergraph.nodes.values() {
             assert_eq!(node.node_type, NodeType::Entity);
         }
     }
@@ -834,7 +834,7 @@ mod tests {
         let result = HypergraphConstruction::construct(&records, &config);
 
         // Weights should be normalized 0-1
-        for (_, weight) in &result.edge_weights {
+        for weight in result.edge_weights.values() {
             assert!(*weight >= 0.0 && *weight <= 1.0);
         }
 

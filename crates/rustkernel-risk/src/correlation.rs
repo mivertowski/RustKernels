@@ -16,18 +16,13 @@ use std::time::Instant;
 // ============================================================================
 
 /// Correlation update types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum CorrelationType {
     /// Pearson correlation coefficient.
+    #[default]
     Pearson,
     /// Exponentially weighted correlation.
     Exponential,
-}
-
-impl Default for CorrelationType {
-    fn default() -> Self {
-        Self::Pearson
-    }
 }
 
 /// Configuration for correlation computation.
@@ -732,7 +727,7 @@ mod tests {
             }
         }
         // Assets 0 and 1 should be highly correlated
-        let corr_01 = result.correlations[0 * n + 1];
+        let corr_01 = result.correlations[1];
         assert!(corr_01 > 0.9, "Expected high correlation: {}", corr_01);
     }
 

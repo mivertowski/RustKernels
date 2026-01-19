@@ -19,22 +19,20 @@
 //! ```
 
 use crate::{
-    common::{headers, paths, RequestContext, ServiceConfig, ServiceMetrics},
-    ErrorResponse, HealthResponse, HealthStatus, KernelRequest, KernelResponse, RequestMetadata,
-    ResponseMetadata,
+    ErrorResponse, HealthResponse, HealthStatus, KernelResponse, RequestMetadata, ResponseMetadata,
+    common::{ServiceConfig, ServiceMetrics, headers, paths},
 };
 use axum::{
+    Router,
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Json},
+    response::Json,
     routing::{get, post},
-    Router,
 };
 use rustkernel_core::registry::KernelRegistry;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::RwLock;
 
 /// Application state shared across handlers
 #[derive(Clone)]
@@ -272,8 +270,10 @@ async fn execute_kernel(
     let request_id = extract_request_id(&headers);
 
     // Check if kernel exists
-    let kernel_meta = state.registry.get(&kernel_id).ok_or_else(|| {
-        state.metrics.record_request(start.elapsed().as_micros() as u64, true);
+    let _kernel_meta = state.registry.get(&kernel_id).ok_or_else(|| {
+        state
+            .metrics
+            .record_request(start.elapsed().as_micros() as u64, true);
         (
             StatusCode::NOT_FOUND,
             Json(ErrorResponse {

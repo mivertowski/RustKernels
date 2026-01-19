@@ -4,10 +4,9 @@
 //!
 //! Run with: `cargo run --example licensing`
 
-use rustkernel::core::domain::Domain;
-use rustkernel::core::license::{
-    DevelopmentLicense, License, LicenseGuard, LicenseTier, LicenseValidator,
-    StandardLicenseValidator,
+use rustkernels::core::domain::Domain;
+use rustkernels::core::license::{
+    DevelopmentLicense, License, LicenseGuard, LicenseValidator, StandardLicenseValidator,
 };
 
 fn main() {
@@ -62,7 +61,7 @@ fn main() {
     println!("   - GPU native check: {:?}", guard.check_gpu_native());
 }
 
-fn demonstrate_license<V: LicenseValidator + ?Sized>(validator: &V, name: &str) {
+fn demonstrate_license<V: LicenseValidator + ?Sized>(validator: &V, _name: &str) {
     println!("   Tier: {:?}", validator.tier());
     println!("   GPU Native: {}", validator.gpu_native_enabled());
     println!("   Max Kernels: {:?}", validator.max_kernels());

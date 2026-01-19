@@ -187,13 +187,20 @@ impl ErrorResponse {
     /// Create from EcosystemError
     pub fn from_error(err: &EcosystemError, request_id: Option<String>) -> Self {
         let (code, message) = match err {
-            EcosystemError::KernelNotFound(id) => ("KERNEL_NOT_FOUND", format!("Kernel not found: {}", id)),
+            EcosystemError::KernelNotFound(id) => {
+                ("KERNEL_NOT_FOUND", format!("Kernel not found: {}", id))
+            }
             EcosystemError::ExecutionFailed(msg) => ("EXECUTION_FAILED", msg.clone()),
             EcosystemError::SerializationError(msg) => ("SERIALIZATION_ERROR", msg.clone()),
             EcosystemError::InvalidRequest(msg) => ("INVALID_REQUEST", msg.clone()),
-            EcosystemError::AuthenticationRequired => ("AUTHENTICATION_REQUIRED", "Authentication required".to_string()),
+            EcosystemError::AuthenticationRequired => (
+                "AUTHENTICATION_REQUIRED",
+                "Authentication required".to_string(),
+            ),
             EcosystemError::PermissionDenied(msg) => ("PERMISSION_DENIED", msg.clone()),
-            EcosystemError::RateLimitExceeded => ("RATE_LIMIT_EXCEEDED", "Rate limit exceeded".to_string()),
+            EcosystemError::RateLimitExceeded => {
+                ("RATE_LIMIT_EXCEEDED", "Rate limit exceeded".to_string())
+            }
             EcosystemError::ServiceUnavailable(msg) => ("SERVICE_UNAVAILABLE", msg.clone()),
             EcosystemError::InternalError(msg) => ("INTERNAL_ERROR", msg.clone()),
         };

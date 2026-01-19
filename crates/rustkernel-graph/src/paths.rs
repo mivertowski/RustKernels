@@ -463,6 +463,7 @@ impl ShortestPath {
     }
 
     /// Compute eccentricity for each node (max distance to any other node).
+    #[allow(clippy::needless_range_loop)]
     pub fn compute_eccentricity(graph: &CsrGraph) -> Vec<f64> {
         let n = graph.num_nodes;
         let mut eccentricities = vec![0.0; n];
@@ -648,7 +649,7 @@ mod tests {
         let graph = create_complete_graph();
         let paths = ShortestPath::compute_k_shortest(&graph, 0, 3, 3);
 
-        assert!(paths.len() >= 1);
+        assert!(!paths.is_empty());
         assert_eq!(paths[0].hop_count, 1); // Direct edge
     }
 }

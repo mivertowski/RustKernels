@@ -3,16 +3,11 @@
 //! Provides commands for kernel management, discovery, and validation.
 
 use clap::{Parser, Subcommand};
-use rustkernels::catalog::{DomainInfo, domains, enabled_domains, total_kernel_count};
 use rustkernel_core::{
-    config::ProductionConfig,
-    domain::Domain,
-    kernel::KernelMode,
-    registry::KernelRegistry,
-    resilience::HealthCheckResult,
-    runtime::LifecycleState,
-    traits::HealthStatus,
+    config::ProductionConfig, domain::Domain, kernel::KernelMode, registry::KernelRegistry,
+    resilience::HealthCheckResult, runtime::LifecycleState, traits::HealthStatus,
 };
+use rustkernels::catalog::{DomainInfo, domains, enabled_domains, total_kernel_count};
 use std::path::PathBuf;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -1046,7 +1041,10 @@ fn cmd_runtime(action: RuntimeAction) -> anyhow::Result<()> {
             println!("Security Settings:");
             println!("  RBAC Enabled:    {}", config.security.rbac_enabled);
             println!("  Audit Logging:   {}", config.security.audit_logging);
-            println!("  Multi-Tenancy:   {}", config.security.multi_tenancy_enabled);
+            println!(
+                "  Multi-Tenancy:   {}",
+                config.security.multi_tenancy_enabled
+            );
         }
 
         RuntimeAction::Init { preset } => {
@@ -1101,7 +1099,7 @@ fn cmd_health(format: &str, component: Option<String>) -> anyhow::Result<()> {
                 HealthStatus::Unknown => "unknown",
             };
             let comma = if i < filtered.len() - 1 { "," } else { "" };
-            println!("    \"{}\": \"{}\"{}",name, status, comma);
+            println!("    \"{}\": \"{}\"{}", name, status, comma);
         }
         println!("  }}");
         println!("}}");
@@ -1113,15 +1111,33 @@ fn cmd_health(format: &str, component: Option<String>) -> anyhow::Result<()> {
         for (name, result) in &filtered {
             let (icon, status, details) = match result.status {
                 HealthStatus::Healthy => ("✓", "Healthy", String::new()),
-                HealthStatus::Degraded => ("⚠", "Degraded", result.error.clone().map(|e| format!(" - {}", e)).unwrap_or_default()),
-                HealthStatus::Unhealthy => ("✗", "Unhealthy", result.error.clone().map(|e| format!(" - {}", e)).unwrap_or_default()),
+                HealthStatus::Degraded => (
+                    "⚠",
+                    "Degraded",
+                    result
+                        .error
+                        .clone()
+                        .map(|e| format!(" - {}", e))
+                        .unwrap_or_default(),
+                ),
+                HealthStatus::Unhealthy => (
+                    "✗",
+                    "Unhealthy",
+                    result
+                        .error
+                        .clone()
+                        .map(|e| format!(" - {}", e))
+                        .unwrap_or_default(),
+                ),
                 HealthStatus::Unknown => ("?", "Unknown", String::new()),
             };
             println!("  {} {:<15} {}{}", icon, name, status, details);
         }
 
         println!();
-        let all_healthy = filtered.iter().all(|(_, r)| r.status == HealthStatus::Healthy);
+        let all_healthy = filtered
+            .iter()
+            .all(|(_, r)| r.status == HealthStatus::Healthy);
         if all_healthy {
             println!("Overall: ✓ All systems healthy");
         } else {
@@ -1158,8 +1174,14 @@ fn cmd_config(action: ConfigAction) -> anyhow::Result<()> {
             println!("  Max Instances:   {}", config.runtime.max_kernel_instances);
             println!();
             println!("Memory:");
-            println!("  Max GPU Memory:      {} bytes", config.memory.max_gpu_memory);
-            println!("  Max Staging Memory:  {} bytes", config.memory.max_staging_memory);
+            println!(
+                "  Max GPU Memory:      {} bytes",
+                config.memory.max_gpu_memory
+            );
+            println!(
+                "  Max Staging Memory:  {} bytes",
+                config.memory.max_staging_memory
+            );
         }
 
         ConfigAction::Validate { file } => {
@@ -1230,7 +1252,9 @@ fn cmd_config(action: ConfigAction) -> anyhow::Result<()> {
             println!("  RUSTKERNEL_MAX_GPU_MEMORY_GB  Maximum GPU memory in GB");
             println!();
             println!("Example:");
-            println!("  RUSTKERNEL_ENV=production RUSTKERNEL_GPU_ENABLED=true rustkernel runtime init");
+            println!(
+                "  RUSTKERNEL_ENV=production RUSTKERNEL_GPU_ENABLED=true rustkernel runtime init"
+            );
         }
     }
 

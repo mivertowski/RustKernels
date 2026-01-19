@@ -344,6 +344,7 @@ impl VolatilityAnalysis {
     /// # Arguments
     /// * `returns` - High-frequency returns
     /// * `window` - Window for realized volatility calculation
+    #[allow(clippy::needless_range_loop)]
     pub fn compute_realized(returns: &TimeSeries, window: usize) -> Vec<f64> {
         let n = returns.len();
         let w = window.min(n).max(1);
@@ -447,7 +448,7 @@ impl VolatilityAnalysis {
             for i in 0..p {
                 for sign in [-1.0, 1.0] {
                     let mut new_alpha = alpha.clone();
-                    new_alpha[i] = (new_alpha[i] + sign * delta).max(0.001).min(0.5);
+                    new_alpha[i] = (new_alpha[i] + sign * delta).clamp(0.001, 0.5);
 
                     let alpha_sum: f64 = new_alpha.iter().sum();
                     let beta_sum: f64 = beta.iter().sum();
@@ -475,7 +476,7 @@ impl VolatilityAnalysis {
             for i in 0..q {
                 for sign in [-1.0, 1.0] {
                     let mut new_beta = beta.clone();
-                    new_beta[i] = (new_beta[i] + sign * delta).max(0.001).min(0.99);
+                    new_beta[i] = (new_beta[i] + sign * delta).clamp(0.001, 0.99);
 
                     let alpha_sum: f64 = alpha.iter().sum();
                     let beta_sum: f64 = new_beta.iter().sum();

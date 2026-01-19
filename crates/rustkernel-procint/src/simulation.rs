@@ -699,7 +699,7 @@ mod tests {
         assert!(!result.resource_utilization.is_empty());
 
         // Utilization should be between 0 and some reasonable upper bound
-        for (_resource, util) in &result.resource_utilization {
+        for util in result.resource_utilization.values() {
             assert!(*util >= 0.0);
         }
     }
@@ -722,7 +722,7 @@ mod tests {
         assert!(!result.bottleneck_scores.is_empty());
 
         // Bottleneck scores should be between 0 and 1
-        for (_activity, score) in &result.bottleneck_scores {
+        for score in result.bottleneck_scores.values() {
             assert!(*score >= 0.0 && *score <= 1.0);
         }
     }
@@ -766,7 +766,7 @@ mod tests {
             max: 15.0,
         };
         let sample = kernel.sample_duration(&uniform, &mut rng);
-        assert!(sample >= 5.0 && sample <= 15.0);
+        assert!((5.0..=15.0).contains(&sample));
 
         // Test normal
         let normal = DurationDistribution::Normal {
@@ -788,6 +788,6 @@ mod tests {
             max: 20.0,
         };
         let sample = kernel.sample_duration(&triangular, &mut rng);
-        assert!(sample >= 5.0 && sample <= 20.0);
+        assert!((5.0..=20.0).contains(&sample));
     }
 }

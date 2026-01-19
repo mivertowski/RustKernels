@@ -382,7 +382,7 @@ impl RingString {
     }
 
     /// Create from a string slice.
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_string(s: &str) -> Self {
         let bytes = s.as_bytes();
         let len = bytes.len().min(63) as u8;
         let mut data = [0u8; 64];
@@ -424,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_ring_string() {
-        let s = RingString::from_str("Hello, World!");
+        let s = RingString::from_string("Hello, World!");
         assert_eq!(s.as_str(), "Hello, World!");
         assert_eq!(s.len, 13);
     }
@@ -432,7 +432,7 @@ mod tests {
     #[test]
     fn test_ring_string_truncation() {
         let long = "a".repeat(100);
-        let s = RingString::from_str(&long);
+        let s = RingString::from_string(&long);
         assert_eq!(s.len, 63);
     }
 }

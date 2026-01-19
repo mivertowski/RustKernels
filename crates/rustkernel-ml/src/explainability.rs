@@ -321,6 +321,7 @@ impl SHAPValues {
     }
 
     /// Solve weighted least squares regression.
+    #[allow(clippy::needless_range_loop)]
     fn solve_weighted_regression(
         coalitions: &[Vec<bool>],
         predictions: &[f64],
@@ -372,6 +373,7 @@ impl SHAPValues {
     }
 
     /// Simple linear system solver.
+    #[allow(clippy::needless_range_loop)]
     fn solve_linear_system(a: &[Vec<f64>], b: &[f64]) -> Vec<f64> {
         let n = b.len();
         if n == 0 {

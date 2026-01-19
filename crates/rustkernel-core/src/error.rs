@@ -119,7 +119,6 @@ pub enum KernelError {
     K2KError(String),
 
     // Enterprise errors (0.3.1)
-
     /// Unauthorized access.
     #[error("Unauthorized: {0}")]
     Unauthorized(String),

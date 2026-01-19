@@ -130,11 +130,17 @@ pub type ResilienceResult<T> = std::result::Result<T, ResilienceError>;
 pub enum ResilienceError {
     /// Circuit breaker is open
     #[error("Circuit breaker is open for {kernel_id}")]
-    CircuitOpen { kernel_id: String },
+    CircuitOpen {
+        /// The kernel ID whose circuit breaker is open
+        kernel_id: String,
+    },
 
     /// Request timed out
     #[error("Request timed out after {timeout:?}")]
-    Timeout { timeout: Duration },
+    Timeout {
+        /// The timeout duration that was exceeded
+        timeout: Duration,
+    },
 
     /// Deadline exceeded
     #[error("Deadline exceeded")]
@@ -142,11 +148,17 @@ pub enum ResilienceError {
 
     /// Max retries exceeded
     #[error("Max retries ({retries}) exceeded")]
-    MaxRetriesExceeded { retries: u32 },
+    MaxRetriesExceeded {
+        /// The number of retries that were attempted
+        retries: u32,
+    },
 
     /// Health check failed
     #[error("Health check failed: {reason}")]
-    HealthCheckFailed { reason: String },
+    HealthCheckFailed {
+        /// The reason for the health check failure
+        reason: String,
+    },
 
     /// Kernel error during execution
     #[error("Kernel error: {0}")]

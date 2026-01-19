@@ -24,8 +24,8 @@
 //! ```
 
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 /// Metrics configuration
@@ -57,16 +57,16 @@ impl Default for MetricsConfig {
             include_process_metrics: true,
             include_runtime_metrics: true,
             latency_buckets: vec![
-                0.000_1,  // 100μs
-                0.000_5,  // 500μs
-                0.001,    // 1ms
-                0.005,    // 5ms
-                0.01,     // 10ms
-                0.05,     // 50ms
-                0.1,      // 100ms
-                0.5,      // 500ms
-                1.0,      // 1s
-                5.0,      // 5s
+                0.000_1, // 100μs
+                0.000_5, // 500μs
+                0.001,   // 1ms
+                0.005,   // 5ms
+                0.01,    // 10ms
+                0.05,    // 50ms
+                0.1,     // 100ms
+                0.5,     // 500ms
+                1.0,     // 1s
+                5.0,     // 5s
             ],
         }
     }
@@ -119,6 +119,8 @@ impl MetricsConfig {
 
 /// Metrics exporter handle
 pub struct MetricsExporter {
+    /// The metrics configuration
+    #[allow(dead_code)]
     config: MetricsConfig,
 }
 
@@ -283,14 +285,15 @@ impl RuntimeMetrics {
 
     /// Record kernel registration
     pub fn record_kernel_registered(&self) {
-        self.inner.kernels_registered.fetch_add(1, Ordering::Relaxed);
+        self.inner
+            .kernels_registered
+            .fetch_add(1, Ordering::Relaxed);
 
         #[cfg(feature = "metrics")]
         {
             use ::metrics::gauge;
-            gauge!("rustkernel_kernels_registered").set(
-                self.inner.kernels_registered.load(Ordering::Relaxed) as f64,
-            );
+            gauge!("rustkernel_kernels_registered")
+                .set(self.inner.kernels_registered.load(Ordering::Relaxed) as f64);
         }
     }
 
@@ -301,9 +304,8 @@ impl RuntimeMetrics {
         #[cfg(feature = "metrics")]
         {
             use ::metrics::gauge;
-            gauge!("rustkernel_kernels_active").set(
-                self.inner.kernels_active.load(Ordering::Relaxed) as f64,
-            );
+            gauge!("rustkernel_kernels_active")
+                .set(self.inner.kernels_active.load(Ordering::Relaxed) as f64);
         }
     }
 
@@ -314,9 +316,8 @@ impl RuntimeMetrics {
         #[cfg(feature = "metrics")]
         {
             use ::metrics::gauge;
-            gauge!("rustkernel_kernels_active").set(
-                self.inner.kernels_active.load(Ordering::Relaxed) as f64,
-            );
+            gauge!("rustkernel_kernels_active")
+                .set(self.inner.kernels_active.load(Ordering::Relaxed) as f64);
         }
     }
 
@@ -337,16 +338,17 @@ impl RuntimeMetrics {
 
         let current_peak = self.inner.gpu_memory_peak_bytes.load(Ordering::Relaxed);
         if bytes > current_peak {
-            self.inner.gpu_memory_peak_bytes.store(bytes, Ordering::Relaxed);
+            self.inner
+                .gpu_memory_peak_bytes
+                .store(bytes, Ordering::Relaxed);
         }
 
         #[cfg(feature = "metrics")]
         {
             use ::metrics::gauge;
             gauge!("rustkernel_gpu_memory_bytes").set(bytes as f64);
-            gauge!("rustkernel_gpu_memory_peak_bytes").set(
-                self.inner.gpu_memory_peak_bytes.load(Ordering::Relaxed) as f64,
-            );
+            gauge!("rustkernel_gpu_memory_peak_bytes")
+                .set(self.inner.gpu_memory_peak_bytes.load(Ordering::Relaxed) as f64);
         }
     }
 

@@ -294,6 +294,7 @@ pub mod catalog {
     }
 
     /// Get enabled domains based on compile-time features.
+    #[allow(clippy::vec_init_then_push)]
     pub fn enabled_domains() -> Vec<&'static str> {
         let mut enabled = Vec::new();
 
@@ -344,6 +345,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::const_is_empty)]
     fn test_version() {
         assert!(!version::VERSION.is_empty());
     }

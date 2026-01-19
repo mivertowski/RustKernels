@@ -8,7 +8,7 @@
 
 #[test]
 fn test_catalog_domains() {
-    let domains = rustkernel::catalog::domains();
+    let domains = rustkernels::catalog::domains();
     assert_eq!(domains.len(), 14, "Should have 14 domains");
 
     // Check that all expected domains are present
@@ -31,14 +31,14 @@ fn test_catalog_domains() {
 
 #[test]
 fn test_catalog_kernel_count() {
-    let total = rustkernel::catalog::total_kernel_count();
+    let total = rustkernels::catalog::total_kernel_count();
     assert!(total > 70, "Should have at least 70 kernels, got {}", total);
     assert!(total < 200, "Sanity check: shouldn't exceed 200 kernels");
 }
 
 #[test]
 fn test_enabled_domains() {
-    let enabled = rustkernel::catalog::enabled_domains();
+    let enabled = rustkernels::catalog::enabled_domains();
 
     // Default features should include P1 domains
     assert!(
@@ -62,7 +62,7 @@ fn test_enabled_domains() {
 
 #[test]
 fn test_domain_info_complete() {
-    let domains = rustkernel::catalog::domains();
+    let domains = rustkernels::catalog::domains();
 
     for domain in &domains {
         assert!(!domain.name.is_empty(), "Domain name should not be empty");
@@ -88,8 +88,8 @@ fn test_domain_info_complete() {
 
 #[test]
 fn test_development_license() {
-    use rustkernel::core::domain::Domain;
-    use rustkernel::core::license::{DevelopmentLicense, LicenseTier, LicenseValidator};
+    use rustkernels::core::domain::Domain;
+    use rustkernels::core::license::{DevelopmentLicense, LicenseTier, LicenseValidator};
 
     let license = DevelopmentLicense;
 
@@ -113,8 +113,8 @@ fn test_development_license() {
 
 #[test]
 fn test_community_license_restrictions() {
-    use rustkernel::core::domain::Domain;
-    use rustkernel::core::license::{License, LicenseValidator, StandardLicenseValidator};
+    use rustkernels::core::domain::Domain;
+    use rustkernels::core::license::{License, LicenseValidator, StandardLicenseValidator};
 
     let license = License::community("Test User");
     let validator = StandardLicenseValidator::new(license);
@@ -135,8 +135,8 @@ fn test_community_license_restrictions() {
 
 #[test]
 fn test_enterprise_license() {
-    use rustkernel::core::domain::Domain;
-    use rustkernel::core::license::{License, LicenseValidator, StandardLicenseValidator};
+    use rustkernels::core::domain::Domain;
+    use rustkernels::core::license::{License, LicenseValidator, StandardLicenseValidator};
 
     let license = License::enterprise("Enterprise Corp", None);
     let validator = StandardLicenseValidator::new(license);
@@ -156,8 +156,8 @@ fn test_enterprise_license() {
 
 #[test]
 fn test_license_guard() {
-    use rustkernel::core::domain::Domain;
-    use rustkernel::core::license::{DevelopmentLicense, LicenseGuard, LicenseValidator};
+    use rustkernels::core::domain::Domain;
+    use rustkernels::core::license::{DevelopmentLicense, LicenseGuard};
 
     let validator = DevelopmentLicense;
     let guard = LicenseGuard::new(&validator, Domain::GraphAnalytics);
@@ -173,7 +173,7 @@ fn test_license_guard() {
 
 #[test]
 fn test_registry_creation() {
-    use rustkernel::core::registry::KernelRegistry;
+    use rustkernels::core::registry::KernelRegistry;
 
     let registry = KernelRegistry::new();
     let stats = registry.stats();
@@ -188,9 +188,9 @@ fn test_registry_creation() {
 
 #[cfg(feature = "graph")]
 mod graph_tests {
-    use rustkernel::core::domain::Domain;
-    use rustkernel::core::traits::GpuKernel;
-    use rustkernel::graph::centrality::PageRank;
+    use rustkernels::core::domain::Domain;
+    use rustkernels::core::traits::GpuKernel;
+    use rustkernels::graph::centrality::PageRank;
 
     #[test]
     fn test_pagerank_metadata() {
@@ -211,9 +211,9 @@ mod graph_tests {
 
 #[cfg(feature = "ml")]
 mod ml_tests {
-    use rustkernel::core::domain::Domain;
-    use rustkernel::core::traits::GpuKernel;
-    use rustkernel::ml::clustering::KMeans;
+    use rustkernels::core::domain::Domain;
+    use rustkernels::core::traits::GpuKernel;
+    use rustkernels::ml::clustering::KMeans;
 
     #[test]
     fn test_kmeans_metadata() {
@@ -231,9 +231,9 @@ mod ml_tests {
 
 #[cfg(feature = "compliance")]
 mod compliance_tests {
-    use rustkernel::compliance::aml::CircularFlowRatio;
-    use rustkernel::core::domain::Domain;
-    use rustkernel::core::traits::GpuKernel;
+    use rustkernels::compliance::aml::CircularFlowRatio;
+    use rustkernels::core::domain::Domain;
+    use rustkernels::core::traits::GpuKernel;
 
     #[test]
     fn test_circular_flow_metadata() {
@@ -254,9 +254,9 @@ mod compliance_tests {
 
 #[cfg(feature = "temporal")]
 mod temporal_tests {
-    use rustkernel::core::domain::Domain;
-    use rustkernel::core::traits::GpuKernel;
-    use rustkernel::temporal::forecasting::ARIMAForecast;
+    use rustkernels::core::domain::Domain;
+    use rustkernels::core::traits::GpuKernel;
+    use rustkernels::temporal::forecasting::ARIMAForecast;
 
     #[test]
     fn test_arima_metadata() {
@@ -274,9 +274,9 @@ mod temporal_tests {
 
 #[cfg(feature = "risk")]
 mod risk_tests {
-    use rustkernel::core::domain::Domain;
-    use rustkernel::core::traits::GpuKernel;
-    use rustkernel::risk::market::MonteCarloVaR;
+    use rustkernels::core::domain::Domain;
+    use rustkernels::core::traits::GpuKernel;
+    use rustkernels::risk::market::MonteCarloVaR;
 
     #[test]
     fn test_monte_carlo_var_metadata() {
@@ -297,14 +297,14 @@ mod risk_tests {
 
 #[test]
 fn test_version_info() {
-    assert!(!rustkernel::version::VERSION.is_empty());
-    assert!(!rustkernel::version::MIN_RINGKERNEL_VERSION.is_empty());
+    assert!(!rustkernels::version::VERSION.is_empty());
+    assert!(!rustkernels::version::MIN_RINGKERNEL_VERSION.is_empty());
 }
 
 #[test]
 fn test_prelude_exports() {
     // Verify prelude exports core types
-    use rustkernel::prelude::*;
+    use rustkernels::prelude::*;
 
     let _ = Domain::GraphAnalytics;
     let _ = KernelMode::Ring;
@@ -317,10 +317,10 @@ fn test_prelude_exports() {
 
 #[cfg(feature = "graph")]
 mod batch_kernel_graph_tests {
-    use rustkernel::core::traits::BatchKernel;
-    use rustkernel::graph::centrality::PageRank;
-    use rustkernel::graph::messages::{CentralityInput, CentralityOutput, CentralityParams};
-    use rustkernel::graph::types::CsrGraph;
+    use rustkernels::core::traits::BatchKernel;
+    use rustkernels::graph::centrality::PageRank;
+    use rustkernels::graph::messages::{CentralityInput, CentralityOutput, CentralityParams};
+    use rustkernels::graph::types::CsrGraph;
 
     #[tokio::test]
     async fn test_pagerank_batch_execution() {
@@ -360,10 +360,10 @@ mod batch_kernel_graph_tests {
 
 #[cfg(feature = "ml")]
 mod batch_kernel_ml_tests {
-    use rustkernel::core::traits::BatchKernel;
-    use rustkernel::ml::clustering::KMeans;
-    use rustkernel::ml::messages::{KMeansInput, KMeansOutput};
-    use rustkernel::ml::types::DataMatrix;
+    use rustkernels::core::traits::BatchKernel;
+    use rustkernels::ml::clustering::KMeans;
+    use rustkernels::ml::messages::{KMeansInput, KMeansOutput};
+    use rustkernels::ml::types::DataMatrix;
 
     #[tokio::test]
     async fn test_kmeans_batch_execution() {
@@ -403,10 +403,10 @@ mod batch_kernel_ml_tests {
 
 #[cfg(feature = "risk")]
 mod batch_kernel_risk_tests {
-    use rustkernel::core::traits::BatchKernel;
-    use rustkernel::risk::credit::CreditRiskScoring;
-    use rustkernel::risk::messages::{CreditRiskScoringInput, CreditRiskScoringOutput};
-    use rustkernel::risk::types::CreditFactors;
+    use rustkernels::core::traits::BatchKernel;
+    use rustkernels::risk::credit::CreditRiskScoring;
+    use rustkernels::risk::messages::{CreditRiskScoringInput, CreditRiskScoringOutput};
+    use rustkernels::risk::types::CreditFactors;
 
     #[tokio::test]
     async fn test_credit_risk_batch_execution() {
@@ -448,10 +448,10 @@ mod batch_kernel_risk_tests {
 
 #[cfg(feature = "temporal")]
 mod batch_kernel_temporal_tests {
-    use rustkernel::core::traits::BatchKernel;
-    use rustkernel::temporal::forecasting::ARIMAForecast;
-    use rustkernel::temporal::messages::{ARIMAForecastInput, ARIMAForecastOutput};
-    use rustkernel::temporal::types::{ARIMAParams, TimeSeries};
+    use rustkernels::core::traits::BatchKernel;
+    use rustkernels::temporal::forecasting::ARIMAForecast;
+    use rustkernels::temporal::messages::{ARIMAForecastInput, ARIMAForecastOutput};
+    use rustkernels::temporal::types::{ARIMAParams, TimeSeries};
 
     #[tokio::test]
     async fn test_arima_batch_execution() {
@@ -476,12 +476,12 @@ mod batch_kernel_temporal_tests {
 
 #[cfg(feature = "orderbook")]
 mod batch_kernel_orderbook_tests {
-    use rustkernel::core::traits::BatchKernel;
-    use rustkernel::orderbook::matching::OrderMatchingEngine;
-    use rustkernel::orderbook::messages::{
+    use rustkernels::core::traits::BatchKernel;
+    use rustkernels::orderbook::matching::OrderMatchingEngine;
+    use rustkernels::orderbook::messages::{
         BatchOrderInput, BatchOrderOutput, SubmitOrderInput, SubmitOrderOutput,
     };
-    use rustkernel::orderbook::types::{Order, OrderStatus, Price, Quantity, Side};
+    use rustkernels::orderbook::types::{Order, OrderStatus, Price, Quantity, Side};
 
     #[tokio::test]
     async fn test_order_matching_single_order() {
@@ -542,10 +542,10 @@ mod batch_kernel_orderbook_tests {
 
 #[cfg(feature = "compliance")]
 mod batch_kernel_compliance_tests {
-    use rustkernel::compliance::aml::CircularFlowRatio;
-    use rustkernel::compliance::messages::{CircularFlowInput, CircularFlowOutput};
-    use rustkernel::compliance::types::Transaction;
-    use rustkernel::core::traits::BatchKernel;
+    use rustkernels::compliance::aml::CircularFlowRatio;
+    use rustkernels::compliance::messages::{CircularFlowInput, CircularFlowOutput};
+    use rustkernels::compliance::types::Transaction;
+    use rustkernels::core::traits::BatchKernel;
 
     #[tokio::test]
     async fn test_circular_flow_detection() {
