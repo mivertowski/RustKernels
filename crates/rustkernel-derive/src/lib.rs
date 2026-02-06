@@ -3,6 +3,15 @@
 //! This crate provides the following macros:
 //! - `#[gpu_kernel]` - Define a GPU kernel with metadata
 //! - `#[derive(KernelMessage)]` - Derive serialization for kernel messages
+//! - `#[kernel_state]` - Mark types as GPU-compatible kernel state
+//!
+//! For low-level ring kernel macros, see `ringkernel-derive` 0.4.2 which provides:
+//! - `#[derive(RingMessage)]` - Ring message serialization with domain-based type IDs
+//! - `#[derive(PersistentMessage)]` - CUDA persistent message dispatch
+//! - `#[derive(ControlBlockState)]` - Embedded state for GPU ControlBlocks
+//! - `#[derive(GpuType)]` - Pod+Zeroable for GPU data transfer
+//! - `#[ring_kernel]` - Ring kernel handler generation
+//! - `#[stencil_kernel]` - CUDA stencil pattern kernels
 //!
 //! # Example
 //!

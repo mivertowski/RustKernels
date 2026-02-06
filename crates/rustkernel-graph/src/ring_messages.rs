@@ -1,27 +1,27 @@
 //! Ring message types for Graph Analytics kernels.
 //!
 //! This module defines zero-copy Ring messages for GPU-native persistent actors.
-//! Type IDs 200-299 are reserved for Graph Analytics domain.
+//! Type IDs 100-199 are reserved for Graph Analytics domain.
 //!
 //! ## Type ID Allocation
 //!
-//! - 200-209: PageRank messages
-//! - 210-219: Community detection messages
-//! - 220-229: Centrality messages
-//! - 230-239: K2K coordination messages
+//! - 100-109: PageRank messages
+//! - 110-119: Community detection messages
+//! - 120-129: Centrality messages
+//! - 130-139: K2K coordination messages
 
 use ringkernel_derive::RingMessage;
 use rkyv::{Archive, Deserialize, Serialize};
 use rustkernel_core::messages::MessageId;
 
 // ============================================================================
-// PageRank Ring Messages (200-209)
+// PageRank Ring Messages (100-109)
 // ============================================================================
 
 /// PageRank query request - get score for a specific node.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 200)]
+#[message(type_id = 100)]
 pub struct PageRankQueryRing {
     /// Message ID.
     pub id: MessageId,
@@ -32,7 +32,7 @@ pub struct PageRankQueryRing {
 /// PageRank query response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 201)]
+#[message(type_id = 101)]
 pub struct PageRankQueryResponse {
     /// Original message ID.
     pub request_id: u64,
@@ -49,7 +49,7 @@ pub struct PageRankQueryResponse {
 /// PageRank iterate request - perform one power iteration step.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 202)]
+#[message(type_id = 102)]
 pub struct PageRankIterateRing {
     /// Message ID.
     pub id: MessageId,
@@ -58,7 +58,7 @@ pub struct PageRankIterateRing {
 /// PageRank iterate response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 203)]
+#[message(type_id = 103)]
 pub struct PageRankIterateResponse {
     /// Original message ID.
     pub request_id: u64,
@@ -73,7 +73,7 @@ pub struct PageRankIterateResponse {
 /// PageRank converge request - iterate until threshold or max iterations.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 204)]
+#[message(type_id = 104)]
 pub struct PageRankConvergeRing {
     /// Message ID.
     pub id: MessageId,
@@ -86,7 +86,7 @@ pub struct PageRankConvergeRing {
 /// PageRank convergence response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 205)]
+#[message(type_id = 105)]
 pub struct PageRankConvergeResponse {
     /// Original message ID.
     pub request_id: u64,
@@ -99,7 +99,7 @@ pub struct PageRankConvergeResponse {
 }
 
 // ============================================================================
-// K2K Coordination Messages (230-239)
+// K2K Coordination Messages (130-139)
 // ============================================================================
 
 /// K2K iteration synchronization request.
@@ -107,7 +107,7 @@ pub struct PageRankConvergeResponse {
 /// Used for coordinating distributed PageRank across graph partitions.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 230)]
+#[message(type_id = 130)]
 pub struct K2KIterationSync {
     /// Message ID.
     pub id: MessageId,
@@ -124,7 +124,7 @@ pub struct K2KIterationSync {
 /// K2K iteration sync response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 231)]
+#[message(type_id = 131)]
 pub struct K2KIterationSyncResponse {
     /// Original message ID.
     pub request_id: u64,
@@ -143,7 +143,7 @@ pub struct K2KIterationSyncResponse {
 /// When graph is partitioned, boundary nodes need score updates from other partitions.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 232)]
+#[message(type_id = 132)]
 pub struct K2KBoundaryUpdate {
     /// Message ID.
     pub id: MessageId,
@@ -164,7 +164,7 @@ pub struct K2KBoundaryUpdate {
 /// K2K boundary update acknowledgment.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 233)]
+#[message(type_id = 133)]
 pub struct K2KBoundaryUpdateAck {
     /// Original message ID.
     pub request_id: u64,
@@ -179,7 +179,7 @@ pub struct K2KBoundaryUpdateAck {
 /// Used to synchronize all workers before proceeding to next iteration.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 234)]
+#[message(type_id = 134)]
 pub struct K2KBarrier {
     /// Message ID.
     pub id: MessageId,
@@ -196,7 +196,7 @@ pub struct K2KBarrier {
 /// K2K barrier release.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 235)]
+#[message(type_id = 135)]
 pub struct K2KBarrierRelease {
     /// Original barrier ID.
     pub barrier_id: u64,
@@ -209,7 +209,7 @@ pub struct K2KBarrierRelease {
 /// K2K worker heartbeat.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 236)]
+#[message(type_id = 136)]
 pub struct K2KHeartbeat {
     /// Message ID.
     pub id: MessageId,
@@ -224,13 +224,13 @@ pub struct K2KHeartbeat {
 }
 
 // ============================================================================
-// Community Detection Ring Messages (210-219)
+// Community Detection Ring Messages (110-119)
 // ============================================================================
 
 /// Request to compute modularity for current community assignment.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 210)]
+#[message(type_id = 110)]
 pub struct ComputeModularityRing {
     /// Message ID.
     pub id: MessageId,
@@ -239,7 +239,7 @@ pub struct ComputeModularityRing {
 /// Modularity computation response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 211)]
+#[message(type_id = 111)]
 pub struct ModularityResponse {
     /// Original message ID.
     pub request_id: u64,
@@ -254,7 +254,7 @@ pub struct ModularityResponse {
 /// Used in distributed Louvain for proposing community merges across partitions.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 212)]
+#[message(type_id = 112)]
 pub struct K2KCommunityMerge {
     /// Message ID.
     pub id: MessageId,

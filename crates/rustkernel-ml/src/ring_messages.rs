@@ -1,27 +1,27 @@
 //! Ring message types for Statistical ML kernels.
 //!
 //! This module defines zero-copy Ring messages for GPU-native persistent actors.
-//! Type IDs 700-799 are reserved for Statistical ML domain.
+//! Type IDs 200-299 are reserved for Statistical ML domain.
 //!
 //! ## Type ID Allocation
 //!
-//! - 700-719: KMeans messages
-//! - 720-739: DBSCAN messages
-//! - 740-759: Anomaly detection messages
-//! - 760-779: K2K parallel coordination messages
+//! - 200-219: KMeans messages
+//! - 220-239: DBSCAN messages
+//! - 240-259: Anomaly detection messages
+//! - 260-279: K2K parallel coordination messages
 
 use ringkernel_derive::RingMessage;
 use rkyv::{Archive, Deserialize, Serialize};
 use rustkernel_core::messages::MessageId;
 
 // ============================================================================
-// KMeans Ring Messages (700-719)
+// KMeans Ring Messages (200-219)
 // ============================================================================
 
 /// Initialize KMeans with centroids.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 700)]
+#[message(type_id = 200)]
 pub struct KMeansInitRing {
     /// Message ID.
     pub id: MessageId,
@@ -36,7 +36,7 @@ pub struct KMeansInitRing {
 /// KMeans initialization response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 701)]
+#[message(type_id = 201)]
 pub struct KMeansInitResponse {
     /// Original message ID.
     pub request_id: u64,
@@ -49,7 +49,7 @@ pub struct KMeansInitResponse {
 /// Assign points to clusters (E-step).
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 702)]
+#[message(type_id = 202)]
 pub struct KMeansAssignRing {
     /// Message ID.
     pub id: MessageId,
@@ -60,7 +60,7 @@ pub struct KMeansAssignRing {
 /// Assignment response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 703)]
+#[message(type_id = 203)]
 pub struct KMeansAssignResponse {
     /// Original message ID.
     pub request_id: u64,
@@ -75,7 +75,7 @@ pub struct KMeansAssignResponse {
 /// Update centroids (M-step).
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 704)]
+#[message(type_id = 204)]
 pub struct KMeansUpdateRing {
     /// Message ID.
     pub id: MessageId,
@@ -86,7 +86,7 @@ pub struct KMeansUpdateRing {
 /// Update response with new centroids.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 705)]
+#[message(type_id = 205)]
 pub struct KMeansUpdateResponse {
     /// Original message ID.
     pub request_id: u64,
@@ -101,7 +101,7 @@ pub struct KMeansUpdateResponse {
 /// Query cluster assignment for a point.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 706)]
+#[message(type_id = 206)]
 pub struct KMeansQueryRing {
     /// Message ID.
     pub id: MessageId,
@@ -114,7 +114,7 @@ pub struct KMeansQueryRing {
 /// Query response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 707)]
+#[message(type_id = 207)]
 pub struct KMeansQueryResponse {
     /// Original message ID.
     pub request_id: u64,
@@ -125,7 +125,7 @@ pub struct KMeansQueryResponse {
 }
 
 // ============================================================================
-// K2K Parallel Centroid Update Messages (760-779)
+// K2K Parallel Centroid Update Messages (260-279)
 // ============================================================================
 
 /// K2K partial centroid update from a worker.
@@ -134,7 +134,7 @@ pub struct KMeansQueryResponse {
 /// from its data partition.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 760)]
+#[message(type_id = 260)]
 pub struct K2KPartialCentroid {
     /// Message ID.
     pub id: MessageId,
@@ -155,7 +155,7 @@ pub struct K2KPartialCentroid {
 /// K2K centroid aggregation response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 761)]
+#[message(type_id = 261)]
 pub struct K2KCentroidAggregation {
     /// Original request ID.
     pub request_id: u64,
@@ -174,7 +174,7 @@ pub struct K2KCentroidAggregation {
 /// K2K iteration sync for distributed KMeans.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 762)]
+#[message(type_id = 262)]
 pub struct K2KKMeansSync {
     /// Message ID.
     pub id: MessageId,
@@ -193,7 +193,7 @@ pub struct K2KKMeansSync {
 /// K2K sync response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 763)]
+#[message(type_id = 263)]
 pub struct K2KKMeansSyncResponse {
     /// Original request ID.
     pub request_id: u64,
@@ -212,7 +212,7 @@ pub struct K2KKMeansSyncResponse {
 /// K2K broadcast new centroids to workers.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 764)]
+#[message(type_id = 264)]
 pub struct K2KCentroidBroadcast {
     /// Message ID.
     pub id: MessageId,
@@ -229,7 +229,7 @@ pub struct K2KCentroidBroadcast {
 /// K2K broadcast acknowledgment.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 765)]
+#[message(type_id = 265)]
 pub struct K2KCentroidBroadcastAck {
     /// Original message ID.
     pub request_id: u64,

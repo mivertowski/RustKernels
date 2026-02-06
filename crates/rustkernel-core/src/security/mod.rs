@@ -36,6 +36,14 @@ pub use rbac::{KernelPermission, Permission, PermissionSet, Role, RoleBinding};
 pub use secrets::{SecretRef, SecretStore, SecretValue};
 pub use tenancy::{ResourceQuota, Tenant, TenantConfig, TenantId};
 
+// Re-export ringkernel-core 0.4.2 security primitives for deep integration.
+// These complement our higher-level security abstractions with low-level ring security.
+pub use ringkernel_core::security as ring_security;
+pub use ringkernel_core::auth as ring_auth;
+pub use ringkernel_core::rbac as ring_rbac;
+pub use ringkernel_core::secrets as ring_secrets;
+pub use ringkernel_core::tenancy as ring_tenancy;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
