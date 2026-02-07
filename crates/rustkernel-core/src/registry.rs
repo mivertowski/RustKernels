@@ -7,7 +7,9 @@ use crate::domain::Domain;
 use crate::error::{KernelError, Result};
 use crate::kernel::{KernelMetadata, KernelMode};
 use crate::license::{LicenseError, LicenseValidator, SharedLicenseValidator};
-use crate::traits::{BatchKernelDyn, RingKernelDyn};
+use crate::traits::{
+    BatchKernel, BatchKernelDyn, GpuKernel, RingKernelDyn, TypeErasedBatchKernel,
+};
 use hashbrown::HashMap;
 use std::sync::{Arc, RwLock};
 use tracing::{debug, info, warn};
@@ -395,6 +397,101 @@ impl KernelRegistry {
         }
     }
 
+    /// Register a batch kernel using a typed factory function.
+    ///
+    /// This is the preferred way to register batch kernels. The factory closure
+    /// creates kernel instances on demand, and type erasure is handled automatically
+    /// via [`TypeErasedBatchKernel`].
+    ///
+    /// # Type Inference
+    ///
+    /// Rust infers `I` and `O` from the `BatchKernel<I, O>` implementation on `K`,
+    /// so turbofish syntax is typically not needed:
+    ///
+    /// ```ignore
+    /// registry.register_batch_typed(|| MyKernel::new())?;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the kernel ID is already registered or fails license validation.
+    pub fn register_batch_typed<K, I, O>(
+        &self,
+        factory: impl Fn() -> K + Send + Sync + 'static,
+    ) -> Result<()>
+    where
+        K: BatchKernel<I, O> + 'static,
+        I: serde::de::DeserializeOwned + Send + Sync + 'static,
+        O: serde::Serialize + Send + Sync + 'static,
+    {
+        let sample = factory();
+        let metadata = sample.metadata().clone();
+        drop(sample);
+        let entry = BatchKernelEntry::new(metadata, move || {
+            Arc::new(TypeErasedBatchKernel::new(factory()))
+        });
+        self.register_batch(entry)
+    }
+
+    /// Register a batch kernel's metadata from a factory function.
+    ///
+    /// This is for batch-mode kernels that implement `GpuKernel` but not
+    /// the full `BatchKernel<I, O>` trait. The metadata is stored for
+    /// discovery and health checking.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the kernel ID is already registered or fails license validation.
+    pub fn register_batch_metadata_from<K>(&self, factory: impl Fn() -> K) -> Result<()>
+    where
+        K: GpuKernel,
+    {
+        let sample = factory();
+        let metadata = sample.metadata().clone();
+        self.register_metadata(metadata)
+    }
+
+    /// Register a ring kernel's metadata from a factory function.
+    ///
+    /// Ring kernels require the RingKernel runtime for persistent actor execution
+    /// and cannot be invoked directly via REST. This method registers the kernel's
+    /// metadata for discovery and health checking.
+    ///
+    /// For full ring kernel deployment, use the RingKernel runtime directly.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the kernel ID is already registered or fails license validation.
+    pub fn register_ring_metadata_from<K>(&self, factory: impl Fn() -> K) -> Result<()>
+    where
+        K: GpuKernel,
+    {
+        let sample = factory();
+        let metadata = sample.metadata().clone();
+        self.register_metadata(metadata)
+    }
+
+    /// Execute a batch kernel by ID with JSON input/output.
+    ///
+    /// Looks up the kernel in the registry, creates an instance, and executes it
+    /// with type-erased JSON serialization.
+    ///
+    /// # Errors
+    ///
+    /// Returns `KernelNotFound` if no batch kernel with this ID exists, or
+    /// propagates any execution error from the kernel.
+    pub async fn execute_batch(
+        &self,
+        kernel_id: &str,
+        input_json: &[u8],
+    ) -> Result<Vec<u8>> {
+        let entry = self
+            .get_batch(kernel_id)
+            .ok_or_else(|| KernelError::KernelNotFound(kernel_id.to_string()))?;
+        let kernel = entry.create();
+        kernel.execute_dyn(input_json).await
+    }
+
     /// Total number of registered kernels.
     #[must_use]
     pub fn total_count(&self) -> usize {
@@ -402,6 +499,61 @@ impl KernelRegistry {
         let ring = self.ring_kernels.read().unwrap();
         let metadata = self.metadata_only.read().unwrap();
         batch.len() + ring.len() + metadata.len()
+    }
+
+    /// Get all kernel metadata across all categories, sorted by ID.
+    ///
+    /// Returns metadata for batch, ring, and metadata-only kernels.
+    #[must_use]
+    pub fn all_metadata(&self) -> Vec<KernelMetadata> {
+        let mut result = Vec::new();
+
+        let batch = self.batch_kernels.read().unwrap();
+        for entry in batch.values() {
+            result.push(entry.metadata.clone());
+        }
+
+        let ring = self.ring_kernels.read().unwrap();
+        for entry in ring.values() {
+            result.push(entry.metadata.clone());
+        }
+
+        let metadata = self.metadata_only.read().unwrap();
+        for entry in metadata.values() {
+            result.push(entry.clone());
+        }
+
+        result.sort_by(|a, b| a.id.cmp(&b.id));
+        result
+    }
+
+    /// Search kernels by pattern (case-insensitive substring match on ID and description).
+    #[must_use]
+    pub fn search(&self, pattern: &str) -> Vec<KernelMetadata> {
+        let pattern_lower = pattern.to_lowercase();
+        self.all_metadata()
+            .into_iter()
+            .filter(|m| {
+                m.id.to_lowercase().contains(&pattern_lower)
+                    || m.description.to_lowercase().contains(&pattern_lower)
+            })
+            .collect()
+    }
+
+    /// Get all executable batch kernel IDs (kernels with factory functions).
+    ///
+    /// These are the kernels that can be invoked via REST/gRPC through the
+    /// type-erased `BatchKernelDyn` interface.
+    #[must_use]
+    pub fn executable_kernel_ids(&self) -> Vec<String> {
+        self.batch_kernel_ids()
+    }
+
+    /// Check if a kernel is executable via REST/gRPC (has a `BatchKernelDyn` factory).
+    #[must_use]
+    pub fn is_executable(&self, id: &str) -> bool {
+        let batch = self.batch_kernels.read().unwrap();
+        batch.contains_key(id)
     }
 
     /// Clear all registered kernels.

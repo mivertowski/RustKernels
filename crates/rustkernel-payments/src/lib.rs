@@ -20,15 +20,13 @@ pub use types::*;
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering payment processing kernels");
 
-    // Processing kernel (1)
-    registry.register_metadata(processing::PaymentProcessing::new().metadata().clone())?;
+    // Processing kernel (1) - Ring
+    registry.register_ring_metadata_from(processing::PaymentProcessing::new)?;
 
-    // Flow analysis kernel (1)
-    registry.register_metadata(flow::FlowAnalysis::new().metadata().clone())?;
+    // Flow analysis kernel (1) - Batch
+    registry.register_batch_metadata_from(flow::FlowAnalysis::new)?;
 
     tracing::info!("Registered 2 payment processing kernels");
     Ok(())

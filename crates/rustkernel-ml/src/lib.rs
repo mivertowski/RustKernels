@@ -74,56 +74,42 @@ pub mod prelude {
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering statistical ML kernels");
 
-    // Clustering kernels (3)
-    registry.register_metadata(clustering::KMeans::new().metadata().clone())?;
-    registry.register_metadata(clustering::DBSCAN::new().metadata().clone())?;
-    registry.register_metadata(clustering::HierarchicalClustering::new().metadata().clone())?;
+    // Clustering kernels (3) - implement BatchKernel<I, O>
+    registry.register_batch_typed(clustering::KMeans::new)?;
+    registry.register_batch_typed(clustering::DBSCAN::new)?;
+    registry.register_batch_typed(clustering::HierarchicalClustering::new)?;
 
     // Anomaly detection kernels (2)
-    registry.register_metadata(anomaly::IsolationForest::new().metadata().clone())?;
-    registry.register_metadata(anomaly::LocalOutlierFactor::new().metadata().clone())?;
+    registry.register_batch_metadata_from(anomaly::IsolationForest::new)?;
+    registry.register_batch_metadata_from(anomaly::LocalOutlierFactor::new)?;
 
     // Streaming anomaly detection kernels (2)
-    registry.register_metadata(
-        streaming::StreamingIsolationForest::new()
-            .metadata()
-            .clone(),
-    )?;
-    registry.register_metadata(streaming::AdaptiveThreshold::new().metadata().clone())?;
+    registry.register_batch_metadata_from(streaming::StreamingIsolationForest::new)?;
+    registry.register_batch_metadata_from(streaming::AdaptiveThreshold::new)?;
 
     // Ensemble kernel (1)
-    registry.register_metadata(ensemble::EnsembleVoting::new().metadata().clone())?;
+    registry.register_batch_metadata_from(ensemble::EnsembleVoting::new)?;
 
     // Regression kernels (2)
-    registry.register_metadata(regression::LinearRegression::new().metadata().clone())?;
-    registry.register_metadata(regression::RidgeRegression::new().metadata().clone())?;
+    registry.register_batch_metadata_from(regression::LinearRegression::new)?;
+    registry.register_batch_metadata_from(regression::RidgeRegression::new)?;
 
     // Explainability kernels (2)
-    registry.register_metadata(explainability::SHAPValues::new().metadata().clone())?;
-    registry.register_metadata(explainability::FeatureImportance::new().metadata().clone())?;
+    registry.register_batch_metadata_from(explainability::SHAPValues::new)?;
+    registry.register_batch_metadata_from(explainability::FeatureImportance::new)?;
 
     // NLP / LLM Integration kernels (2)
-    registry.register_metadata(nlp::EmbeddingGeneration::new().metadata().clone())?;
-    registry.register_metadata(nlp::SemanticSimilarity::new().metadata().clone())?;
+    registry.register_batch_metadata_from(nlp::EmbeddingGeneration::new)?;
+    registry.register_batch_metadata_from(nlp::SemanticSimilarity::new)?;
 
     // Federated Learning kernels (1)
-    registry.register_metadata(federated::SecureAggregation::new().metadata().clone())?;
+    registry.register_batch_metadata_from(federated::SecureAggregation::new)?;
 
     // Healthcare Analytics kernels (2)
-    registry.register_metadata(
-        healthcare::DrugInteractionPrediction::new()
-            .metadata()
-            .clone(),
-    )?;
-    registry.register_metadata(
-        healthcare::ClinicalPathwayConformance::new()
-            .metadata()
-            .clone(),
-    )?;
+    registry.register_batch_metadata_from(healthcare::DrugInteractionPrediction::new)?;
+    registry.register_batch_metadata_from(healthcare::ClinicalPathwayConformance::new)?;
 
     tracing::info!("Registered 17 statistical ML kernels");
     Ok(())

@@ -20,19 +20,13 @@ pub use types::*;
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering financial audit kernels");
 
-    // Feature extraction kernel (1)
-    registry.register_metadata(
-        feature_extraction::FeatureExtraction::new()
-            .metadata()
-            .clone(),
-    )?;
+    // Feature extraction kernel (1) - Batch
+    registry.register_batch_metadata_from(feature_extraction::FeatureExtraction::new)?;
 
-    // Hypergraph kernel (1)
-    registry.register_metadata(hypergraph::HypergraphConstruction::new().metadata().clone())?;
+    // Hypergraph kernel (1) - Batch
+    registry.register_batch_metadata_from(hypergraph::HypergraphConstruction::new)?;
 
     tracing::info!("Registered 2 financial audit kernels");
     Ok(())

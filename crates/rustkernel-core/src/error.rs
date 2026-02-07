@@ -169,7 +169,7 @@ impl KernelError {
         KernelError::K2KError(msg.into())
     }
 
-    /// Returns true if this is a recoverable error.
+    /// Returns true if this is a recoverable error (safe to retry).
     #[must_use]
     pub fn is_recoverable(&self) -> bool {
         matches!(
@@ -177,7 +177,21 @@ impl KernelError {
             KernelError::QueueFull { .. }
                 | KernelError::QueueEmpty
                 | KernelError::Timeout(_)
+                | KernelError::ServiceUnavailable(_)
+                | KernelError::ResourceExhausted(_)
+        )
+    }
+
+    /// Returns true if this is a client error (invalid input, not found, etc.).
+    #[must_use]
+    pub fn is_client_error(&self) -> bool {
+        matches!(
+            self,
+            KernelError::KernelNotFound(_)
                 | KernelError::ValidationError(_)
+                | KernelError::DeserializationError(_)
+                | KernelError::Unauthorized(_)
+                | KernelError::DomainNotSupported(_)
         )
     }
 
@@ -185,6 +199,64 @@ impl KernelError {
     #[must_use]
     pub fn is_license_error(&self) -> bool {
         matches!(self, KernelError::LicenseError(_))
+    }
+
+    /// Returns the suggested HTTP status code for this error.
+    ///
+    /// Centralizes HTTP status mapping so that all ecosystem integrations
+    /// (Axum, Tower, gRPC, Actix) use consistent status codes.
+    #[must_use]
+    pub fn http_status_code(&self) -> u16 {
+        match self {
+            KernelError::KernelNotFound(_) => 404,
+            KernelError::KernelAlreadyRegistered(_) => 409,
+            KernelError::ValidationError(_) => 400,
+            KernelError::DeserializationError(_) => 400,
+            KernelError::SerializationError(_) => 500,
+            KernelError::Unauthorized(_) => 401,
+            KernelError::ResourceExhausted(_) => 429,
+            KernelError::ServiceUnavailable(_) => 503,
+            KernelError::Timeout(_) => 504,
+            KernelError::LicenseError(_) => 403,
+            KernelError::DomainNotSupported(_) => 403,
+            KernelError::QueueFull { .. } => 503,
+            KernelError::MessageTooLarge { .. } => 413,
+            _ => 500,
+        }
+    }
+
+    /// Returns a machine-readable error code string.
+    #[must_use]
+    pub fn error_code(&self) -> &'static str {
+        match self {
+            KernelError::KernelNotFound(_) => "KERNEL_NOT_FOUND",
+            KernelError::KernelAlreadyRegistered(_) => "KERNEL_ALREADY_REGISTERED",
+            KernelError::InvalidStateTransition { .. } => "INVALID_STATE_TRANSITION",
+            KernelError::KernelNotActive(_) => "KERNEL_NOT_ACTIVE",
+            KernelError::ValidationError(_) => "VALIDATION_ERROR",
+            KernelError::SerializationError(_) => "SERIALIZATION_ERROR",
+            KernelError::DeserializationError(_) => "DESERIALIZATION_ERROR",
+            KernelError::QueueFull { .. } => "QUEUE_FULL",
+            KernelError::QueueEmpty => "QUEUE_EMPTY",
+            KernelError::MessageTooLarge { .. } => "MESSAGE_TOO_LARGE",
+            KernelError::Timeout(_) => "TIMEOUT",
+            KernelError::LaunchFailed(_) => "LAUNCH_FAILED",
+            KernelError::CompilationError(_) => "COMPILATION_ERROR",
+            KernelError::DeviceError(_) => "DEVICE_ERROR",
+            KernelError::BackendNotAvailable(_) => "BACKEND_NOT_AVAILABLE",
+            KernelError::LicenseError(_) => "LICENSE_ERROR",
+            KernelError::SLOViolation(_) => "SLO_VIOLATION",
+            KernelError::DomainNotSupported(_) => "DOMAIN_NOT_SUPPORTED",
+            KernelError::InternalError(_) => "INTERNAL_ERROR",
+            KernelError::IoError(_) => "IO_ERROR",
+            KernelError::ConfigError(_) => "CONFIG_ERROR",
+            KernelError::ActorError(_) => "ACTOR_ERROR",
+            KernelError::RingKernelError(_) => "RINGKERNEL_ERROR",
+            KernelError::K2KError(_) => "K2K_ERROR",
+            KernelError::Unauthorized(_) => "UNAUTHORIZED",
+            KernelError::ResourceExhausted(_) => "RESOURCE_EXHAUSTED",
+            KernelError::ServiceUnavailable(_) => "SERVICE_UNAVAILABLE",
+        }
     }
 }
 

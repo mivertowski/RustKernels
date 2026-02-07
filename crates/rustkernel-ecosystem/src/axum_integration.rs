@@ -19,14 +19,16 @@
 //! ```
 
 use crate::{
-    ErrorResponse, HealthResponse, HealthStatus, KernelResponse, RequestMetadata, ResponseMetadata,
+    ComponentHealth, ErrorResponse, HealthResponse, HealthStatus, KernelResponse, RequestMetadata,
+    ResponseMetadata,
     common::{ServiceConfig, ServiceMetrics, headers, paths},
 };
 use axum::{
     Router,
     extract::{Path, State},
-    http::{HeaderMap, StatusCode},
-    response::Json,
+    http::{HeaderMap, HeaderValue, StatusCode, header},
+    middleware::{self, Next},
+    response::{Json, Response},
     routing::{get, post},
 };
 use rustkernel_core::registry::KernelRegistry;
@@ -126,7 +128,8 @@ impl KernelRouter {
 
     /// Build the router
     pub fn build(self) -> Router {
-        let state = AppState::new(self.registry, self.service_config);
+        let cors_enabled = self.config.cors_enabled;
+        let state = AppState::new(self.registry, self.service_config.clone());
 
         let mut router = Router::new();
 
@@ -151,8 +154,70 @@ impl KernelRouter {
             router = router.route(paths::METRICS, get(metrics_endpoint));
         }
 
+        // Add request-ID middleware (echoes X-Request-ID back in response)
+        router = router.layer(middleware::from_fn(request_id_middleware));
+
+        // Add CORS middleware if enabled
+        if cors_enabled {
+            let cors = build_cors(&self.service_config);
+            router = router.layer(cors);
+        }
+
         router.with_state(state)
     }
+}
+
+// Middleware
+
+/// Build CORS layer from service configuration
+fn build_cors(config: &ServiceConfig) -> tower_http::cors::CorsLayer {
+    use tower_http::cors::{Any, CorsLayer};
+
+    let cors = CorsLayer::new()
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::OPTIONS,
+        ])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::AUTHORIZATION,
+            headers::X_REQUEST_ID.parse().unwrap(),
+            headers::X_TENANT_ID.parse().unwrap(),
+            headers::X_API_KEY.parse().unwrap(),
+        ]);
+
+    if config.cors_origins.iter().any(|o| o == "*") {
+        cors.allow_origin(Any)
+    } else {
+        let origins: Vec<HeaderValue> = config
+            .cors_origins
+            .iter()
+            .filter_map(|o| o.parse().ok())
+            .collect();
+        cors.allow_origin(origins)
+    }
+}
+
+/// Middleware that propagates X-Request-ID from request to response headers
+async fn request_id_middleware(
+    req: axum::extract::Request,
+    next: Next,
+) -> Response {
+    let request_id = req
+        .headers()
+        .get(headers::X_REQUEST_ID)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+    let mut response = next.run(req).await;
+
+    if let Ok(val) = HeaderValue::from_str(&request_id) {
+        response.headers_mut().insert(headers::X_REQUEST_ID, val);
+    }
+
+    response
 }
 
 // Handler implementations
@@ -160,12 +225,58 @@ impl KernelRouter {
 /// Health check handler
 async fn health_check(State(state): State<AppState>) -> Json<HealthResponse> {
     let uptime = state.start_time.elapsed().as_secs();
+    let stats = state.registry.stats();
+
+    let mut components = Vec::new();
+    let mut overall_status = HealthStatus::Healthy;
+
+    // Registry health
+    let registry_status = if stats.total > 0 {
+        HealthStatus::Healthy
+    } else {
+        overall_status = HealthStatus::Degraded;
+        HealthStatus::Degraded
+    };
+    components.push(ComponentHealth {
+        name: "kernel_registry".to_string(),
+        status: registry_status,
+        message: Some(format!(
+            "{} kernels ({} batch, {} ring)",
+            stats.total, stats.batch_kernels, stats.ring_kernels
+        )),
+    });
+
+    // Error rate health
+    let error_rate = if state.metrics.request_count() > 0 {
+        state.metrics.error_count() as f64 / state.metrics.request_count() as f64
+    } else {
+        0.0
+    };
+    let execution_status = if error_rate < 0.1 {
+        HealthStatus::Healthy
+    } else if error_rate < 0.5 {
+        overall_status = HealthStatus::Degraded;
+        HealthStatus::Degraded
+    } else {
+        overall_status = HealthStatus::Unhealthy;
+        HealthStatus::Unhealthy
+    };
+    components.push(ComponentHealth {
+        name: "execution_engine".to_string(),
+        status: execution_status,
+        message: Some(format!(
+            "{} requests, {:.1}% error rate, {:.0}us avg latency",
+            state.metrics.request_count(),
+            error_rate * 100.0,
+            state.metrics.avg_latency_us()
+        )),
+    });
 
     Json(HealthResponse {
-        status: HealthStatus::Healthy,
+        status: overall_status,
         version: state.config.version.clone(),
         uptime_secs: uptime,
-        components: vec![],
+        components,
     })
 }
 
@@ -188,25 +299,100 @@ async fn readiness_check(State(state): State<AppState>) -> StatusCode {
 async fn metrics_endpoint(State(state): State<AppState>) -> String {
     let metrics = &state.metrics;
     let uptime = state.start_time.elapsed().as_secs();
+    let stats = state.registry.stats();
 
-    format!(
+    let error_rate = if metrics.request_count() > 0 {
+        metrics.error_count() as f64 / metrics.request_count() as f64
+    } else {
+        0.0
+    };
+
+    let mut output = String::with_capacity(2048);
+
+    // Request metrics
+    output += &format!(
         "# HELP rustkernels_requests_total Total number of requests\n\
          # TYPE rustkernels_requests_total counter\n\
-         rustkernels_requests_total {}\n\
-         # HELP rustkernels_errors_total Total number of errors\n\
+         rustkernels_requests_total {}\n",
+        metrics.request_count()
+    );
+
+    output += &format!(
+        "# HELP rustkernels_errors_total Total number of errors\n\
          # TYPE rustkernels_errors_total counter\n\
-         rustkernels_errors_total {}\n\
-         # HELP rustkernels_avg_latency_us Average request latency in microseconds\n\
-         # TYPE rustkernels_avg_latency_us gauge\n\
-         rustkernels_avg_latency_us {:.2}\n\
-         # HELP rustkernels_uptime_seconds Service uptime in seconds\n\
+         rustkernels_errors_total {}\n",
+        metrics.error_count()
+    );
+
+    output += &format!(
+        "# HELP rustkernels_request_duration_us Average request duration in microseconds\n\
+         # TYPE rustkernels_request_duration_us gauge\n\
+         rustkernels_request_duration_us {:.2}\n",
+        metrics.avg_latency_us()
+    );
+
+    output += &format!(
+        "# HELP rustkernels_request_duration_min_us Minimum request duration in microseconds\n\
+         # TYPE rustkernels_request_duration_min_us gauge\n\
+         rustkernels_request_duration_min_us {}\n",
+        metrics.min_latency_us()
+    );
+
+    output += &format!(
+        "# HELP rustkernels_request_duration_max_us Maximum request duration in microseconds\n\
+         # TYPE rustkernels_request_duration_max_us gauge\n\
+         rustkernels_request_duration_max_us {}\n",
+        metrics.max_latency_us()
+    );
+
+    output += &format!(
+        "# HELP rustkernels_error_rate Current error rate (0.0-1.0)\n\
+         # TYPE rustkernels_error_rate gauge\n\
+         rustkernels_error_rate {:.6}\n",
+        error_rate
+    );
+
+    // Uptime
+    output += &format!(
+        "# HELP rustkernels_uptime_seconds Service uptime in seconds\n\
          # TYPE rustkernels_uptime_seconds gauge\n\
          rustkernels_uptime_seconds {}\n",
-        metrics.request_count(),
-        metrics.error_count(),
-        metrics.avg_latency_us(),
         uptime
-    )
+    );
+
+    // Registry metrics
+    output += &format!(
+        "# HELP rustkernels_kernels_registered Total registered kernels\n\
+         # TYPE rustkernels_kernels_registered gauge\n\
+         rustkernels_kernels_registered {}\n",
+        stats.total
+    );
+
+    output += &format!(
+        "# HELP rustkernels_batch_kernels Batch kernels available for execution\n\
+         # TYPE rustkernels_batch_kernels gauge\n\
+         rustkernels_batch_kernels {}\n",
+        stats.batch_kernels
+    );
+
+    output += &format!(
+        "# HELP rustkernels_ring_kernels Ring kernels registered\n\
+         # TYPE rustkernels_ring_kernels gauge\n\
+         rustkernels_ring_kernels {}\n",
+        stats.ring_kernels
+    );
+
+    // Per-domain kernel counts
+    output += "# HELP rustkernels_kernels_by_domain Kernels by domain\n\
+               # TYPE rustkernels_kernels_by_domain gauge\n";
+    for (domain, count) in &stats.by_domain {
+        output += &format!(
+            "rustkernels_kernels_by_domain{{domain=\"{}\"}} {}\n",
+            domain, count
+        );
+    }
+
+    output
 }
 
 /// List available kernels
@@ -269,42 +455,136 @@ async fn execute_kernel(
     let start = Instant::now();
     let request_id = extract_request_id(&headers);
 
-    // Check if kernel exists
-    let _kernel_meta = state.registry.get(&kernel_id).ok_or_else(|| {
+    // Try batch kernel execution first (batch kernels have factories for on-demand instantiation)
+    if let Some(entry) = state.registry.get_batch(&kernel_id) {
+        let kernel = entry.create();
+
+        // Serialize input JSON to bytes for the type-erased kernel interface
+        let input_bytes = serde_json::to_vec(&request.input).map_err(|e| {
+            state
+                .metrics
+                .record_request(start.elapsed().as_micros() as u64, true);
+            (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    code: "INVALID_INPUT".to_string(),
+                    message: format!("Failed to serialize input: {}", e),
+                    request_id: Some(request_id.clone()),
+                    details: None,
+                }),
+            )
+        })?;
+
+        // Execute with timeout
+        let timeout_ms = request.metadata.timeout_ms.unwrap_or(
+            state.config.default_timeout.as_millis() as u64,
+        );
+        let timeout = std::time::Duration::from_millis(timeout_ms);
+
+        let result = tokio::time::timeout(timeout, kernel.execute_dyn(&input_bytes)).await;
+
+        match result {
+            Ok(Ok(output_bytes)) => {
+                let output: serde_json::Value =
+                    serde_json::from_slice(&output_bytes).map_err(|e| {
+                        state
+                            .metrics
+                            .record_request(start.elapsed().as_micros() as u64, true);
+                        (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(ErrorResponse {
+                                code: "OUTPUT_DESERIALIZATION_ERROR".to_string(),
+                                message: format!(
+                                    "Failed to deserialize kernel output: {}",
+                                    e
+                                ),
+                                request_id: Some(request_id.clone()),
+                                details: None,
+                            }),
+                        )
+                    })?;
+
+                let duration_us = start.elapsed().as_micros() as u64;
+                state.metrics.record_request(duration_us, false);
+
+                Ok(Json(KernelResponse {
+                    request_id,
+                    kernel_id,
+                    output,
+                    metadata: ResponseMetadata {
+                        duration_us,
+                        backend: entry.metadata.mode.as_str().to_uppercase(),
+                        gpu_memory_bytes: None,
+                        trace_id: extract_trace_id(&headers),
+                    },
+                }))
+            }
+            Ok(Err(e)) => {
+                let duration_us = start.elapsed().as_micros() as u64;
+                state.metrics.record_request(duration_us, true);
+                Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse {
+                        code: "EXECUTION_FAILED".to_string(),
+                        message: format!("Kernel execution failed: {}", e),
+                        request_id: Some(request_id),
+                        details: None,
+                    }),
+                ))
+            }
+            Err(_) => {
+                state
+                    .metrics
+                    .record_request(start.elapsed().as_micros() as u64, true);
+                Err((
+                    StatusCode::GATEWAY_TIMEOUT,
+                    Json(ErrorResponse {
+                        code: "EXECUTION_TIMEOUT".to_string(),
+                        message: format!(
+                            "Kernel execution timed out after {}ms",
+                            timeout_ms
+                        ),
+                        request_id: Some(request_id),
+                        details: None,
+                    }),
+                ))
+            }
+        }
+    } else if let Some(meta) = state.registry.get(&kernel_id) {
+        // Kernel exists but is not a batch kernel (Ring or metadata-only)
         state
             .metrics
             .record_request(start.elapsed().as_micros() as u64, true);
-        (
+        Err((
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(ErrorResponse {
+                code: "RING_KERNEL_REST_UNSUPPORTED".to_string(),
+                message: format!(
+                    "Kernel '{}' is a {} mode kernel. Ring kernels require persistent \
+                     deployment via the Ring protocol or gRPC streaming API.",
+                    kernel_id, meta.mode
+                ),
+                request_id: Some(request_id),
+                details: Some(serde_json::json!({
+                    "kernel_mode": meta.mode.as_str(),
+                    "kernel_domain": format!("{:?}", meta.domain),
+                })),
+            }),
+        ))
+    } else {
+        state
+            .metrics
+            .record_request(start.elapsed().as_micros() as u64, true);
+        Err((
             StatusCode::NOT_FOUND,
             Json(ErrorResponse {
                 code: "KERNEL_NOT_FOUND".to_string(),
                 message: format!("Kernel not found: {}", kernel_id),
-                request_id: Some(request_id.clone()),
+                request_id: Some(request_id),
                 details: None,
             }),
-        )
-    })?;
-
-    // For now, return a mock response
-    // Actual kernel execution will be implemented with the runtime
-    let duration_us = start.elapsed().as_micros() as u64;
-    state.metrics.record_request(duration_us, false);
-
-    Ok(Json(KernelResponse {
-        request_id,
-        kernel_id: kernel_id.clone(),
-        output: serde_json::json!({
-            "status": "executed",
-            "kernel": kernel_id,
-            "input_size": request.input.to_string().len()
-        }),
-        metadata: ResponseMetadata {
-            duration_us,
-            backend: "CPU".to_string(),
-            gpu_memory_bytes: None,
-            trace_id: extract_trace_id(&headers),
-        },
-    }))
+        ))
+    }
 }
 
 // Helper functions

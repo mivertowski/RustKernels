@@ -1,21 +1,23 @@
 # Service Deployment
 
-RustKernels 0.2.0 includes the `rustkernel-ecosystem` crate for deploying kernels as production services.
+RustKernels 0.4.0 includes the `rustkernel-ecosystem` crate for deploying kernels as production services. All service integrations perform **real kernel execution** — requests are routed through the `KernelRegistry`, dispatched to type-erased `BatchKernelDyn` implementations, and return actual computation results.
 
 ## Overview
 
-| Integration | Description |
-|-------------|-------------|
-| **Axum** | REST API endpoints |
-| **Tower** | Middleware services |
-| **Tonic** | gRPC server |
-| **Actix** | Actor-based integration |
+| Integration | Description | Execution |
+|-------------|-------------|-----------|
+| **Axum** | REST API endpoints | Real batch kernel dispatch with timeout |
+| **Tower** | Middleware services | Real batch kernel dispatch via Tower `Service` |
+| **Tonic** | gRPC server | Real batch kernel dispatch with deadline support |
+| **Actix** | Actor-based integration | Real batch kernel dispatch via actor messages |
+
+Ring kernels are discoverable through metadata endpoints but require the RingKernel persistent actor runtime for execution. REST/gRPC endpoints return an informative error (HTTP 422 / gRPC `UNIMPLEMENTED`) with guidance to use the Ring protocol.
 
 ## Installation
 
 ```toml
 [dependencies]
-rustkernel-ecosystem = { version = "0.2.0", features = ["axum", "grpc"] }
+rustkernel-ecosystem = { version = "0.4.0", features = ["axum", "grpc"] }
 ```
 
 ### Feature Flags
@@ -28,6 +30,19 @@ rustkernel-ecosystem = { version = "0.2.0", features = ["axum", "grpc"] }
 | `actix` | Actix actor integration |
 | `full` | All integrations |
 
+## How Execution Works
+
+All four integrations follow the same execution path:
+
+1. **Registry lookup** — Find the kernel by ID in the `KernelRegistry`
+2. **Mode check** — Verify the kernel is a Batch kernel (Ring kernels return an error)
+3. **Factory create** — Instantiate the kernel via its registered factory closure
+4. **JSON serialize** — Serialize the request input to JSON bytes
+5. **Type-erased dispatch** — Call `execute_dyn(&input_bytes)` on the `BatchKernelDyn` trait object
+6. **Deserialize response** — Convert the output bytes back to a JSON response
+
+The `TypeErasedBatchKernel<K, I, O>` wrapper bridges the typed `BatchKernel<I, O>` interface to the type-erased `BatchKernelDyn` trait using serde JSON serialization.
+
 ## Axum REST API
 
 ### Quick Start
@@ -39,14 +54,14 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    // Create registry with kernels
+    // Create and populate registry
     let registry = Arc::new(KernelRegistry::new());
+    rustkernels::register_all(&registry).unwrap();
 
-    // Build router
+    // Build router — all endpoints perform real kernel execution
     let router = KernelRouter::new(registry, RouterConfig::default());
     let app = router.into_router();
 
-    // Serve
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
@@ -56,11 +71,11 @@ async fn main() {
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/kernels` | List available kernels |
-| GET | `/kernels/{id}` | Get kernel info |
-| POST | `/execute` | Execute a kernel |
-| GET | `/health` | Health check |
-| GET | `/metrics` | Prometheus metrics |
+| GET | `/kernels` | List available kernels with metadata |
+| GET | `/kernels/{id}` | Get kernel info and capabilities |
+| POST | `/execute` | Execute a batch kernel |
+| GET | `/health` | Aggregated health check with component status |
+| GET | `/metrics` | Prometheus-compatible metrics with per-domain breakdown |
 
 ### Execute Request
 
@@ -68,11 +83,11 @@ async fn main() {
 curl -X POST http://localhost:8080/execute \
   -H "Content-Type: application/json" \
   -d '{
-    "kernel_id": "graph/pagerank",
+    "kernel_id": "graph/betweenness-centrality",
     "input": {
-      "num_nodes": 1000,
-      "edges": [[0,1], [1,2], [2,0]],
-      "damping_factor": 0.85
+      "num_nodes": 4,
+      "edges": [[0, 1], [1, 2], [2, 3], [0, 3]],
+      "normalized": true
     }
   }'
 ```
@@ -81,16 +96,28 @@ curl -X POST http://localhost:8080/execute \
 
 ```json
 {
-  "request_id": "req-123",
-  "kernel_id": "graph/pagerank",
+  "request_id": "req-abc123",
+  "kernel_id": "graph/betweenness-centrality",
   "output": {
-    "scores": [0.33, 0.33, 0.33],
-    "iterations": 10
+    "scores": [0.3333, 0.6667, 0.6667, 0.3333]
   },
   "metadata": {
-    "duration_us": 1500,
-    "backend": "CUDA",
-    "trace_id": "abc123"
+    "duration_us": 850,
+    "backend": "CPU"
+  }
+}
+```
+
+### Health Check
+
+The health endpoint aggregates component status:
+
+```json
+{
+  "status": "healthy",
+  "components": {
+    "registry": { "status": "healthy", "kernel_count": 106 },
+    "execution": { "status": "healthy", "error_rate": 0.0 }
   }
 }
 ```
@@ -103,7 +130,7 @@ let config = RouterConfig {
     enable_metrics: true,
     enable_health: true,
     cors_enabled: true,
-    max_request_size: 10 * 1024 * 1024, // 10MB
+    max_request_size: 10 * 1024 * 1024, // 10 MB
 };
 ```
 
@@ -117,7 +144,7 @@ use tower::ServiceExt;
 
 let service = KernelService::new(registry);
 
-// Use as Tower service
+// Execute via Tower Service trait — dispatches to real kernels
 let response = service
     .ready()
     .await?
@@ -131,7 +158,6 @@ let response = service
 use rustkernel_ecosystem::tower::TimeoutLayer;
 
 let layer = TimeoutLayer::new(Duration::from_secs(30));
-
 let service = ServiceBuilder::new()
     .layer(layer)
     .service(kernel_service);
@@ -176,14 +202,15 @@ Server::builder()
     .await?;
 ```
 
+gRPC execution includes deadline support — if the client sets a gRPC deadline, the server applies it as a timeout around kernel execution. Exceeded deadlines return `DEADLINE_EXCEEDED`.
+
 ### Client Usage
 
 ```rust
-// Generated from proto
 let mut client = KernelClient::connect("http://[::1]:50051").await?;
 
 let request = tonic::Request::new(ExecuteRequest {
-    kernel_id: "graph/pagerank".to_string(),
+    kernel_id: "graph/betweenness-centrality".to_string(),
     input: serde_json::to_string(&input)?,
 });
 
@@ -195,7 +222,6 @@ let response = client.execute(request).await?;
 ```rust
 use rustkernel_ecosystem::grpc::HealthService;
 
-// gRPC health checking protocol
 Server::builder()
     .add_service(HealthService::new())
     .add_service(kernel_server.into_service())
@@ -221,10 +247,14 @@ let config = KernelActorConfig {
 let actor = KernelActor::new(registry, config);
 let addr = actor.start();
 
-// Send execution request
+// Execute — dispatches to real batch kernel
 let result = addr.send(ExecuteKernel {
-    kernel_id: "graph/pagerank".to_string(),
-    input: serde_json::json!({ ... }),
+    kernel_id: "graph/betweenness-centrality".to_string(),
+    input: serde_json::json!({
+        "num_nodes": 4,
+        "edges": [[0, 1], [1, 2], [2, 3]],
+        "normalized": true
+    }),
     metadata: Default::default(),
 }).await??;
 ```
@@ -236,7 +266,6 @@ use rustkernel_ecosystem::actix::KernelActorSupervisor;
 
 let mut supervisor = KernelActorSupervisor::new(registry);
 
-// Spawn worker pool
 for i in 0..num_workers {
     supervisor.spawn(KernelActorConfig {
         name: format!("worker-{}", i),
@@ -244,7 +273,6 @@ for i in 0..num_workers {
     });
 }
 
-// Get addresses for load balancing
 let workers = supervisor.actors();
 ```
 
@@ -252,7 +280,7 @@ let workers = supervisor.actors();
 
 | Message | Description |
 |---------|-------------|
-| `ExecuteKernel` | Execute a kernel computation |
+| `ExecuteKernel` | Execute a batch kernel computation |
 | `GetKernelInfo` | Get kernel metadata |
 | `ListKernels` | List available kernels |
 | `GetStats` | Get actor statistics |
@@ -306,7 +334,7 @@ spec:
     spec:
       containers:
       - name: rustkernels
-        image: rustkernels:0.2.0
+        image: rustkernels:0.4.0
         ports:
         - containerPort: 8080
         - containerPort: 50051
@@ -328,6 +356,6 @@ spec:
 
 ## Next Steps
 
-- [Security](security.md) - Secure your deployment
-- [Observability](observability.md) - Monitor service health
-- [Runtime](runtime.md) - Configure for production
+- [Security](security.md) — Secure your deployment
+- [Observability](observability.md) — Monitor service health
+- [Runtime](runtime.md) — Configure for production

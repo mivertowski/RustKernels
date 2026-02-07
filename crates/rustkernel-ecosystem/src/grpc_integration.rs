@@ -188,39 +188,74 @@ impl KernelGrpcServer {
         self
     }
 
-    /// Execute a kernel
+    /// Execute a kernel.
+    ///
+    /// Looks up the batch kernel in the registry, creates an instance, and executes it
+    /// with the provided JSON input. Ring kernels cannot be executed through this unary RPC.
     pub async fn execute_kernel(
         &self,
         request: GrpcKernelRequest,
     ) -> Result<GrpcKernelResponse, GrpcError> {
         let start = Instant::now();
-        let request_id = uuid::Uuid::new_v4().to_string();
+        let request_id = request
+            .trace_id
+            .as_deref()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
-        // Validate kernel exists
-        let _kernel_meta = self.registry.get(&request.kernel_id).ok_or_else(|| {
-            GrpcError::from(EcosystemError::KernelNotFound(request.kernel_id.clone()))
-        })?;
+        // Try batch kernel execution
+        if let Some(entry) = self.registry.get_batch(&request.kernel_id) {
+            let kernel = entry.create();
 
-        // Parse input
-        let _input: serde_json::Value = serde_json::from_str(&request.input_json).map_err(|e| {
-            GrpcError::from(EcosystemError::InvalidRequest(format!(
-                "Invalid JSON input: {}",
-                e
+            let input_bytes = request.input_json.as_bytes();
+
+            // Validate input is valid JSON before passing to kernel
+            if serde_json::from_slice::<serde_json::Value>(input_bytes).is_err() {
+                return Err(GrpcError::from(EcosystemError::InvalidRequest(
+                    "Input must be valid JSON".to_string(),
+                )));
+            }
+
+            // Apply timeout if specified
+            let timeout_ms = request.timeout_ms.unwrap_or(self.config.request_timeout_ms);
+            let timeout = std::time::Duration::from_millis(timeout_ms);
+
+            let result = tokio::time::timeout(timeout, kernel.execute_dyn(input_bytes)).await;
+
+            match result {
+                Ok(Ok(output_bytes)) => {
+                    let duration_us = start.elapsed().as_micros() as u64;
+                    let output_json =
+                        String::from_utf8(output_bytes).unwrap_or_else(|_| "{}".to_string());
+                    Ok(GrpcKernelResponse {
+                        request_id,
+                        kernel_id: request.kernel_id,
+                        output_json,
+                        duration_us,
+                        backend: entry.metadata.mode.as_str().to_uppercase(),
+                        gpu_memory_bytes: None,
+                        trace_id: request.trace_id,
+                    })
+                }
+                Ok(Err(e)) => Err(GrpcError::from(EcosystemError::ExecutionFailed(
+                    e.to_string(),
+                ))),
+                Err(_) => Err(GrpcError {
+                    code: 4, // DEADLINE_EXCEEDED
+                    message: format!("Kernel execution timed out after {}ms", timeout_ms),
+                    details: None,
+                }),
+            }
+        } else if self.registry.get(&request.kernel_id).is_some() {
+            Err(GrpcError::from(EcosystemError::InvalidRequest(format!(
+                "Kernel '{}' is a Ring kernel. Use bidirectional streaming RPC for Ring kernel dispatch.",
+                request.kernel_id
+            ))))
+        } else {
+            Err(GrpcError::from(EcosystemError::KernelNotFound(
+                request.kernel_id,
             )))
-        })?;
-
-        // Execute (placeholder - actual execution will use runtime)
-        let duration_us = start.elapsed().as_micros() as u64;
-
-        Ok(GrpcKernelResponse {
-            request_id,
-            kernel_id: request.kernel_id,
-            output_json: serde_json::json!({ "status": "executed" }).to_string(),
-            duration_us,
-            backend: "CPU".to_string(),
-            gpu_memory_bytes: None,
-            trace_id: request.trace_id,
-        })
+        }
     }
 
     /// Get kernel info
@@ -239,22 +274,21 @@ impl KernelGrpcServer {
         })
     }
 
-    /// List kernels
+    /// List kernels with pagination support.
+    ///
+    /// The `page_token` is the kernel ID to start after (exclusive).
+    /// Results are sorted by kernel ID for deterministic pagination.
     pub async fn list_kernels(
         &self,
         request: ListKernelsRequest,
     ) -> Result<ListKernelsResponse, GrpcError> {
-        let all_kernel_ids = self.registry.all_kernel_ids();
-        let page_size = request.page_size.unwrap_or(100) as usize;
+        let page_size = request.page_size.unwrap_or(100).max(1) as usize;
 
-        // Collect all kernel metadata
-        let all_kernels: Vec<_> = all_kernel_ids
-            .iter()
-            .filter_map(|id| self.registry.get(id))
-            .collect();
+        // Get all metadata sorted by ID for deterministic pagination
+        let all_metadata = self.registry.all_metadata();
 
-        // Apply domain filter
-        let filtered: Vec<_> = all_kernels
+        // Apply domain and mode filters
+        let filtered: Vec<_> = all_metadata
             .iter()
             .filter(|k| {
                 if let Some(ref domain) = request.domain {
@@ -270,6 +304,24 @@ impl KernelGrpcServer {
                     true
                 }
             })
+            .collect();
+
+        let total_count = filtered.len() as i32;
+
+        // Apply page_token: skip past the token ID
+        let start_idx = if let Some(ref token) = request.page_token {
+            filtered
+                .iter()
+                .position(|k| k.id == *token)
+                .map(|pos| pos + 1)
+                .unwrap_or(0)
+        } else {
+            0
+        };
+
+        let page: Vec<KernelInfo> = filtered
+            .iter()
+            .skip(start_idx)
             .take(page_size)
             .map(|k| KernelInfo {
                 id: k.id.clone(),
@@ -281,10 +333,17 @@ impl KernelGrpcServer {
             })
             .collect();
 
+        // Set next_page_token if there are more results
+        let next_page_token = if start_idx + page_size < filtered.len() {
+            page.last().map(|k| k.id.clone())
+        } else {
+            None
+        };
+
         Ok(ListKernelsResponse {
-            total_count: all_kernels.len() as i32,
-            kernels: filtered,
-            next_page_token: None,
+            total_count,
+            kernels: page,
+            next_page_token,
         })
     }
 

@@ -28,24 +28,22 @@ pub use liquidity::LiquidityOptimization;
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering treasury management kernels");
 
-    // Cash flow kernel (1)
-    registry.register_metadata(cashflow::CashFlowForecasting::new().metadata().clone())?;
+    // Cash flow kernel (1) — Batch
+    registry.register_ring_metadata_from(cashflow::CashFlowForecasting::new)?;
 
-    // Collateral kernel (1)
-    registry.register_metadata(collateral::CollateralOptimization::new().metadata().clone())?;
+    // Collateral kernel (1) — Batch
+    registry.register_ring_metadata_from(collateral::CollateralOptimization::new)?;
 
-    // FX kernel (1)
-    registry.register_metadata(fx::FXHedging::new().metadata().clone())?;
+    // FX kernel (1) — Batch
+    registry.register_ring_metadata_from(fx::FXHedging::new)?;
 
-    // Interest rate kernel (1)
-    registry.register_metadata(interest_rate::InterestRateRisk::new().metadata().clone())?;
+    // Interest rate kernel (1) — Batch
+    registry.register_ring_metadata_from(interest_rate::InterestRateRisk::new)?;
 
-    // Liquidity kernel (1)
-    registry.register_metadata(liquidity::LiquidityOptimization::new().metadata().clone())?;
+    // Liquidity kernel (1) — Batch
+    registry.register_ring_metadata_from(liquidity::LiquidityOptimization::new)?;
 
     tracing::info!("Registered 5 treasury management kernels");
     Ok(())

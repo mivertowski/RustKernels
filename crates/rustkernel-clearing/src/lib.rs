@@ -54,24 +54,22 @@ pub use types::{
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering clearing kernels");
 
-    // Validation kernel (1)
-    registry.register_metadata(validation::ClearingValidation::new().metadata().clone())?;
+    // Validation kernel (1) — Batch
+    registry.register_ring_metadata_from(validation::ClearingValidation::new)?;
 
-    // DVP kernel (1)
-    registry.register_metadata(dvp::DVPMatching::new().metadata().clone())?;
+    // DVP kernel (1) — Ring
+    registry.register_ring_metadata_from(dvp::DVPMatching::new)?;
 
-    // Netting kernel (1)
-    registry.register_metadata(netting::NettingCalculation::new().metadata().clone())?;
+    // Netting kernel (1) — Batch
+    registry.register_ring_metadata_from(netting::NettingCalculation::new)?;
 
-    // Settlement kernel (1)
-    registry.register_metadata(settlement::SettlementExecution::new().metadata().clone())?;
+    // Settlement kernel (1) — Ring
+    registry.register_ring_metadata_from(settlement::SettlementExecution::new)?;
 
-    // Efficiency kernel (1)
-    registry.register_metadata(efficiency::ZeroBalanceFrequency::new().metadata().clone())?;
+    // Efficiency kernel (1) — Batch
+    registry.register_ring_metadata_from(efficiency::ZeroBalanceFrequency::new)?;
 
     tracing::info!("Registered 5 clearing kernels");
     Ok(())

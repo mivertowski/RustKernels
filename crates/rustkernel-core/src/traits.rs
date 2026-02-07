@@ -13,12 +13,13 @@
 //! - Secure message handling with authentication
 //! - Checkpoint/restore for recovery
 
-use crate::error::Result;
+use crate::error::{KernelError, Result};
 use crate::kernel::KernelMetadata;
 use async_trait::async_trait;
 use ringkernel_core::{RingContext, RingMessage};
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
+use std::marker::PhantomData;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -578,6 +579,170 @@ pub trait BatchKernelDyn: GpuKernel {
 pub trait RingKernelDyn: GpuKernel {
     /// Handle with type-erased messages.
     async fn handle_dyn(&self, ctx: &mut RingContext, msg: &[u8]) -> Result<Vec<u8>>;
+}
+
+// ============================================================================
+// Type-Erased Kernel Adapters
+// ============================================================================
+
+/// Type-erased wrapper for batch kernels enabling dynamic dispatch.
+///
+/// Wraps any `BatchKernel<I, O>` implementation and provides the
+/// `BatchKernelDyn` interface for type-erased execution through
+/// JSON serialization/deserialization.
+///
+/// This enables batch kernels to be stored in the registry and invoked
+/// via REST, gRPC, and other service interfaces without compile-time
+/// knowledge of the kernel's input/output types.
+///
+/// # Example
+///
+/// ```ignore
+/// use rustkernel_core::traits::TypeErasedBatchKernel;
+///
+/// let kernel = TypeErasedBatchKernel::new(MyKernel::new());
+/// let output = kernel.execute_dyn(b"{\"field\": 42}").await?;
+/// ```
+pub struct TypeErasedBatchKernel<K, I, O> {
+    inner: K,
+    // fn(I) -> O is always Send + Sync regardless of I/O bounds
+    _phantom: PhantomData<fn(I) -> O>,
+}
+
+impl<K: Debug, I, O> Debug for TypeErasedBatchKernel<K, I, O> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TypeErasedBatchKernel")
+            .field("inner", &self.inner)
+            .finish()
+    }
+}
+
+impl<K, I, O> TypeErasedBatchKernel<K, I, O> {
+    /// Wrap a typed batch kernel for type-erased execution.
+    pub fn new(kernel: K) -> Self {
+        Self {
+            inner: kernel,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Access the inner kernel.
+    pub fn inner(&self) -> &K {
+        &self.inner
+    }
+}
+
+impl<K, I, O> GpuKernel for TypeErasedBatchKernel<K, I, O>
+where
+    K: GpuKernel,
+    I: Send + Sync + 'static,
+    O: Send + Sync + 'static,
+{
+    fn metadata(&self) -> &KernelMetadata {
+        self.inner.metadata()
+    }
+
+    fn validate(&self) -> Result<()> {
+        self.inner.validate()
+    }
+
+    fn health_check(&self) -> HealthStatus {
+        self.inner.health_check()
+    }
+
+    fn shutdown(&self) -> Result<()> {
+        self.inner.shutdown()
+    }
+
+    fn refresh_config(&mut self, config: &KernelConfig) -> Result<()> {
+        self.inner.refresh_config(config)
+    }
+}
+
+#[async_trait]
+impl<K, I, O> BatchKernelDyn for TypeErasedBatchKernel<K, I, O>
+where
+    K: BatchKernel<I, O> + 'static,
+    I: serde::de::DeserializeOwned + Send + Sync + 'static,
+    O: serde::Serialize + Send + Sync + 'static,
+{
+    async fn execute_dyn(&self, input: &[u8]) -> Result<Vec<u8>> {
+        let typed_input: I = serde_json::from_slice(input)
+            .map_err(|e| KernelError::DeserializationError(e.to_string()))?;
+        let output = self.inner.execute(typed_input).await?;
+        serde_json::to_vec(&output)
+            .map_err(|e| KernelError::SerializationError(e.to_string()))
+    }
+}
+
+/// Type-erased wrapper for ring kernels enabling dynamic dispatch.
+///
+/// Similar to [`TypeErasedBatchKernel`] but for ring kernels that handle
+/// messages through the RingKernel persistent actor model.
+pub struct TypeErasedRingKernel<K, M, R> {
+    inner: K,
+    _phantom: PhantomData<fn(M) -> R>,
+}
+
+impl<K: Debug, M, R> Debug for TypeErasedRingKernel<K, M, R> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TypeErasedRingKernel")
+            .field("inner", &self.inner)
+            .finish()
+    }
+}
+
+impl<K, M, R> TypeErasedRingKernel<K, M, R> {
+    /// Wrap a typed ring kernel for type-erased message handling.
+    pub fn new(kernel: K) -> Self {
+        Self {
+            inner: kernel,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<K, M, R> GpuKernel for TypeErasedRingKernel<K, M, R>
+where
+    K: GpuKernel,
+    M: Send + Sync + 'static,
+    R: Send + Sync + 'static,
+{
+    fn metadata(&self) -> &KernelMetadata {
+        self.inner.metadata()
+    }
+
+    fn validate(&self) -> Result<()> {
+        self.inner.validate()
+    }
+
+    fn health_check(&self) -> HealthStatus {
+        self.inner.health_check()
+    }
+
+    fn shutdown(&self) -> Result<()> {
+        self.inner.shutdown()
+    }
+
+    fn refresh_config(&mut self, config: &KernelConfig) -> Result<()> {
+        self.inner.refresh_config(config)
+    }
+}
+
+#[async_trait]
+impl<K, M, R> RingKernelDyn for TypeErasedRingKernel<K, M, R>
+where
+    K: RingKernelHandler<M, R> + 'static,
+    M: RingMessage + serde::de::DeserializeOwned + Send + Sync + 'static,
+    R: RingMessage + serde::Serialize + Send + Sync + 'static,
+{
+    async fn handle_dyn(&self, ctx: &mut RingContext, msg: &[u8]) -> Result<Vec<u8>> {
+        let typed_msg: M = serde_json::from_slice(msg)
+            .map_err(|e| KernelError::DeserializationError(e.to_string()))?;
+        let response = self.inner.handle(ctx, typed_msg).await?;
+        serde_json::to_vec(&response)
+            .map_err(|e| KernelError::SerializationError(e.to_string()))
+    }
 }
 
 // ============================================================================

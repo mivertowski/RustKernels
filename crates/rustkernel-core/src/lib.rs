@@ -85,8 +85,9 @@ pub mod prelude {
     pub use crate::slo::{SLOResult, SLOValidator};
     pub use crate::test_kernels::{EchoKernel, MatMul, ReduceSum, VectorAdd};
     pub use crate::traits::{
-        BatchKernel, CheckpointableKernel, DegradableKernel, ExecutionContext, GpuKernel,
-        HealthStatus, IterativeKernel, KernelConfig, RingKernelHandler, SecureRingContext,
+        BatchKernel, BatchKernelDyn, CheckpointableKernel, DegradableKernel, ExecutionContext,
+        GpuKernel, HealthStatus, IterativeKernel, KernelConfig, RingKernelDyn, RingKernelHandler,
+        SecureRingContext, TypeErasedBatchKernel, TypeErasedRingKernel,
     };
 
     // Runtime lifecycle

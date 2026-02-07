@@ -41,50 +41,32 @@ pub use temporal::TemporalCorrelation;
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering accounting kernels");
 
-    // CoA mapping kernel (1)
-    registry.register_metadata(
-        coa_mapping::ChartOfAccountsMapping::new()
-            .metadata()
-            .clone(),
-    )?;
+    // CoA mapping kernel (1) — Batch
+    registry.register_ring_metadata_from(coa_mapping::ChartOfAccountsMapping::new)?;
 
-    // Journal kernel (1)
-    registry.register_metadata(journal::JournalTransformation::new().metadata().clone())?;
+    // Journal kernel (1) — Batch
+    registry.register_ring_metadata_from(journal::JournalTransformation::new)?;
 
-    // Reconciliation kernel (1)
-    registry.register_metadata(reconciliation::GLReconciliation::new().metadata().clone())?;
+    // Reconciliation kernel (1) — Batch
+    registry.register_ring_metadata_from(reconciliation::GLReconciliation::new)?;
 
-    // Network analysis kernel (1)
-    registry.register_metadata(network::NetworkAnalysis::new().metadata().clone())?;
+    // Network analysis kernel (1) — Batch
+    registry.register_ring_metadata_from(network::NetworkAnalysis::new)?;
 
-    // Temporal kernel (1)
-    registry.register_metadata(temporal::TemporalCorrelation::new().metadata().clone())?;
+    // Temporal kernel (1) — Batch
+    registry.register_ring_metadata_from(temporal::TemporalCorrelation::new)?;
 
-    // Network generation batch kernel (1)
-    registry.register_metadata(
-        network_generation::NetworkGeneration::new()
-            .metadata()
-            .clone(),
-    )?;
+    // Network generation batch kernel (1) — Batch
+    registry.register_batch_typed(network_generation::NetworkGeneration::new)?;
 
-    // Network generation ring kernel (1)
-    registry.register_metadata(
-        network_generation::NetworkGenerationRing::new()
-            .metadata()
-            .clone(),
-    )?;
+    // Network generation ring kernel (1) — Ring
+    registry.register_ring_metadata_from(network_generation::NetworkGenerationRing::new)?;
 
-    // Detection kernels (2)
-    registry.register_metadata(
-        detection::SuspenseAccountDetection::new()
-            .metadata()
-            .clone(),
-    )?;
-    registry.register_metadata(detection::GaapViolationDetection::new().metadata().clone())?;
+    // Detection kernels (2) — Batch
+    registry.register_ring_metadata_from(detection::SuspenseAccountDetection::new)?;
+    registry.register_ring_metadata_from(detection::GaapViolationDetection::new)?;
 
     tracing::info!("Registered 9 accounting kernels");
     Ok(())

@@ -62,34 +62,28 @@ pub use types::{
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering process intelligence kernels");
 
-    // DFG kernel (1)
-    registry.register_metadata(dfg::DFGConstruction::new().metadata().clone())?;
+    // DFG kernel (1) - Batch
+    registry.register_batch_metadata_from(dfg::DFGConstruction::new)?;
 
-    // Partial order kernel (1)
-    registry.register_metadata(
-        partial_order::PartialOrderAnalysis::new()
-            .metadata()
-            .clone(),
-    )?;
+    // Partial order kernel (1) - Batch
+    registry.register_batch_metadata_from(partial_order::PartialOrderAnalysis::new)?;
 
-    // Conformance kernel (1)
-    registry.register_metadata(conformance::ConformanceChecking::new().metadata().clone())?;
+    // Conformance kernel (1) - Ring
+    registry.register_ring_metadata_from(conformance::ConformanceChecking::new)?;
 
-    // OCPM kernel (1)
-    registry.register_metadata(ocpm::OCPMPatternMatching::new().metadata().clone())?;
+    // OCPM kernel (1) - Batch
+    registry.register_batch_metadata_from(ocpm::OCPMPatternMatching::new)?;
 
-    // Prediction kernel (1)
-    registry.register_metadata(prediction::NextActivityPrediction::new().metadata().clone())?;
+    // Prediction kernel (1) - Batch
+    registry.register_batch_metadata_from(prediction::NextActivityPrediction::new)?;
 
-    // Imputation kernel (1)
-    registry.register_metadata(imputation::EventLogImputation::new().metadata().clone())?;
+    // Imputation kernel (1) - Batch
+    registry.register_batch_metadata_from(imputation::EventLogImputation::new)?;
 
-    // Simulation kernel (1)
-    registry.register_metadata(simulation::DigitalTwin::new().metadata().clone())?;
+    // Simulation kernel (1) - Batch
+    registry.register_batch_metadata_from(simulation::DigitalTwin::new)?;
 
     tracing::info!("Registered 7 process intelligence kernels");
     Ok(())

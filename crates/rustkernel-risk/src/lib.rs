@@ -52,20 +52,18 @@ pub use types::{
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering risk analytics kernels");
 
-    // Credit kernel (1)
-    registry.register_metadata(credit::CreditRiskScoring::new().metadata().clone())?;
+    // Credit kernel (1) - Ring
+    registry.register_ring_metadata_from(credit::CreditRiskScoring::new)?;
 
-    // Market kernels (3)
-    registry.register_metadata(market::MonteCarloVaR::new().metadata().clone())?;
-    registry.register_metadata(market::PortfolioRiskAggregation::new().metadata().clone())?;
-    registry.register_metadata(correlation::RealTimeCorrelation::new().metadata().clone())?;
+    // Market kernels (3) - Ring
+    registry.register_ring_metadata_from(market::MonteCarloVaR::new)?;
+    registry.register_ring_metadata_from(market::PortfolioRiskAggregation::new)?;
+    registry.register_ring_metadata_from(correlation::RealTimeCorrelation::new)?;
 
-    // Stress kernel (1)
-    registry.register_metadata(stress::StressTesting::new().metadata().clone())?;
+    // Stress kernel (1) - Batch
+    registry.register_batch_typed::<StressTesting, messages::StressTestingInput, messages::StressTestingOutput>(stress::StressTesting::new)?;
 
     tracing::info!("Registered 5 risk analytics kernels");
     Ok(())
