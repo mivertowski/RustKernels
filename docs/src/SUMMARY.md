@@ -18,7 +18,7 @@
 
 ---
 
-# Enterprise Features (0.2.0)
+# Enterprise Features
 
 - [Security](enterprise/security.md)
 - [Observability](enterprise/observability.md)
