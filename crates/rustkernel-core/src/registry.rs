@@ -501,6 +501,61 @@ impl KernelRegistry {
         batch.len() + ring.len() + metadata.len()
     }
 
+    /// Get all kernel metadata across all categories, sorted by ID.
+    ///
+    /// Returns metadata for batch, ring, and metadata-only kernels.
+    #[must_use]
+    pub fn all_metadata(&self) -> Vec<KernelMetadata> {
+        let mut result = Vec::new();
+
+        let batch = self.batch_kernels.read().unwrap();
+        for entry in batch.values() {
+            result.push(entry.metadata.clone());
+        }
+
+        let ring = self.ring_kernels.read().unwrap();
+        for entry in ring.values() {
+            result.push(entry.metadata.clone());
+        }
+
+        let metadata = self.metadata_only.read().unwrap();
+        for entry in metadata.values() {
+            result.push(entry.clone());
+        }
+
+        result.sort_by(|a, b| a.id.cmp(&b.id));
+        result
+    }
+
+    /// Search kernels by pattern (case-insensitive substring match on ID and description).
+    #[must_use]
+    pub fn search(&self, pattern: &str) -> Vec<KernelMetadata> {
+        let pattern_lower = pattern.to_lowercase();
+        self.all_metadata()
+            .into_iter()
+            .filter(|m| {
+                m.id.to_lowercase().contains(&pattern_lower)
+                    || m.description.to_lowercase().contains(&pattern_lower)
+            })
+            .collect()
+    }
+
+    /// Get all executable batch kernel IDs (kernels with factory functions).
+    ///
+    /// These are the kernels that can be invoked via REST/gRPC through the
+    /// type-erased `BatchKernelDyn` interface.
+    #[must_use]
+    pub fn executable_kernel_ids(&self) -> Vec<String> {
+        self.batch_kernel_ids()
+    }
+
+    /// Check if a kernel is executable via REST/gRPC (has a `BatchKernelDyn` factory).
+    #[must_use]
+    pub fn is_executable(&self, id: &str) -> bool {
+        let batch = self.batch_kernels.read().unwrap();
+        batch.contains_key(id)
+    }
+
     /// Clear all registered kernels.
     pub fn clear(&self) {
         let mut batch = self.batch_kernels.write().unwrap();

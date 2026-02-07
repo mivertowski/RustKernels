@@ -24,12 +24,22 @@ use std::time::Instant;
 /// Kernel service for Tower
 pub struct KernelService {
     registry: Arc<KernelRegistry>,
+    default_timeout: std::time::Duration,
 }
 
 impl KernelService {
     /// Create a new kernel service
     pub fn new(registry: Arc<KernelRegistry>) -> Self {
-        Self { registry }
+        Self {
+            registry,
+            default_timeout: std::time::Duration::from_secs(30),
+        }
+    }
+
+    /// Set the default execution timeout
+    pub fn with_timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.default_timeout = timeout;
+        self
     }
 
     /// Execute a kernel request.
@@ -47,27 +57,45 @@ impl KernelService {
             let input_bytes = serde_json::to_vec(&request.input)
                 .map_err(|e| EcosystemError::InvalidRequest(format!("Invalid input: {}", e)))?;
 
-            let output_bytes = kernel
-                .execute_dyn(&input_bytes)
-                .await
-                .map_err(|e| EcosystemError::ExecutionFailed(e.to_string()))?;
+            // Apply timeout from request metadata or default
+            let timeout_ms = request
+                .metadata
+                .timeout_ms
+                .unwrap_or(self.default_timeout.as_millis() as u64);
+            let timeout = std::time::Duration::from_millis(timeout_ms);
 
-            let output: serde_json::Value = serde_json::from_slice(&output_bytes)
-                .map_err(|e| EcosystemError::InternalError(format!("Output deserialization: {}", e)))?;
+            let result = tokio::time::timeout(timeout, kernel.execute_dyn(&input_bytes)).await;
 
-            let duration_us = start.elapsed().as_micros() as u64;
+            match result {
+                Ok(Ok(output_bytes)) => {
+                    let output: serde_json::Value = serde_json::from_slice(&output_bytes)
+                        .map_err(|e| {
+                            EcosystemError::InternalError(format!(
+                                "Output deserialization: {}",
+                                e
+                            ))
+                        })?;
 
-            Ok(KernelResponse {
-                request_id,
-                kernel_id: request.kernel_id,
-                output,
-                metadata: ResponseMetadata {
-                    duration_us,
-                    backend: entry.metadata.mode.as_str().to_uppercase(),
-                    gpu_memory_bytes: None,
-                    trace_id: request.metadata.trace_id,
-                },
-            })
+                    let duration_us = start.elapsed().as_micros() as u64;
+
+                    Ok(KernelResponse {
+                        request_id,
+                        kernel_id: request.kernel_id,
+                        output,
+                        metadata: ResponseMetadata {
+                            duration_us,
+                            backend: entry.metadata.mode.as_str().to_uppercase(),
+                            gpu_memory_bytes: None,
+                            trace_id: request.metadata.trace_id,
+                        },
+                    })
+                }
+                Ok(Err(e)) => Err(EcosystemError::ExecutionFailed(e.to_string())),
+                Err(_) => Err(EcosystemError::ServiceUnavailable(format!(
+                    "Kernel execution timed out after {}ms",
+                    timeout_ms
+                ))),
+            }
         } else if self.registry.get(&request.kernel_id).is_some() {
             Err(EcosystemError::InvalidRequest(format!(
                 "Kernel '{}' is a Ring kernel and cannot be executed via this interface. \
@@ -84,6 +112,7 @@ impl Clone for KernelService {
     fn clone(&self) -> Self {
         Self {
             registry: self.registry.clone(),
+            default_timeout: self.default_timeout,
         }
     }
 }
@@ -225,10 +254,12 @@ pub enum TimeoutError<E> {
     Inner(E),
 }
 
-/// Rate limiter layer
+/// Rate limiter layer using a token bucket algorithm.
+///
+/// Allows up to `burst_size` requests immediately, then refills at
+/// `requests_per_second` rate.
 pub struct RateLimiterLayer {
     requests_per_second: u32,
-    #[allow(dead_code)]
     burst_size: u32,
 }
 
@@ -248,25 +279,37 @@ impl<S> tower::Layer<S> for RateLimiterLayer {
     fn layer(&self, inner: S) -> Self::Service {
         RateLimiterService {
             inner,
-            interval: std::time::Duration::from_secs(1) / self.requests_per_second,
-            last_request: Arc::new(tokio::sync::Mutex::new(std::time::Instant::now())),
+            requests_per_second: self.requests_per_second as f64,
+            burst_size: self.burst_size as f64,
+            state: Arc::new(tokio::sync::Mutex::new(TokenBucketState {
+                tokens: self.burst_size as f64,
+                last_refill: std::time::Instant::now(),
+            })),
         }
     }
 }
 
-/// Rate limiter service
+/// Internal state for the token bucket
+struct TokenBucketState {
+    tokens: f64,
+    last_refill: std::time::Instant,
+}
+
+/// Rate limiter service using a token bucket algorithm
 pub struct RateLimiterService<S> {
     inner: S,
-    interval: std::time::Duration,
-    last_request: Arc<tokio::sync::Mutex<std::time::Instant>>,
+    requests_per_second: f64,
+    burst_size: f64,
+    state: Arc<tokio::sync::Mutex<TokenBucketState>>,
 }
 
 impl<S: Clone> Clone for RateLimiterService<S> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
-            interval: self.interval,
-            last_request: self.last_request.clone(),
+            requests_per_second: self.requests_per_second,
+            burst_size: self.burst_size,
+            state: self.state.clone(),
         }
     }
 }
@@ -287,20 +330,25 @@ where
 
     fn call(&mut self, req: Request) -> Self::Future {
         let mut inner = self.inner.clone();
-        let interval = self.interval;
-        let last_request = self.last_request.clone();
+        let rps = self.requests_per_second;
+        let burst = self.burst_size;
+        let state = self.state.clone();
 
         Box::pin(async move {
-            // Check rate limit
-            let mut last = last_request.lock().await;
-            let elapsed = last.elapsed();
+            let mut bucket = state.lock().await;
 
-            if elapsed < interval {
+            // Refill tokens based on elapsed time
+            let elapsed = bucket.last_refill.elapsed().as_secs_f64();
+            bucket.tokens = (bucket.tokens + elapsed * rps).min(burst);
+            bucket.last_refill = std::time::Instant::now();
+
+            // Check if we have a token available
+            if bucket.tokens < 1.0 {
                 return Err(RateLimitError::RateLimitExceeded);
             }
 
-            *last = std::time::Instant::now();
-            drop(last);
+            bucket.tokens -= 1.0;
+            drop(bucket);
 
             inner.call(req).await.map_err(RateLimitError::Inner)
         })

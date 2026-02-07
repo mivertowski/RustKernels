@@ -164,11 +164,15 @@ impl Default for RateLimitConfig {
 /// Metrics collector for service endpoints
 pub struct ServiceMetrics {
     /// Total requests
-    pub total_requests: std::sync::atomic::AtomicU64,
+    total_requests: std::sync::atomic::AtomicU64,
     /// Total errors
-    pub total_errors: std::sync::atomic::AtomicU64,
+    total_errors: std::sync::atomic::AtomicU64,
     /// Total latency (microseconds)
-    pub total_latency_us: std::sync::atomic::AtomicU64,
+    total_latency_us: std::sync::atomic::AtomicU64,
+    /// Min latency (microseconds)
+    min_latency_us: std::sync::atomic::AtomicU64,
+    /// Max latency (microseconds)
+    max_latency_us: std::sync::atomic::AtomicU64,
 }
 
 impl ServiceMetrics {
@@ -178,6 +182,8 @@ impl ServiceMetrics {
             total_requests: std::sync::atomic::AtomicU64::new(0),
             total_errors: std::sync::atomic::AtomicU64::new(0),
             total_latency_us: std::sync::atomic::AtomicU64::new(0),
+            min_latency_us: std::sync::atomic::AtomicU64::new(u64::MAX),
+            max_latency_us: std::sync::atomic::AtomicU64::new(0),
         })
     }
 
@@ -190,6 +196,10 @@ impl ServiceMetrics {
         if is_error {
             self.total_errors.fetch_add(1, Ordering::Relaxed);
         }
+        // Update min latency
+        self.min_latency_us.fetch_min(latency_us, Ordering::Relaxed);
+        // Update max latency
+        self.max_latency_us.fetch_max(latency_us, Ordering::Relaxed);
     }
 
     /// Get request count
@@ -210,6 +220,17 @@ impl ServiceMetrics {
         let count = self.total_requests.load(Ordering::Relaxed) as f64;
         if count > 0.0 { total / count } else { 0.0 }
     }
+
+    /// Get minimum latency in microseconds (returns 0 if no requests)
+    pub fn min_latency_us(&self) -> u64 {
+        let val = self.min_latency_us.load(std::sync::atomic::Ordering::Relaxed);
+        if val == u64::MAX { 0 } else { val }
+    }
+
+    /// Get maximum latency in microseconds
+    pub fn max_latency_us(&self) -> u64 {
+        self.max_latency_us.load(std::sync::atomic::Ordering::Relaxed)
+    }
 }
 
 impl Default for ServiceMetrics {
@@ -218,6 +239,8 @@ impl Default for ServiceMetrics {
             total_requests: std::sync::atomic::AtomicU64::new(0),
             total_errors: std::sync::atomic::AtomicU64::new(0),
             total_latency_us: std::sync::atomic::AtomicU64::new(0),
+            min_latency_us: std::sync::atomic::AtomicU64::new(u64::MAX),
+            max_latency_us: std::sync::atomic::AtomicU64::new(0),
         }
     }
 }
@@ -277,6 +300,10 @@ mod tests {
     fn test_service_metrics() {
         let metrics = ServiceMetrics::new();
 
+        // No requests yet
+        assert_eq!(metrics.min_latency_us(), 0);
+        assert_eq!(metrics.max_latency_us(), 0);
+
         metrics.record_request(1000, false);
         metrics.record_request(2000, false);
         metrics.record_request(3000, true);
@@ -284,5 +311,7 @@ mod tests {
         assert_eq!(metrics.request_count(), 3);
         assert_eq!(metrics.error_count(), 1);
         assert!((metrics.avg_latency_us() - 2000.0).abs() < 0.1);
+        assert_eq!(metrics.min_latency_us(), 1000);
+        assert_eq!(metrics.max_latency_us(), 3000);
     }
 }

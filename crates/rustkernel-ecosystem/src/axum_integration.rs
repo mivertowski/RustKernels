@@ -26,8 +26,9 @@ use crate::{
 use axum::{
     Router,
     extract::{Path, State},
-    http::{HeaderMap, StatusCode},
-    response::Json,
+    http::{HeaderMap, HeaderValue, StatusCode, header},
+    middleware::{self, Next},
+    response::{Json, Response},
     routing::{get, post},
 };
 use rustkernel_core::registry::KernelRegistry;
@@ -127,7 +128,8 @@ impl KernelRouter {
 
     /// Build the router
     pub fn build(self) -> Router {
-        let state = AppState::new(self.registry, self.service_config);
+        let cors_enabled = self.config.cors_enabled;
+        let state = AppState::new(self.registry, self.service_config.clone());
 
         let mut router = Router::new();
 
@@ -152,8 +154,70 @@ impl KernelRouter {
             router = router.route(paths::METRICS, get(metrics_endpoint));
         }
 
+        // Add request-ID middleware (echoes X-Request-ID back in response)
+        router = router.layer(middleware::from_fn(request_id_middleware));
+
+        // Add CORS middleware if enabled
+        if cors_enabled {
+            let cors = build_cors(&self.service_config);
+            router = router.layer(cors);
+        }
+
         router.with_state(state)
     }
+}
+
+// Middleware
+
+/// Build CORS layer from service configuration
+fn build_cors(config: &ServiceConfig) -> tower_http::cors::CorsLayer {
+    use tower_http::cors::{Any, CorsLayer};
+
+    let cors = CorsLayer::new()
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::OPTIONS,
+        ])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::AUTHORIZATION,
+            headers::X_REQUEST_ID.parse().unwrap(),
+            headers::X_TENANT_ID.parse().unwrap(),
+            headers::X_API_KEY.parse().unwrap(),
+        ]);
+
+    if config.cors_origins.iter().any(|o| o == "*") {
+        cors.allow_origin(Any)
+    } else {
+        let origins: Vec<HeaderValue> = config
+            .cors_origins
+            .iter()
+            .filter_map(|o| o.parse().ok())
+            .collect();
+        cors.allow_origin(origins)
+    }
+}
+
+/// Middleware that propagates X-Request-ID from request to response headers
+async fn request_id_middleware(
+    req: axum::extract::Request,
+    next: Next,
+) -> Response {
+    let request_id = req
+        .headers()
+        .get(headers::X_REQUEST_ID)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+    let mut response = next.run(req).await;
+
+    if let Ok(val) = HeaderValue::from_str(&request_id) {
+        response.headers_mut().insert(headers::X_REQUEST_ID, val);
+    }
+
+    response
 }
 
 // Handler implementations
@@ -265,6 +329,20 @@ async fn metrics_endpoint(State(state): State<AppState>) -> String {
          # TYPE rustkernels_request_duration_us gauge\n\
          rustkernels_request_duration_us {:.2}\n",
         metrics.avg_latency_us()
+    );
+
+    output += &format!(
+        "# HELP rustkernels_request_duration_min_us Minimum request duration in microseconds\n\
+         # TYPE rustkernels_request_duration_min_us gauge\n\
+         rustkernels_request_duration_min_us {}\n",
+        metrics.min_latency_us()
+    );
+
+    output += &format!(
+        "# HELP rustkernels_request_duration_max_us Maximum request duration in microseconds\n\
+         # TYPE rustkernels_request_duration_max_us gauge\n\
+         rustkernels_request_duration_max_us {}\n",
+        metrics.max_latency_us()
     );
 
     output += &format!(
