@@ -111,7 +111,7 @@ hyper = { version = "1.6", features = ["full"] }
 hyper-util = { version = "0.1", features = ["full"] }
 http = "1.2"
 http-body-util = "0.1"
-bytes = "1.9"
+bytes = "1.11"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
