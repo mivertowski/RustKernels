@@ -33,6 +33,11 @@ pub use reduction::{
     ReductionConfig, ReductionError, ReductionOp, SyncMode,
 };
 
+// Re-export ringkernel-core 0.4.2 memory primitives for deep integration.
+pub use ringkernel_core::analytics_context as ring_analytics_context;
+pub use ringkernel_core::reduction as ring_reduction;
+pub use ringkernel_core::memory as ring_memory;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;

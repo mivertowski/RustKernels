@@ -1,27 +1,27 @@
 //! Ring message types for Risk Analytics kernels.
 //!
 //! This module defines zero-copy Ring messages for GPU-native persistent actors.
-//! Type IDs 600-699 are reserved for Risk Analytics domain.
+//! Type IDs 400-499 are reserved for RiskManagement domain.
 //!
 //! ## Type ID Allocation
 //!
-//! - 600-619: Monte Carlo VaR messages
-//! - 620-639: Portfolio risk aggregation messages
-//! - 640-659: Credit risk messages
-//! - 660-679: K2K streaming coordination messages
+//! - 400-419: Monte Carlo VaR messages
+//! - 420-439: Portfolio risk aggregation messages
+//! - 440-459: Credit risk messages
+//! - 460-479: K2K streaming coordination messages
 
 use ringkernel_derive::RingMessage;
 use rkyv::{Archive, Deserialize, Serialize};
 use rustkernel_core::messages::MessageId;
 
 // ============================================================================
-// Monte Carlo VaR Ring Messages (600-619)
+// Monte Carlo VaR Ring Messages (400-419)
 // ============================================================================
 
 /// Update position for streaming VaR calculation.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 600)]
+#[message(type_id = 400)]
 pub struct UpdatePositionRing {
     /// Message ID.
     pub id: MessageId,
@@ -38,7 +38,7 @@ pub struct UpdatePositionRing {
 /// Position update response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 601)]
+#[message(type_id = 401)]
 pub struct UpdatePositionResponse {
     /// Original message ID.
     pub request_id: u64,
@@ -51,7 +51,7 @@ pub struct UpdatePositionResponse {
 /// Query current VaR value.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 602)]
+#[message(type_id = 402)]
 pub struct QueryVaRRing {
     /// Message ID.
     pub id: MessageId,
@@ -64,7 +64,7 @@ pub struct QueryVaRRing {
 /// VaR query response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 603)]
+#[message(type_id = 403)]
 pub struct QueryVaRResponse {
     /// Original message ID.
     pub request_id: u64,
@@ -83,7 +83,7 @@ pub struct QueryVaRResponse {
 /// Trigger VaR recalculation.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 604)]
+#[message(type_id = 404)]
 pub struct RecalculateVaRRing {
     /// Message ID.
     pub id: MessageId,
@@ -98,7 +98,7 @@ pub struct RecalculateVaRRing {
 /// VaR recalculation response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 605)]
+#[message(type_id = 405)]
 pub struct RecalculateVaRResponse {
     /// Original message ID.
     pub request_id: u64,
@@ -113,7 +113,7 @@ pub struct RecalculateVaRResponse {
 }
 
 // ============================================================================
-// K2K Streaming Coordination Messages (660-679)
+// K2K Streaming Coordination Messages (460-479)
 // ============================================================================
 
 /// K2K position batch update for distributed VaR.
@@ -121,7 +121,7 @@ pub struct RecalculateVaRResponse {
 /// Used when positions are partitioned across multiple workers.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 660)]
+#[message(type_id = 460)]
 pub struct K2KPositionBatch {
     /// Message ID.
     pub id: MessageId,
@@ -140,7 +140,7 @@ pub struct K2KPositionBatch {
 /// K2K partial VaR result from a worker.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 661)]
+#[message(type_id = 461)]
 pub struct K2KPartialVaR {
     /// Message ID.
     pub id: MessageId,
@@ -163,7 +163,7 @@ pub struct K2KPartialVaR {
 /// Sent to aggregator to combine partial VaR results.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 662)]
+#[message(type_id = 462)]
 pub struct K2KVaRAggregation {
     /// Message ID.
     pub id: MessageId,
@@ -180,7 +180,7 @@ pub struct K2KVaRAggregation {
 /// K2K VaR aggregation response.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 663)]
+#[message(type_id = 463)]
 pub struct K2KVaRAggregationResponse {
     /// Original correlation ID.
     pub correlation_id: u64,
@@ -199,7 +199,7 @@ pub struct K2KVaRAggregationResponse {
 /// Broadcasts market data updates to all VaR workers.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 664)]
+#[message(type_id = 464)]
 pub struct K2KMarketUpdate {
     /// Message ID.
     pub id: MessageId,
@@ -216,7 +216,7 @@ pub struct K2KMarketUpdate {
 /// K2K market update acknowledgment.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 665)]
+#[message(type_id = 465)]
 pub struct K2KMarketUpdateAck {
     /// Original message ID.
     pub request_id: u64,
@@ -231,7 +231,7 @@ pub struct K2KMarketUpdateAck {
 /// Sent when a position update causes VaR to breach limits.
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 666)]
+#[message(type_id = 466)]
 pub struct K2KRiskLimitAlert {
     /// Message ID.
     pub id: MessageId,

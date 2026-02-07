@@ -1,29 +1,29 @@
-//! Ring message types for Temporal Analysis domain kernels.
+//! Ring message types for TimeSeries domain kernels.
 //!
 //! These messages implement the `RingMessage` trait for GPU-native persistent
 //! actor communication in volatility analysis and temporal operations.
 //!
-//! Type ID range: 400-499 (Temporal Analysis domain)
+//! Type ID range: 1100-1199 (TimeSeries domain)
 //!
 //! ## Type ID Assignments
-//! - 400-409: VolatilityAnalysis messages
-//! - 410-419: Reserved for ARIMA
-//! - 420-429: Reserved for ChangePointDetection
-//! - 430-439: Reserved for SeasonalDecomposition
+//! - 1100-1109: VolatilityAnalysis messages
+//! - 1110-1119: Reserved for ARIMA
+//! - 1120-1129: Reserved for ChangePointDetection
+//! - 1130-1139: Reserved for SeasonalDecomposition
 
 use ringkernel_core::message::{CorrelationId, MessageId};
 use ringkernel_derive::RingMessage;
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
 // ============================================================================
-// Volatility Analysis Ring Messages (400-409)
+// Volatility Analysis Ring Messages (1100-1109)
 // ============================================================================
 
 /// Ring message for updating volatility model with new return data.
 ///
-/// Type ID: 400
+/// Type ID: 1100
 #[derive(Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize, RingMessage)]
-#[message(type_id = 400)]
+#[message(type_id = 1100)]
 #[archive(check_bytes)]
 pub struct UpdateVolatilityRing {
     /// Message ID.
@@ -60,9 +60,9 @@ impl UpdateVolatilityRing {
 
 /// Response from volatility update.
 ///
-/// Type ID: 401
+/// Type ID: 1101
 #[derive(Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize, RingMessage)]
-#[message(type_id = 401)]
+#[message(type_id = 1101)]
 #[archive(check_bytes)]
 pub struct UpdateVolatilityResponse {
     /// Correlation ID.
@@ -92,9 +92,9 @@ impl UpdateVolatilityResponse {
 
 /// Ring message for querying current volatility forecast.
 ///
-/// Type ID: 402
+/// Type ID: 1102
 #[derive(Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize, RingMessage)]
-#[message(type_id = 402)]
+#[message(type_id = 1102)]
 #[archive(check_bytes)]
 pub struct QueryVolatilityRing {
     /// Message ID.
@@ -123,9 +123,9 @@ impl QueryVolatilityRing {
 
 /// Response with volatility forecast.
 ///
-/// Type ID: 403
+/// Type ID: 1103
 #[derive(Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize, RingMessage)]
-#[message(type_id = 403)]
+#[message(type_id = 1103)]
 #[archive(check_bytes)]
 pub struct QueryVolatilityResponse {
     /// Correlation ID.
@@ -155,9 +155,9 @@ impl QueryVolatilityResponse {
 
 /// Volatility spike alert.
 ///
-/// Type ID: 404
+/// Type ID: 1104
 #[derive(Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize, RingMessage)]
-#[message(type_id = 404)]
+#[message(type_id = 1104)]
 #[archive(check_bytes)]
 pub struct VolatilitySpikeAlert {
     /// Message ID.
@@ -183,9 +183,9 @@ pub struct VolatilitySpikeAlert {
 
 /// Ring message for EWMA volatility update.
 ///
-/// Type ID: 405
+/// Type ID: 1105
 #[derive(Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize, RingMessage)]
-#[message(type_id = 405)]
+#[message(type_id = 1105)]
 #[archive(check_bytes)]
 pub struct UpdateEWMAVolatilityRing {
     /// Message ID.
@@ -238,9 +238,9 @@ impl UpdateEWMAVolatilityRing {
 
 /// Response from EWMA update.
 ///
-/// Type ID: 406
+/// Type ID: 1106
 #[derive(Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize, RingMessage)]
-#[message(type_id = 406)]
+#[message(type_id = 1106)]
 #[archive(check_bytes)]
 pub struct UpdateEWMAVolatilityResponse {
     /// Correlation ID.
@@ -260,9 +260,9 @@ pub struct UpdateEWMAVolatilityResponse {
 
 /// Ring message to set GARCH coefficients.
 ///
-/// Type ID: 407
+/// Type ID: 1107
 #[derive(Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize, RingMessage)]
-#[message(type_id = 407)]
+#[message(type_id = 1107)]
 #[archive(check_bytes)]
 pub struct SetGARCHCoefficientsRing {
     /// Message ID.
@@ -297,9 +297,9 @@ impl SetGARCHCoefficientsRing {
 
 /// Response from setting coefficients.
 ///
-/// Type ID: 408
+/// Type ID: 1108
 #[derive(Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize, RingMessage)]
-#[message(type_id = 408)]
+#[message(type_id = 1108)]
 #[archive(check_bytes)]
 pub struct SetGARCHCoefficientsResponse {
     /// Correlation ID.

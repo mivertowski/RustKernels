@@ -8,9 +8,9 @@ RustKernels is a GPU-accelerated kernel library for financial services, analytic
 
 **Current State**: 106 kernels across 14 domain crates, fully implemented with both Batch and Ring execution modes.
 
-**Version**: 0.3.1 - Enterprise-ready with security, observability, resilience, and service APIs.
+**Version**: 0.4.0 - Deep integration with RingKernel 0.4.2. Enterprise-ready with security, observability, resilience, and service APIs.
 
-**Key dependency**: RustCompute (RingKernel) 0.3.1 - located at `../../RustCompute/RustCompute/` (relative path from workspace root).
+**Key dependency**: RingKernel 0.4.2 (crates.io) - GPU-native persistent actor runtime with enterprise features.
 
 ## Build Commands
 
@@ -159,12 +159,15 @@ Cross-kernel coordination in `rustkernel-core/src/k2k.rs`:
 
 ### Ring Message Type IDs
 
-Each domain has a reserved range for Ring message type IDs:
-- Graph: 200-299
+Each domain has a reserved range for Ring message type IDs, aligned with
+`ringkernel_core::domain::Domain` base offsets (0.4.2):
+
+- Graph (GraphAnalytics): 100-199
+- ML (StatisticalML): 200-299
 - Compliance: 300-399
-- Temporal: 400-499
-- Risk: 600-699
-- ML: 700-799
+- Risk (RiskManagement): 400-499
+- OrderMatching: 500-599
+- Temporal (TimeSeries): 1100-1199
 
 ### Domain Crate Structure
 
@@ -187,7 +190,7 @@ use rkyv::{Archive, Serialize, Deserialize};
 
 #[derive(Debug, Clone, Archive, Serialize, Deserialize, RingMessage)]
 #[archive(check_bytes)]
-#[message(type_id = 200)]  // Unique within domain range
+#[message(type_id = 100)]  // Unique within domain range (GraphAnalytics: 100-199)
 pub struct MyRequest {
     #[message(id)]
     pub id: MessageId,
@@ -195,7 +198,7 @@ pub struct MyRequest {
 }
 ```
 
-**Important**: `MessageId` is a tuple struct. Use `MessageId(value)` not `MessageId::new()`.
+**Important**: `MessageId` supports both `MessageId(value)` and `MessageId::new(value)` (0.4.2+). For auto-generated IDs, use `MessageId::generate()`.
 
 ### Fixed-Point Arithmetic
 
@@ -283,7 +286,63 @@ The following kernel categories were recently added:
 - `NextActivityPrediction` - Markov/N-gram next activity prediction
 - `EventLogImputation` - Event log quality detection and repair
 
-## Enterprise Modules (0.3.1)
+## RingKernel 0.4.2 Integration
+
+RustKernels 0.4.0 deeply integrates with RingKernel 0.4.2:
+
+### Domain Conversion
+
+Bidirectional conversion between `rustkernel_core::domain::Domain` and `ringkernel_core::domain::Domain`:
+
+```rust
+use rustkernel_core::domain::Domain;
+
+let domain = Domain::TemporalAnalysis;
+let ring_domain = domain.to_ring_domain(); // → ringkernel_core::domain::Domain::TimeSeries
+let back = Domain::from_ring_domain(ring_domain); // → Domain::TemporalAnalysis
+
+// Naming differences:
+// TemporalAnalysis ↔ TimeSeries
+// RiskAnalytics ↔ RiskManagement
+// Core ↔ General
+```
+
+### Direct RingKernel Access
+
+For advanced usage, the full ringkernel-core 0.4.2 API is available:
+
+```rust
+use rustkernel_core::ring; // Full ringkernel_core re-export
+
+// New 0.4.2 types in prelude
+use rustkernel_core::prelude::{Backend, KernelStatus, RuntimeMetrics, ControlBlock, K2KConfig, Priority};
+
+// Enterprise re-exports from ringkernel-core in each module:
+use rustkernel_core::security::ring_security;
+use rustkernel_core::observability::ring_observability;
+use rustkernel_core::resilience::ring_health;
+use rustkernel_core::memory::ring_memory;
+```
+
+### New Re-exports
+
+Top-level re-exports from ringkernel-core 0.4.2:
+
+- `ControlBlock` - GPU control block for persistent kernel state
+- `Backend` - Runtime backend selection (CUDA, CPU, WebGPU)
+- `KernelStatus` - Detailed kernel status information
+- `RuntimeMetrics` - Runtime performance metrics
+- `K2KConfig` - Kernel-to-kernel messaging configuration
+- `DeliveryStatus` - K2K message delivery tracking
+- `Priority` - Message priority levels
+
+Submodule re-exports:
+- `rustkernel_core::checkpoint` - Kernel checkpointing
+- `rustkernel_core::dispatcher` - Message dispatching
+- `rustkernel_core::health` - Health checking (circuit breaker, degradation)
+- `rustkernel_core::pubsub` - Pub/sub messaging patterns
+
+## Enterprise Modules
 
 ### Security (`rustkernel-core/src/security/`)
 

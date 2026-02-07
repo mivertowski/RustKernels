@@ -8,7 +8,7 @@
 //!
 //! # Architecture
 //!
-//! The runtime is built on ringkernel 0.3.1's `RingKernelRuntime` with additional
+//! The runtime is built on ringkernel 0.4.2's `RingKernelRuntime` with additional
 //! enterprise features for production deployments:
 //!
 //! - **Lifecycle States**: `Created` → `Starting` → `Running` → `Draining` → `Stopped`

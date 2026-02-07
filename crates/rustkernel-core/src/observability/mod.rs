@@ -38,6 +38,13 @@ pub use logging::{LogConfig, LogLevel, StructuredLogger};
 pub use metrics::{KernelMetrics, MetricsConfig, MetricsExporter};
 pub use tracing::{KernelSpan, SpanContext, TracingConfig};
 
+// Re-export ringkernel-core 0.4.2 observability primitives for deep integration.
+pub use ringkernel_core::observability as ring_observability;
+pub use ringkernel_core::telemetry as ring_telemetry;
+pub use ringkernel_core::telemetry_pipeline as ring_telemetry_pipeline;
+pub use ringkernel_core::alerting as ring_alerting;
+pub use ringkernel_core::logging as ring_logging;
+
 use serde::{Deserialize, Serialize};
 
 /// Unified observability configuration

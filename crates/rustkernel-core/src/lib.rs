@@ -9,8 +9,9 @@
 //! - Kernel registry with auto-discovery
 //! - Licensing and feature gating system
 //! - Actix actor integration for GPU-backed actors
-//! - Runtime lifecycle management (0.3.1)
-//! - Enterprise security, observability, and resilience patterns (0.3.1)
+//! - Runtime lifecycle management
+//! - Enterprise security, observability, and resilience patterns
+//! - Deep integration with ringkernel-core 0.4.2 (domain conversion, K2K, enterprise re-exports)
 
 #![warn(missing_docs)]
 #![warn(clippy::all)]
@@ -27,7 +28,7 @@ pub mod slo;
 pub mod test_kernels;
 pub mod traits;
 
-// Enterprise modules (0.3.1)
+// Enterprise modules (with ringkernel-core 0.4.2 bridging)
 pub mod config;
 pub mod memory;
 pub mod observability;
@@ -47,6 +48,25 @@ pub use ringkernel_core::message::MessageEnvelope;
 pub use ringkernel_core::runtime::{
     KernelHandle, KernelId, KernelState, LaunchOptions, RingKernelRuntime,
 };
+
+// New re-exports from ringkernel-core 0.4.2
+pub use ringkernel_core::control::ControlBlock;
+pub use ringkernel_core::k2k::{DeliveryStatus, K2KConfig};
+pub use ringkernel_core::message::{CorrelationId as RingCorrelationId, Priority};
+pub use ringkernel_core::runtime::{Backend, KernelStatus, RuntimeMetrics};
+
+// Re-export ringkernel-core submodules for advanced consumers
+pub use ringkernel_core::checkpoint;
+pub use ringkernel_core::dispatcher;
+pub use ringkernel_core::health;
+pub use ringkernel_core::pubsub;
+
+/// Direct access to the full RingKernel 0.4.2 API.
+///
+/// For advanced usage, you can access the complete ringkernel-core API through this module.
+pub mod ring {
+    pub use ringkernel_core::*;
+}
 
 /// Prelude module for convenient imports
 pub mod prelude {
@@ -69,36 +89,42 @@ pub mod prelude {
         HealthStatus, IterativeKernel, KernelConfig, RingKernelHandler, SecureRingContext,
     };
 
-    // Runtime lifecycle (0.3.1)
+    // Runtime lifecycle
     pub use crate::runtime::{
         KernelRuntime, LifecycleState, RuntimeBuilder, RuntimeConfig, RuntimeHandle, RuntimePreset,
         RuntimeStats,
     };
 
-    // Resilience patterns (0.3.1)
+    // Resilience patterns
     pub use crate::resilience::{
         CircuitBreaker, CircuitBreakerConfig, CircuitState, DeadlineContext, HealthCheck,
         HealthCheckResult, HealthProbe, RecoveryPolicy, ResilienceConfig, RetryConfig,
         TimeoutConfig,
     };
 
-    // Security (0.3.1)
+    // Security
     pub use crate::security::{
         AuthConfig, KernelPermission, Permission, PermissionSet, Role, SecurityConfig,
         SecurityContext, TenantId,
     };
 
-    // Memory management (0.3.1)
+    // Memory management
     pub use crate::memory::{
         AnalyticsContext, AnalyticsContextManager, InterPhaseReduction, KernelMemoryManager,
         MemoryConfig, MemoryError, MemoryStats, PressureLevel, ReductionConfig, SyncMode,
     };
 
-    // Production configuration (0.3.1)
+    // Production configuration
     pub use crate::config::{ProductionConfig, ProductionConfigBuilder};
 
     // Re-exports from ringkernel-core
     pub use ringkernel_core::k2k::{K2KBroker, K2KEndpoint};
     pub use ringkernel_core::runtime::{KernelHandle, KernelId, KernelState, LaunchOptions};
     pub use ringkernel_core::{HlcTimestamp, MessageId, RingContext, RingMessage};
+
+    // New re-exports from ringkernel-core 0.4.2
+    pub use ringkernel_core::control::ControlBlock;
+    pub use ringkernel_core::k2k::K2KConfig;
+    pub use ringkernel_core::message::Priority;
+    pub use ringkernel_core::runtime::{Backend, KernelStatus, RuntimeMetrics};
 }

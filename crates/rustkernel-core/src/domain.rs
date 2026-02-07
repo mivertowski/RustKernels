@@ -15,7 +15,7 @@ use std::fmt;
 /// - Financial services (banking, compliance, risk, treasury)
 /// - Analytics (graph, ML, temporal, behavioral)
 /// - Operations (clearing, payments, order matching)
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Domain {
     /// Graph analytics: centrality, community detection, motifs, similarity
@@ -61,6 +61,7 @@ pub enum Domain {
     FinancialAudit,
 
     /// Core: test kernels and infrastructure validation
+    #[default]
     Core,
 }
 
@@ -167,11 +168,97 @@ impl Domain {
                 | Domain::RiskAnalytics
         )
     }
+
+    /// Convert to the corresponding `ringkernel_core::domain::Domain` variant.
+    ///
+    /// Mapping notes:
+    /// - `TemporalAnalysis` maps to `TimeSeries`
+    /// - `RiskAnalytics` maps to `RiskManagement`
+    /// - `Core` maps to `General`
+    /// - All other variants map by name.
+    #[must_use]
+    pub fn to_ring_domain(&self) -> ringkernel_core::domain::Domain {
+        ringkernel_core::domain::Domain::from(*self)
+    }
+
+    /// Construct a `Domain` from a `ringkernel_core::domain::Domain` variant.
+    ///
+    /// Mapping notes:
+    /// - `TimeSeries` maps to `TemporalAnalysis`
+    /// - `RiskManagement` maps to `RiskAnalytics`
+    /// - `General` maps to `Core`
+    /// - Variants without a direct counterpart (`MarketData`, `Settlement`,
+    ///   `NetworkAnalysis`, `FraudDetection`, `Simulation`, `Custom`) are
+    ///   mapped to the closest match or `Core`.
+    #[must_use]
+    pub fn from_ring_domain(ring: ringkernel_core::domain::Domain) -> Self {
+        Domain::from(ring)
+    }
 }
 
 impl fmt::Display for Domain {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Bidirectional conversion: Domain <-> ringkernel_core::domain::Domain (0.4.2)
+// ---------------------------------------------------------------------------
+
+impl From<Domain> for ringkernel_core::domain::Domain {
+    fn from(d: Domain) -> Self {
+        use ringkernel_core::domain::Domain as RD;
+        match d {
+            Domain::GraphAnalytics => RD::GraphAnalytics,
+            Domain::StatisticalML => RD::StatisticalML,
+            Domain::Compliance => RD::Compliance,
+            Domain::TemporalAnalysis => RD::TimeSeries,
+            Domain::RiskAnalytics => RD::RiskManagement,
+            Domain::Banking => RD::Banking,
+            Domain::BehavioralAnalytics => RD::BehavioralAnalytics,
+            Domain::OrderMatching => RD::OrderMatching,
+            Domain::ProcessIntelligence => RD::ProcessIntelligence,
+            Domain::Clearing => RD::Clearing,
+            Domain::TreasuryManagement => RD::TreasuryManagement,
+            Domain::Accounting => RD::Accounting,
+            Domain::PaymentProcessing => RD::PaymentProcessing,
+            Domain::FinancialAudit => RD::FinancialAudit,
+            Domain::Core => RD::General,
+        }
+    }
+}
+
+impl From<ringkernel_core::domain::Domain> for Domain {
+    fn from(rd: ringkernel_core::domain::Domain) -> Self {
+        use ringkernel_core::domain::Domain as RD;
+        match rd {
+            RD::General => Domain::Core,
+            RD::GraphAnalytics => Domain::GraphAnalytics,
+            RD::StatisticalML => Domain::StatisticalML,
+            RD::Compliance => Domain::Compliance,
+            RD::RiskManagement => Domain::RiskAnalytics,
+            RD::OrderMatching => Domain::OrderMatching,
+            RD::Accounting => Domain::Accounting,
+            RD::TimeSeries => Domain::TemporalAnalysis,
+            RD::Banking => Domain::Banking,
+            RD::BehavioralAnalytics => Domain::BehavioralAnalytics,
+            RD::ProcessIntelligence => Domain::ProcessIntelligence,
+            RD::Clearing => Domain::Clearing,
+            RD::TreasuryManagement => Domain::TreasuryManagement,
+            RD::PaymentProcessing => Domain::PaymentProcessing,
+            RD::FinancialAudit => Domain::FinancialAudit,
+            // Variants present in ringkernel_core but without a direct
+            // counterpart in this crate are mapped to the closest match.
+            RD::NetworkAnalysis => Domain::GraphAnalytics,
+            RD::FraudDetection => Domain::Banking,
+            RD::Settlement => Domain::Clearing,
+            RD::MarketData => Domain::Core,
+            RD::Simulation => Domain::Core,
+            RD::Custom => Domain::Core,
+            // Future-proofing: map unknown variants to Core.
+            _ => Domain::Core,
+        }
     }
 }
 
@@ -293,5 +380,85 @@ mod tests {
     fn test_domain_display() {
         assert_eq!(Domain::GraphAnalytics.to_string(), "GraphAnalytics");
         assert_eq!(Domain::RiskAnalytics.to_string(), "RiskAnalytics");
+    }
+
+    #[test]
+    fn test_domain_default() {
+        assert_eq!(Domain::default(), Domain::Core);
+    }
+
+    #[test]
+    fn test_to_ring_domain_renamed_variants() {
+        use ringkernel_core::domain::Domain as RD;
+
+        assert_eq!(Domain::TemporalAnalysis.to_ring_domain(), RD::TimeSeries);
+        assert_eq!(Domain::RiskAnalytics.to_ring_domain(), RD::RiskManagement);
+        assert_eq!(Domain::Core.to_ring_domain(), RD::General);
+    }
+
+    #[test]
+    fn test_to_ring_domain_identity_variants() {
+        use ringkernel_core::domain::Domain as RD;
+
+        assert_eq!(Domain::GraphAnalytics.to_ring_domain(), RD::GraphAnalytics);
+        assert_eq!(Domain::StatisticalML.to_ring_domain(), RD::StatisticalML);
+        assert_eq!(Domain::Compliance.to_ring_domain(), RD::Compliance);
+        assert_eq!(Domain::Banking.to_ring_domain(), RD::Banking);
+        assert_eq!(
+            Domain::BehavioralAnalytics.to_ring_domain(),
+            RD::BehavioralAnalytics
+        );
+        assert_eq!(Domain::OrderMatching.to_ring_domain(), RD::OrderMatching);
+        assert_eq!(
+            Domain::ProcessIntelligence.to_ring_domain(),
+            RD::ProcessIntelligence
+        );
+        assert_eq!(Domain::Clearing.to_ring_domain(), RD::Clearing);
+        assert_eq!(
+            Domain::TreasuryManagement.to_ring_domain(),
+            RD::TreasuryManagement
+        );
+        assert_eq!(Domain::Accounting.to_ring_domain(), RD::Accounting);
+        assert_eq!(
+            Domain::PaymentProcessing.to_ring_domain(),
+            RD::PaymentProcessing
+        );
+        assert_eq!(Domain::FinancialAudit.to_ring_domain(), RD::FinancialAudit);
+    }
+
+    #[test]
+    fn test_from_ring_domain_renamed_variants() {
+        use ringkernel_core::domain::Domain as RD;
+
+        assert_eq!(Domain::from_ring_domain(RD::TimeSeries), Domain::TemporalAnalysis);
+        assert_eq!(Domain::from_ring_domain(RD::RiskManagement), Domain::RiskAnalytics);
+        assert_eq!(Domain::from_ring_domain(RD::General), Domain::Core);
+    }
+
+    #[test]
+    fn test_from_ring_domain_closest_match() {
+        use ringkernel_core::domain::Domain as RD;
+
+        assert_eq!(Domain::from_ring_domain(RD::NetworkAnalysis), Domain::GraphAnalytics);
+        assert_eq!(Domain::from_ring_domain(RD::FraudDetection), Domain::Banking);
+        assert_eq!(Domain::from_ring_domain(RD::Settlement), Domain::Clearing);
+        assert_eq!(Domain::from_ring_domain(RD::MarketData), Domain::Core);
+        assert_eq!(Domain::from_ring_domain(RD::Simulation), Domain::Core);
+        assert_eq!(Domain::from_ring_domain(RD::Custom), Domain::Core);
+    }
+
+    #[test]
+    fn test_ring_domain_roundtrip() {
+        // Every rustkernel Domain should survive a roundtrip through
+        // ringkernel_core and back.
+        for &domain in Domain::ALL {
+            let ring = domain.to_ring_domain();
+            let back = Domain::from_ring_domain(ring);
+            assert_eq!(
+                back, domain,
+                "roundtrip failed for {:?} -> {:?} -> {:?}",
+                domain, ring, back
+            );
+        }
     }
 }

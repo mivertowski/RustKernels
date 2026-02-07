@@ -23,7 +23,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Michael Ivertowski"]
@@ -33,38 +33,38 @@ keywords = ["gpu", "kernels", "cuda", "compute", "finance"]
 categories = ["science", "mathematics", "finance"]
 
 [workspace.dependencies]
-# Internal crates (version required for crates.io publishing)
-rustkernels = { version = "0.2.0", path = "crates/rustkernels" }
-rustkernel-core = { version = "0.2.0", path = "crates/rustkernel-core" }
-rustkernel-derive = { version = "0.2.0", path = "crates/rustkernel-derive" }
-rustkernel-graph = { version = "0.2.0", path = "crates/rustkernel-graph" }
-rustkernel-ml = { version = "0.2.0", path = "crates/rustkernel-ml" }
-rustkernel-compliance = { version = "0.2.0", path = "crates/rustkernel-compliance" }
-rustkernel-temporal = { version = "0.2.0", path = "crates/rustkernel-temporal" }
-rustkernel-risk = { version = "0.2.0", path = "crates/rustkernel-risk" }
-rustkernel-banking = { version = "0.2.0", path = "crates/rustkernel-banking" }
-rustkernel-behavioral = { version = "0.2.0", path = "crates/rustkernel-behavioral" }
-rustkernel-orderbook = { version = "0.2.0", path = "crates/rustkernel-orderbook" }
-rustkernel-procint = { version = "0.2.0", path = "crates/rustkernel-procint" }
-rustkernel-clearing = { version = "0.2.0", path = "crates/rustkernel-clearing" }
-rustkernel-treasury = { version = "0.2.0", path = "crates/rustkernel-treasury" }
-rustkernel-accounting = { version = "0.2.0", path = "crates/rustkernel-accounting" }
-rustkernel-payments = { version = "0.2.0", path = "crates/rustkernel-payments" }
-rustkernel-audit = { version = "0.2.0", path = "crates/rustkernel-audit" }
+# Internal crates
+rustkernels = { version = "0.4.0", path = "crates/rustkernels" }
+rustkernel-core = { version = "0.4.0", path = "crates/rustkernel-core" }
+rustkernel-derive = { version = "0.4.0", path = "crates/rustkernel-derive" }
+rustkernel-graph = { version = "0.4.0", path = "crates/rustkernel-graph" }
+rustkernel-ml = { version = "0.4.0", path = "crates/rustkernel-ml" }
+rustkernel-compliance = { version = "0.4.0", path = "crates/rustkernel-compliance" }
+rustkernel-temporal = { version = "0.4.0", path = "crates/rustkernel-temporal" }
+rustkernel-risk = { version = "0.4.0", path = "crates/rustkernel-risk" }
+rustkernel-banking = { version = "0.4.0", path = "crates/rustkernel-banking" }
+rustkernel-behavioral = { version = "0.4.0", path = "crates/rustkernel-behavioral" }
+rustkernel-orderbook = { version = "0.4.0", path = "crates/rustkernel-orderbook" }
+rustkernel-procint = { version = "0.4.0", path = "crates/rustkernel-procint" }
+rustkernel-clearing = { version = "0.4.0", path = "crates/rustkernel-clearing" }
+rustkernel-treasury = { version = "0.4.0", path = "crates/rustkernel-treasury" }
+rustkernel-accounting = { version = "0.4.0", path = "crates/rustkernel-accounting" }
+rustkernel-payments = { version = "0.4.0", path = "crates/rustkernel-payments" }
+rustkernel-audit = { version = "0.4.0", path = "crates/rustkernel-audit" }
 
-# RustCompute / RingKernel dependencies (from crates.io) - 0.3.1 with enterprise features
-ringkernel = "0.3.1"
-ringkernel-core = "0.3.1"
-ringkernel-derive = "0.3.1"
-ringkernel-cuda = "0.3.1"           # Primary GPU backend
-ringkernel-cpu = "0.3.1"            # CPU fallback backend
-ringkernel-ecosystem = "0.3.1"
-ringkernel-codegen = "0.3.1"
-ringkernel-cuda-codegen = "0.3.1"   # CUDA code generation
+# RingKernel 0.4.2 - deep integration with enterprise features
+ringkernel = "0.4.2"
+ringkernel-core = "0.4.2"
+ringkernel-derive = "0.4.2"
+ringkernel-cuda = "0.4.2"           # Primary GPU backend
+ringkernel-cpu = "0.4.2"            # CPU fallback backend
+ringkernel-ecosystem = "0.4.2"
+ringkernel-codegen = "0.4.2"
+ringkernel-cuda-codegen = "0.4.2"   # CUDA code generation
 
-# Deferred backends (uncomment when needed)
-# ringkernel-wgpu = "0.3.1"
-# ringkernel-metal = "0.3.1"
+# Additional backends (enable via features)
+# ringkernel-wgpu = "0.4.2"
+# ringkernel-metal = "0.4.2"
 
 # Async runtime
 tokio = { version = "1.48", features = ["full"] }
