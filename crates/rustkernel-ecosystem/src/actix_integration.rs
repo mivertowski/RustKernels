@@ -140,29 +140,47 @@ impl Handler<ExecuteKernel> for KernelActor {
 
         let request_id = uuid::Uuid::new_v4().to_string();
 
-        // Validate kernel exists
-        let _kernel_meta = self
-            .registry
-            .get(&msg.kernel_id)
-            .ok_or_else(|| ActorError::KernelNotFound(msg.kernel_id.clone()))?;
+        // Try batch kernel execution
+        if let Some(entry) = self.registry.get_batch(&msg.kernel_id) {
+            let kernel = entry.create();
 
-        // Execute (placeholder - actual execution will use runtime)
-        let duration_us = start.elapsed().as_micros() as u64;
+            let input_bytes = serde_json::to_vec(&msg.input)
+                .map_err(|e| ActorError::InvalidInput(format!("Invalid input: {}", e)))?;
 
-        Ok(ExecuteResult {
-            request_id,
-            kernel_id: msg.kernel_id,
-            output: serde_json::json!({
-                "status": "executed",
-                "input": msg.input
-            }),
-            metadata: ResponseMetadata {
-                duration_us,
-                backend: "CPU".to_string(),
-                gpu_memory_bytes: None,
-                trace_id: msg.metadata.trace_id,
-            },
-        })
+            // Execute synchronously by blocking on the async operation.
+            // Actix actor handlers are synchronous; bridge to async via block_in_place.
+            let output_bytes = tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(kernel.execute_dyn(&input_bytes))
+            })
+            .map_err(|e| ActorError::ExecutionFailed(e.to_string()))?;
+
+            let output: serde_json::Value = serde_json::from_slice(&output_bytes)
+                .map_err(|e| {
+                    ActorError::ExecutionFailed(format!("Output deserialization: {}", e))
+                })?;
+
+            let duration_us = start.elapsed().as_micros() as u64;
+
+            Ok(ExecuteResult {
+                request_id,
+                kernel_id: msg.kernel_id,
+                output,
+                metadata: ResponseMetadata {
+                    duration_us,
+                    backend: entry.metadata.mode.as_str().to_uppercase(),
+                    gpu_memory_bytes: None,
+                    trace_id: msg.metadata.trace_id,
+                },
+            })
+        } else if self.registry.get(&msg.kernel_id).is_some() {
+            Err(ActorError::InvalidInput(format!(
+                "Kernel '{}' is a Ring kernel and cannot be executed via actor message. \
+                 Use the Ring protocol for persistent kernel dispatch.",
+                msg.kernel_id
+            )))
+        } else {
+            Err(ActorError::KernelNotFound(msg.kernel_id))
+        }
     }
 }
 

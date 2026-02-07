@@ -39,12 +39,10 @@ pub use types::{
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering order matching kernels");
 
-    // Order matching kernel (1)
-    registry.register_metadata(matching::OrderMatchingEngine::new().metadata().clone())?;
+    // Order matching kernel (1) - Ring (also implements BatchKernel for multiple types)
+    registry.register_ring_metadata_from(matching::OrderMatchingEngine::new)?;
 
     tracing::info!("Registered 1 order matching kernel");
     Ok(())

@@ -7,7 +7,9 @@ use crate::domain::Domain;
 use crate::error::{KernelError, Result};
 use crate::kernel::{KernelMetadata, KernelMode};
 use crate::license::{LicenseError, LicenseValidator, SharedLicenseValidator};
-use crate::traits::{BatchKernelDyn, RingKernelDyn};
+use crate::traits::{
+    BatchKernel, BatchKernelDyn, GpuKernel, RingKernelDyn, TypeErasedBatchKernel,
+};
 use hashbrown::HashMap;
 use std::sync::{Arc, RwLock};
 use tracing::{debug, info, warn};
@@ -393,6 +395,101 @@ impl KernelRegistry {
             ring_kernels: ring.len() + metadata_ring,
             by_domain,
         }
+    }
+
+    /// Register a batch kernel using a typed factory function.
+    ///
+    /// This is the preferred way to register batch kernels. The factory closure
+    /// creates kernel instances on demand, and type erasure is handled automatically
+    /// via [`TypeErasedBatchKernel`].
+    ///
+    /// # Type Inference
+    ///
+    /// Rust infers `I` and `O` from the `BatchKernel<I, O>` implementation on `K`,
+    /// so turbofish syntax is typically not needed:
+    ///
+    /// ```ignore
+    /// registry.register_batch_typed(|| MyKernel::new())?;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the kernel ID is already registered or fails license validation.
+    pub fn register_batch_typed<K, I, O>(
+        &self,
+        factory: impl Fn() -> K + Send + Sync + 'static,
+    ) -> Result<()>
+    where
+        K: BatchKernel<I, O> + 'static,
+        I: serde::de::DeserializeOwned + Send + Sync + 'static,
+        O: serde::Serialize + Send + Sync + 'static,
+    {
+        let sample = factory();
+        let metadata = sample.metadata().clone();
+        drop(sample);
+        let entry = BatchKernelEntry::new(metadata, move || {
+            Arc::new(TypeErasedBatchKernel::new(factory()))
+        });
+        self.register_batch(entry)
+    }
+
+    /// Register a batch kernel's metadata from a factory function.
+    ///
+    /// This is for batch-mode kernels that implement `GpuKernel` but not
+    /// the full `BatchKernel<I, O>` trait. The metadata is stored for
+    /// discovery and health checking.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the kernel ID is already registered or fails license validation.
+    pub fn register_batch_metadata_from<K>(&self, factory: impl Fn() -> K) -> Result<()>
+    where
+        K: GpuKernel,
+    {
+        let sample = factory();
+        let metadata = sample.metadata().clone();
+        self.register_metadata(metadata)
+    }
+
+    /// Register a ring kernel's metadata from a factory function.
+    ///
+    /// Ring kernels require the RingKernel runtime for persistent actor execution
+    /// and cannot be invoked directly via REST. This method registers the kernel's
+    /// metadata for discovery and health checking.
+    ///
+    /// For full ring kernel deployment, use the RingKernel runtime directly.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the kernel ID is already registered or fails license validation.
+    pub fn register_ring_metadata_from<K>(&self, factory: impl Fn() -> K) -> Result<()>
+    where
+        K: GpuKernel,
+    {
+        let sample = factory();
+        let metadata = sample.metadata().clone();
+        self.register_metadata(metadata)
+    }
+
+    /// Execute a batch kernel by ID with JSON input/output.
+    ///
+    /// Looks up the kernel in the registry, creates an instance, and executes it
+    /// with type-erased JSON serialization.
+    ///
+    /// # Errors
+    ///
+    /// Returns `KernelNotFound` if no batch kernel with this ID exists, or
+    /// propagates any execution error from the kernel.
+    pub async fn execute_batch(
+        &self,
+        kernel_id: &str,
+        input_json: &[u8],
+    ) -> Result<Vec<u8>> {
+        let entry = self
+            .get_batch(kernel_id)
+            .ok_or_else(|| KernelError::KernelNotFound(kernel_id.to_string()))?;
+        let kernel = entry.create();
+        kernel.execute_dyn(input_json).await
     }
 
     /// Total number of registered kernels.

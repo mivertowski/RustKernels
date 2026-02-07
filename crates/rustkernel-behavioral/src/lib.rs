@@ -48,33 +48,24 @@ pub use types::{
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering behavioral analytics kernels");
 
-    // Profiling kernels (2)
-    registry.register_metadata(profiling::BehavioralProfiling::new().metadata().clone())?;
-    registry.register_metadata(profiling::AnomalyProfiling::new().metadata().clone())?;
+    // Profiling kernels (2) - Ring
+    registry.register_ring_metadata_from(profiling::BehavioralProfiling::new)?;
+    registry.register_ring_metadata_from(profiling::AnomalyProfiling::new)?;
 
-    // Signature detection kernel (1)
-    registry.register_metadata(
-        signatures::FraudSignatureDetection::new()
-            .metadata()
-            .clone(),
-    )?;
+    // Signature detection kernel (1) - Ring
+    registry.register_ring_metadata_from(signatures::FraudSignatureDetection::new)?;
 
-    // Causal kernel (1)
-    registry.register_metadata(causal::CausalGraphConstruction::new().metadata().clone())?;
+    // Causal kernel (1) - Batch (uses register_ring_metadata_from because it only
+    // implements GpuKernel, not BatchKernel<I, O>; computation is via static methods)
+    registry.register_ring_metadata_from(causal::CausalGraphConstruction::new)?;
 
-    // Forensics kernel (1)
-    registry.register_metadata(forensics::ForensicQueryExecution::new().metadata().clone())?;
+    // Forensics kernel (1) - Batch (same as above)
+    registry.register_ring_metadata_from(forensics::ForensicQueryExecution::new)?;
 
-    // Correlation kernel (1)
-    registry.register_metadata(
-        correlation::EventCorrelationKernel::new()
-            .metadata()
-            .clone(),
-    )?;
+    // Correlation kernel (1) - Ring
+    registry.register_ring_metadata_from(correlation::EventCorrelationKernel::new)?;
 
     tracing::info!("Registered 6 behavioral analytics kernels");
     Ok(())

@@ -58,32 +58,22 @@ pub use types::{
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering temporal analysis kernels");
 
-    // Forecasting kernels (2)
-    registry.register_metadata(forecasting::ARIMAForecast::new().metadata().clone())?;
-    registry.register_metadata(forecasting::ProphetDecomposition::new().metadata().clone())?;
+    // Forecasting kernels (2) - Batch
+    registry.register_batch_typed(forecasting::ARIMAForecast::new)?;
+    registry.register_batch_typed(forecasting::ProphetDecomposition::new)?;
 
     // Detection kernels (2)
-    registry.register_metadata(detection::ChangePointDetection::new().metadata().clone())?;
-    registry.register_metadata(
-        detection::TimeSeriesAnomalyDetection::new()
-            .metadata()
-            .clone(),
-    )?;
+    registry.register_batch_typed(detection::ChangePointDetection::new)?; // Batch
+    registry.register_ring_metadata_from(detection::TimeSeriesAnomalyDetection::new)?; // Ring
 
-    // Decomposition kernels (2)
-    registry.register_metadata(
-        decomposition::SeasonalDecomposition::new()
-            .metadata()
-            .clone(),
-    )?;
-    registry.register_metadata(decomposition::TrendExtraction::new().metadata().clone())?;
+    // Decomposition kernels (2) - Batch
+    registry.register_batch_typed(decomposition::SeasonalDecomposition::new)?;
+    registry.register_batch_typed(decomposition::TrendExtraction::new)?;
 
-    // Volatility kernel (1)
-    registry.register_metadata(volatility::VolatilityAnalysis::new().metadata().clone())?;
+    // Volatility kernel (1) - Ring
+    registry.register_ring_metadata_from(volatility::VolatilityAnalysis::new)?;
 
     tracing::info!("Registered 7 temporal analysis kernels");
     Ok(())

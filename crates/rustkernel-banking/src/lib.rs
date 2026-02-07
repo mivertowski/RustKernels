@@ -35,12 +35,10 @@ pub use types::{
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering banking kernels");
 
-    // Fraud detection kernel (1)
-    registry.register_metadata(fraud::FraudPatternMatch::new().metadata().clone())?;
+    // Fraud detection kernel (1) - Ring
+    registry.register_ring_metadata_from(fraud::FraudPatternMatch::new)?;
 
     tracing::info!("Registered 1 banking kernel");
     Ok(())

@@ -188,7 +188,10 @@ impl KernelGrpcServer {
         self
     }
 
-    /// Execute a kernel
+    /// Execute a kernel.
+    ///
+    /// Looks up the batch kernel in the registry, creates an instance, and executes it
+    /// with the provided JSON input. Ring kernels cannot be executed through this unary RPC.
     pub async fn execute_kernel(
         &self,
         request: GrpcKernelRequest,
@@ -196,31 +199,59 @@ impl KernelGrpcServer {
         let start = Instant::now();
         let request_id = uuid::Uuid::new_v4().to_string();
 
-        // Validate kernel exists
-        let _kernel_meta = self.registry.get(&request.kernel_id).ok_or_else(|| {
-            GrpcError::from(EcosystemError::KernelNotFound(request.kernel_id.clone()))
-        })?;
+        // Try batch kernel execution
+        if let Some(entry) = self.registry.get_batch(&request.kernel_id) {
+            let kernel = entry.create();
 
-        // Parse input
-        let _input: serde_json::Value = serde_json::from_str(&request.input_json).map_err(|e| {
-            GrpcError::from(EcosystemError::InvalidRequest(format!(
-                "Invalid JSON input: {}",
-                e
+            // Parse and validate input JSON
+            let input_bytes = request.input_json.as_bytes();
+            let _: serde_json::Value = serde_json::from_slice(input_bytes).map_err(|e| {
+                GrpcError::from(EcosystemError::InvalidRequest(format!(
+                    "Invalid JSON input: {}",
+                    e
+                )))
+            })?;
+
+            // Apply timeout if specified
+            let timeout_ms = request.timeout_ms.unwrap_or(self.config.request_timeout_ms);
+            let timeout = std::time::Duration::from_millis(timeout_ms);
+
+            let result = tokio::time::timeout(timeout, kernel.execute_dyn(input_bytes)).await;
+
+            match result {
+                Ok(Ok(output_bytes)) => {
+                    let duration_us = start.elapsed().as_micros() as u64;
+                    let output_json =
+                        String::from_utf8(output_bytes).unwrap_or_else(|_| "{}".to_string());
+                    Ok(GrpcKernelResponse {
+                        request_id,
+                        kernel_id: request.kernel_id,
+                        output_json,
+                        duration_us,
+                        backend: entry.metadata.mode.as_str().to_uppercase(),
+                        gpu_memory_bytes: None,
+                        trace_id: request.trace_id,
+                    })
+                }
+                Ok(Err(e)) => Err(GrpcError::from(EcosystemError::ExecutionFailed(
+                    e.to_string(),
+                ))),
+                Err(_) => Err(GrpcError {
+                    code: 4, // DEADLINE_EXCEEDED
+                    message: format!("Kernel execution timed out after {}ms", timeout_ms),
+                    details: None,
+                }),
+            }
+        } else if self.registry.get(&request.kernel_id).is_some() {
+            Err(GrpcError::from(EcosystemError::InvalidRequest(format!(
+                "Kernel '{}' is a Ring kernel. Use bidirectional streaming RPC for Ring kernel dispatch.",
+                request.kernel_id
+            ))))
+        } else {
+            Err(GrpcError::from(EcosystemError::KernelNotFound(
+                request.kernel_id,
             )))
-        })?;
-
-        // Execute (placeholder - actual execution will use runtime)
-        let duration_us = start.elapsed().as_micros() as u64;
-
-        Ok(GrpcKernelResponse {
-            request_id,
-            kernel_id: request.kernel_id,
-            output_json: serde_json::json!({ "status": "executed" }).to_string(),
-            duration_us,
-            backend: "CPU".to_string(),
-            gpu_memory_bytes: None,
-            trace_id: request.trace_id,
-        })
+        }
     }
 
     /// Get kernel info

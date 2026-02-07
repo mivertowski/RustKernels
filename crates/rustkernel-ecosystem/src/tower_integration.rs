@@ -32,34 +32,51 @@ impl KernelService {
         Self { registry }
     }
 
-    /// Execute a kernel request
+    /// Execute a kernel request.
+    ///
+    /// Looks up the batch kernel in the registry, creates an instance, and executes it
+    /// with the provided JSON input. Ring kernels cannot be executed through this interface.
     pub async fn execute(&self, request: KernelRequest) -> Result<KernelResponse, EcosystemError> {
         let start = Instant::now();
         let request_id = uuid::Uuid::new_v4().to_string();
 
-        // Validate kernel exists
-        let _kernel_meta = self
-            .registry
-            .get(&request.kernel_id)
-            .ok_or_else(|| EcosystemError::KernelNotFound(request.kernel_id.clone()))?;
+        // Try batch kernel execution
+        if let Some(entry) = self.registry.get_batch(&request.kernel_id) {
+            let kernel = entry.create();
 
-        // Execute (placeholder - actual execution will use runtime)
-        let duration_us = start.elapsed().as_micros() as u64;
+            let input_bytes = serde_json::to_vec(&request.input)
+                .map_err(|e| EcosystemError::InvalidRequest(format!("Invalid input: {}", e)))?;
 
-        Ok(KernelResponse {
-            request_id,
-            kernel_id: request.kernel_id,
-            output: serde_json::json!({
-                "status": "executed",
-                "input": request.input
-            }),
-            metadata: ResponseMetadata {
-                duration_us,
-                backend: "CPU".to_string(),
-                gpu_memory_bytes: None,
-                trace_id: request.metadata.trace_id,
-            },
-        })
+            let output_bytes = kernel
+                .execute_dyn(&input_bytes)
+                .await
+                .map_err(|e| EcosystemError::ExecutionFailed(e.to_string()))?;
+
+            let output: serde_json::Value = serde_json::from_slice(&output_bytes)
+                .map_err(|e| EcosystemError::InternalError(format!("Output deserialization: {}", e)))?;
+
+            let duration_us = start.elapsed().as_micros() as u64;
+
+            Ok(KernelResponse {
+                request_id,
+                kernel_id: request.kernel_id,
+                output,
+                metadata: ResponseMetadata {
+                    duration_us,
+                    backend: entry.metadata.mode.as_str().to_uppercase(),
+                    gpu_memory_bytes: None,
+                    trace_id: request.metadata.trace_id,
+                },
+            })
+        } else if self.registry.get(&request.kernel_id).is_some() {
+            Err(EcosystemError::InvalidRequest(format!(
+                "Kernel '{}' is a Ring kernel and cannot be executed via this interface. \
+                 Use the Ring protocol or gRPC streaming API.",
+                request.kernel_id
+            )))
+        } else {
+            Err(EcosystemError::KernelNotFound(request.kernel_id))
+        }
     }
 }
 

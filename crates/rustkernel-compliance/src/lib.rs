@@ -57,28 +57,26 @@ pub use sanctions::{PEPScreening, SanctionsScreening};
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering compliance kernels");
 
     // AML kernels (6)
-    registry.register_metadata(aml::CircularFlowRatio::new().metadata().clone())?;
-    registry.register_metadata(aml::ReciprocityFlowRatio::new().metadata().clone())?;
-    registry.register_metadata(aml::RapidMovement::new().metadata().clone())?;
-    registry.register_metadata(aml::AMLPatternDetection::new().metadata().clone())?;
-    registry.register_metadata(aml::FlowReversalPattern::new().metadata().clone())?;
-    registry.register_metadata(aml::FlowSplitRatio::new().metadata().clone())?;
+    registry.register_ring_metadata_from(aml::CircularFlowRatio::new)?;
+    registry.register_ring_metadata_from(aml::ReciprocityFlowRatio::new)?;
+    registry.register_ring_metadata_from(aml::RapidMovement::new)?;
+    registry.register_ring_metadata_from(aml::AMLPatternDetection::new)?;
+    registry.register_batch_metadata_from(aml::FlowReversalPattern::new)?;
+    registry.register_batch_metadata_from(aml::FlowSplitRatio::new)?;
 
     // KYC kernels (2)
-    registry.register_metadata(kyc::KYCScoring::new().metadata().clone())?;
-    registry.register_metadata(kyc::EntityResolution::new().metadata().clone())?;
+    registry.register_batch_typed(kyc::KYCScoring::new)?;
+    registry.register_batch_typed(kyc::EntityResolution::new)?;
 
     // Sanctions kernels (2)
-    registry.register_metadata(sanctions::SanctionsScreening::new().metadata().clone())?;
-    registry.register_metadata(sanctions::PEPScreening::new().metadata().clone())?;
+    registry.register_ring_metadata_from(sanctions::SanctionsScreening::new)?;
+    registry.register_ring_metadata_from(sanctions::PEPScreening::new)?;
 
     // Monitoring kernel (1)
-    registry.register_metadata(monitoring::TransactionMonitoring::new().metadata().clone())?;
+    registry.register_ring_metadata_from(monitoring::TransactionMonitoring::new)?;
 
     tracing::info!("Registered 11 compliance kernels");
     Ok(())

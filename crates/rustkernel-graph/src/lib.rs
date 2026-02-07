@@ -86,58 +86,59 @@ pub mod prelude {
 }
 
 /// Register all graph kernels with a registry.
+///
+/// Batch kernels are registered with factories for direct execution via REST/gRPC.
+/// Ring kernels are registered as metadata for discovery (require Ring runtime for execution).
 pub fn register_all(
     registry: &rustkernel_core::registry::KernelRegistry,
 ) -> rustkernel_core::error::Result<()> {
-    use rustkernel_core::traits::GpuKernel;
-
     tracing::info!("Registering graph analytics kernels");
 
-    // Centrality kernels (6)
-    registry.register_metadata(centrality::PageRank::new().metadata().clone())?;
-    registry.register_metadata(centrality::DegreeCentrality::new().metadata().clone())?;
-    registry.register_metadata(centrality::BetweennessCentrality::new().metadata().clone())?;
-    registry.register_metadata(centrality::ClosenessCentrality::new().metadata().clone())?;
-    registry.register_metadata(centrality::EigenvectorCentrality::new().metadata().clone())?;
-    registry.register_metadata(centrality::KatzCentrality::new().metadata().clone())?;
+    // Centrality kernels (6) — Ring: PageRank, DegreeCentrality; Batch: rest
+    registry.register_ring_metadata_from(centrality::PageRank::new)?;
+    registry.register_ring_metadata_from(centrality::DegreeCentrality::new)?;
+    registry.register_batch_typed(centrality::BetweennessCentrality::new)?;
+    registry.register_batch_typed(centrality::ClosenessCentrality::new)?;
+    registry.register_batch_typed(centrality::EigenvectorCentrality::new)?;
+    registry.register_batch_typed(centrality::KatzCentrality::new)?;
 
-    // Community detection kernels (3)
-    registry.register_metadata(community::ModularityScore::new().metadata().clone())?;
-    registry.register_metadata(community::LouvainCommunity::new().metadata().clone())?;
-    registry.register_metadata(community::LabelPropagation::new().metadata().clone())?;
+    // Community detection kernels (3) — Batch (GpuKernel only)
+    registry.register_batch_metadata_from(community::ModularityScore::new)?;
+    registry.register_batch_metadata_from(community::LouvainCommunity::new)?;
+    registry.register_batch_metadata_from(community::LabelPropagation::new)?;
 
-    // Similarity kernels (5)
-    registry.register_metadata(similarity::JaccardSimilarity::new().metadata().clone())?;
-    registry.register_metadata(similarity::CosineSimilarity::new().metadata().clone())?;
-    registry.register_metadata(similarity::AdamicAdarIndex::new().metadata().clone())?;
-    registry.register_metadata(similarity::CommonNeighbors::new().metadata().clone())?;
-    registry.register_metadata(similarity::ValueSimilarity::new().metadata().clone())?;
+    // Similarity kernels (5) — Batch (GpuKernel only)
+    registry.register_batch_metadata_from(similarity::JaccardSimilarity::new)?;
+    registry.register_batch_metadata_from(similarity::CosineSimilarity::new)?;
+    registry.register_batch_metadata_from(similarity::AdamicAdarIndex::new)?;
+    registry.register_batch_metadata_from(similarity::CommonNeighbors::new)?;
+    registry.register_batch_metadata_from(similarity::ValueSimilarity::new)?;
 
-    // Metrics kernels (5)
-    registry.register_metadata(metrics::GraphDensity::new().metadata().clone())?;
-    registry.register_metadata(metrics::AveragePathLength::new().metadata().clone())?;
-    registry.register_metadata(metrics::ClusteringCoefficient::new().metadata().clone())?;
-    registry.register_metadata(metrics::ConnectedComponents::new().metadata().clone())?;
-    registry.register_metadata(metrics::FullGraphMetrics::new().metadata().clone())?;
+    // Metrics kernels (5) — Batch (GpuKernel only)
+    registry.register_batch_metadata_from(metrics::GraphDensity::new)?;
+    registry.register_batch_metadata_from(metrics::AveragePathLength::new)?;
+    registry.register_batch_metadata_from(metrics::ClusteringCoefficient::new)?;
+    registry.register_batch_metadata_from(metrics::ConnectedComponents::new)?;
+    registry.register_batch_metadata_from(metrics::FullGraphMetrics::new)?;
 
-    // Motif detection kernels (3)
-    registry.register_metadata(motif::TriangleCounting::new().metadata().clone())?;
-    registry.register_metadata(motif::MotifDetection::new().metadata().clone())?;
-    registry.register_metadata(motif::KCliqueDetection::new().metadata().clone())?;
+    // Motif detection kernels (3) — Ring: TriangleCounting; Batch: rest
+    registry.register_ring_metadata_from(motif::TriangleCounting::new)?;
+    registry.register_batch_metadata_from(motif::MotifDetection::new)?;
+    registry.register_batch_metadata_from(motif::KCliqueDetection::new)?;
 
-    // Topology kernels (2)
-    registry.register_metadata(topology::DegreeRatio::new().metadata().clone())?;
-    registry.register_metadata(topology::StarTopologyScore::new().metadata().clone())?;
+    // Topology kernels (2) — Ring: DegreeRatio; Batch: StarTopologyScore
+    registry.register_ring_metadata_from(topology::DegreeRatio::new)?;
+    registry.register_batch_metadata_from(topology::StarTopologyScore::new)?;
 
-    // Cycle detection kernels (1)
-    registry.register_metadata(cycles::ShortCycleParticipation::new().metadata().clone())?;
+    // Cycle detection kernels (1) — Batch
+    registry.register_batch_metadata_from(cycles::ShortCycleParticipation::new)?;
 
-    // Path kernels (1)
-    registry.register_metadata(paths::ShortestPath::new().metadata().clone())?;
+    // Path kernels (1) — Batch
+    registry.register_batch_metadata_from(paths::ShortestPath::new)?;
 
-    // GNN kernels (2)
-    registry.register_metadata(gnn::GNNInference::new().metadata().clone())?;
-    registry.register_metadata(gnn::GraphAttention::new().metadata().clone())?;
+    // GNN kernels (2) — Batch (GpuKernel only)
+    registry.register_batch_metadata_from(gnn::GNNInference::new)?;
+    registry.register_batch_metadata_from(gnn::GraphAttention::new)?;
 
     tracing::info!("Registered 28 graph analytics kernels");
     Ok(())
