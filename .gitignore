@@ -20,6 +20,17 @@ target
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+dist/
+*.whl
+*.so
+*.pyd
+
 # Generated documentation
 docs/book/
 docs/rustkernels-executive-overview.aux

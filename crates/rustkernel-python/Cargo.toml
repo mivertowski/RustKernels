@@ -1,0 +1,45 @@
+[package]
+name = "rustkernel-python"
+description = "Python bindings for RustKernels GPU-accelerated kernel library"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "_rustkernels"
+crate-type = ["cdylib"]
+
+[features]
+default = ["graph", "ml", "compliance", "temporal", "risk"]
+
+# Domain features — mirror the facade crate exactly
+graph = ["rustkernels/graph"]
+ml = ["rustkernels/ml"]
+compliance = ["rustkernels/compliance"]
+temporal = ["rustkernels/temporal"]
+risk = ["rustkernels/risk"]
+banking = ["rustkernels/banking"]
+behavioral = ["rustkernels/behavioral"]
+orderbook = ["rustkernels/orderbook"]
+procint = ["rustkernels/procint"]
+clearing = ["rustkernels/clearing"]
+treasury = ["rustkernels/treasury"]
+accounting = ["rustkernels/accounting"]
+payments = ["rustkernels/payments"]
+audit = ["rustkernels/audit"]
+
+full = [
+    "graph", "ml", "compliance", "temporal", "risk",
+    "banking", "behavioral", "orderbook", "procint", "clearing",
+    "treasury", "accounting", "payments", "audit",
+]
+
+[dependencies]
+rustkernels = { workspace = true }
+rustkernel-core = { workspace = true }
+pyo3 = { workspace = true, features = ["extension-module"] }
+tokio = { workspace = true }
+serde_json = { workspace = true }

@@ -20,6 +20,30 @@ members = [
     "crates/rustkernel-audit",
     "crates/rustkernel-cli",
     "crates/rustkernel-ecosystem",
+    "crates/rustkernel-python",
+]
+
+# Exclude rustkernel-python from default builds (requires Python dev headers + maturin)
+default-members = [
+    "crates/rustkernels",
+    "crates/rustkernel-core",
+    "crates/rustkernel-derive",
+    "crates/rustkernel-graph",
+    "crates/rustkernel-ml",
+    "crates/rustkernel-compliance",
+    "crates/rustkernel-temporal",
+    "crates/rustkernel-risk",
+    "crates/rustkernel-banking",
+    "crates/rustkernel-behavioral",
+    "crates/rustkernel-orderbook",
+    "crates/rustkernel-procint",
+    "crates/rustkernel-clearing",
+    "crates/rustkernel-treasury",
+    "crates/rustkernel-accounting",
+    "crates/rustkernel-payments",
+    "crates/rustkernel-audit",
+    "crates/rustkernel-cli",
+    "crates/rustkernel-ecosystem",
 ]
 
 [workspace.package]
@@ -148,6 +172,9 @@ syn = { version = "2.0", features = ["full", "extra-traits"] }
 quote = "1.0"
 proc-macro2 = "1.0"
 darling = "0.20"
+
+# Python bindings
+pyo3 = { version = "0.23", features = ["extension-module"] }
 
 # Runtime registration
 inventory = "0.3"

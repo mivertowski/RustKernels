@@ -14,7 +14,7 @@
 
 RustKernels delivers **106 production-ready GPU kernels** across **14 domain-specific crates**, purpose-built for financial institutions, compliance operations, and enterprise analytics platforms. It is the Rust port of the DotCompute GPU kernel library, built on the [RingKernel 0.4.2](https://crates.io/crates/ringkernel-core) persistent actor runtime.
 
-Version 0.4.0 provides full end-to-end kernel execution through REST, gRPC, Tower middleware, and Actix actor interfaces — no stubs, no mocks.
+Version 0.4.0 provides full end-to-end kernel execution through REST, gRPC, Tower middleware, Actix actor interfaces, and native Python bindings — no stubs, no mocks.
 
 ### Key Capabilities
 
@@ -22,7 +22,7 @@ Version 0.4.0 provides full end-to-end kernel execution through REST, gRPC, Towe
 |---|---|
 | Diverse latency profiles | **Batch mode** (10–50 μs launch) and **Ring mode** (100–500 ns message latency) |
 | Multi-kernel orchestration | Built-in K2K coordination: scatter-gather, fan-out, pipeline |
-| Production deployment | REST (Axum), gRPC (Tonic), Tower middleware, Actix actors |
+| Production deployment | REST (Axum), gRPC (Tonic), Tower middleware, Actix actors, Python bindings |
 | Enterprise security | JWT/API key auth, RBAC, multi-tenancy, secrets management |
 | Observability | Prometheus metrics, OTLP tracing, structured logging, SLO alerting |
 | Fault tolerance | Circuit breakers, exponential retry, timeout propagation, health probes |
@@ -69,9 +69,17 @@ Version 0.4.0 provides full end-to-end kernel execution through REST, gRPC, Towe
 
 ## Installation
 
+### Rust
+
 ```toml
 [dependencies]
 rustkernels = "0.4.0"
+```
+
+### Python
+
+```bash
+pip install rustkernels
 ```
 
 ### Feature Flags
@@ -153,6 +161,35 @@ let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
 axum::serve(listener, app).await?;
 ```
 
+### Python Bindings
+
+Native Python access via `pip install rustkernels` — no server required:
+
+```python
+import rustkernels
+
+# Discover available kernels
+reg = rustkernels.KernelRegistry()
+print(f"{len(reg)} kernels available")
+
+# Execute a batch kernel
+result = reg.execute("graph/betweenness_centrality", {
+    "num_nodes": 4,
+    "edges": [[0, 1], [1, 2], [2, 3], [0, 3]],
+    "normalized": True,
+})
+
+# Module-level convenience (cached default registry)
+result = rustkernels.execute("graph/betweenness_centrality", {...})
+
+# Catalog
+rustkernels.list_domains()         # 14 domains
+rustkernels.total_kernel_count()   # 106
+rustkernels.enabled_domains()      # ["graph", "ml", ...]
+```
+
+See [`crates/rustkernel-python/README.md`](crates/rustkernel-python/README.md) for the full Python API reference.
+
 ---
 
 ## Architecture
@@ -187,12 +224,15 @@ axum::serve(listener, app).await?;
 │  │    (1)   │ │    (1)   │ │    (2)   │ │    (2)   │               │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘               │
 ├──────────────────────────────────────────────────────────────────────┤
-│  rustkernel-cli              │  RingKernel 0.4.2 (crates.io)        │
-│  (kernel management CLI)     │  (GPU-native persistent actor runtime)│
+│  rustkernel-cli              │  rustkernel-python (PyO3 bindings)    │
+│  (kernel management CLI)     │  pip install rustkernels              │
+├──────────────────────────────┼───────────────────────────────────────┤
+│                   RingKernel 0.4.2 (crates.io)                       │
+│               (GPU-native persistent actor runtime)                  │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-**19 crates total**: 1 facade, 1 core, 1 derive, 1 ecosystem, 1 CLI, 14 domain crates.
+**20 crates total**: 1 facade, 1 core, 1 derive, 1 ecosystem, 1 CLI, 1 Python bindings, 14 domain crates.
 
 ### Execution Model
 
@@ -309,4 +349,4 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for detai
 
 **Author**: Michael Ivertowski
 **Version**: 0.4.0 — Deep integration with RingKernel 0.4.2
-**Scope**: 106 kernels, 14 domains, 19 crates
+**Scope**: 106 kernels, 14 domains, 20 crates
