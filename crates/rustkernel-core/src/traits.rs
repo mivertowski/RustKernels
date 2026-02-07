@@ -670,8 +670,7 @@ where
         let typed_input: I = serde_json::from_slice(input)
             .map_err(|e| KernelError::DeserializationError(e.to_string()))?;
         let output = self.inner.execute(typed_input).await?;
-        serde_json::to_vec(&output)
-            .map_err(|e| KernelError::SerializationError(e.to_string()))
+        serde_json::to_vec(&output).map_err(|e| KernelError::SerializationError(e.to_string()))
     }
 }
 
@@ -740,8 +739,7 @@ where
         let typed_msg: M = serde_json::from_slice(msg)
             .map_err(|e| KernelError::DeserializationError(e.to_string()))?;
         let response = self.inner.handle(ctx, typed_msg).await?;
-        serde_json::to_vec(&response)
-            .map_err(|e| KernelError::SerializationError(e.to_string()))
+        serde_json::to_vec(&response).map_err(|e| KernelError::SerializationError(e.to_string()))
     }
 }
 

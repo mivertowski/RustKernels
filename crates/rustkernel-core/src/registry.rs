@@ -7,9 +7,7 @@ use crate::domain::Domain;
 use crate::error::{KernelError, Result};
 use crate::kernel::{KernelMetadata, KernelMode};
 use crate::license::{LicenseError, LicenseValidator, SharedLicenseValidator};
-use crate::traits::{
-    BatchKernel, BatchKernelDyn, GpuKernel, RingKernelDyn, TypeErasedBatchKernel,
-};
+use crate::traits::{BatchKernel, BatchKernelDyn, GpuKernel, RingKernelDyn, TypeErasedBatchKernel};
 use hashbrown::HashMap;
 use std::sync::{Arc, RwLock};
 use tracing::{debug, info, warn};
@@ -480,11 +478,7 @@ impl KernelRegistry {
     ///
     /// Returns `KernelNotFound` if no batch kernel with this ID exists, or
     /// propagates any execution error from the kernel.
-    pub async fn execute_batch(
-        &self,
-        kernel_id: &str,
-        input_json: &[u8],
-    ) -> Result<Vec<u8>> {
+    pub async fn execute_batch(&self, kernel_id: &str, input_json: &[u8]) -> Result<Vec<u8>> {
         let entry = self
             .get_batch(kernel_id)
             .ok_or_else(|| KernelError::KernelNotFound(kernel_id.to_string()))?;

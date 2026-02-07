@@ -68,12 +68,9 @@ impl KernelService {
 
             match result {
                 Ok(Ok(output_bytes)) => {
-                    let output: serde_json::Value = serde_json::from_slice(&output_bytes)
-                        .map_err(|e| {
-                            EcosystemError::InternalError(format!(
-                                "Output deserialization: {}",
-                                e
-                            ))
+                    let output: serde_json::Value =
+                        serde_json::from_slice(&output_bytes).map_err(|e| {
+                            EcosystemError::InternalError(format!("Output deserialization: {}", e))
                         })?;
 
                     let duration_us = start.elapsed().as_micros() as u64;

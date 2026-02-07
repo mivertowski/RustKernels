@@ -200,10 +200,7 @@ fn build_cors(config: &ServiceConfig) -> tower_http::cors::CorsLayer {
 }
 
 /// Middleware that propagates X-Request-ID from request to response headers
-async fn request_id_middleware(
-    req: axum::extract::Request,
-    next: Next,
-) -> Response {
+async fn request_id_middleware(req: axum::extract::Request, next: Next) -> Response {
     let request_id = req
         .headers()
         .get(headers::X_REQUEST_ID)
@@ -476,9 +473,10 @@ async fn execute_kernel(
         })?;
 
         // Execute with timeout
-        let timeout_ms = request.metadata.timeout_ms.unwrap_or(
-            state.config.default_timeout.as_millis() as u64,
-        );
+        let timeout_ms = request
+            .metadata
+            .timeout_ms
+            .unwrap_or(state.config.default_timeout.as_millis() as u64);
         let timeout = std::time::Duration::from_millis(timeout_ms);
 
         let result = tokio::time::timeout(timeout, kernel.execute_dyn(&input_bytes)).await;
@@ -494,10 +492,7 @@ async fn execute_kernel(
                             StatusCode::INTERNAL_SERVER_ERROR,
                             Json(ErrorResponse {
                                 code: "OUTPUT_DESERIALIZATION_ERROR".to_string(),
-                                message: format!(
-                                    "Failed to deserialize kernel output: {}",
-                                    e
-                                ),
+                                message: format!("Failed to deserialize kernel output: {}", e),
                                 request_id: Some(request_id.clone()),
                                 details: None,
                             }),
@@ -540,10 +535,7 @@ async fn execute_kernel(
                     StatusCode::GATEWAY_TIMEOUT,
                     Json(ErrorResponse {
                         code: "EXECUTION_TIMEOUT".to_string(),
-                        message: format!(
-                            "Kernel execution timed out after {}ms",
-                            timeout_ms
-                        ),
+                        message: format!("Kernel execution timed out after {}ms", timeout_ms),
                         request_id: Some(request_id),
                         details: None,
                     }),

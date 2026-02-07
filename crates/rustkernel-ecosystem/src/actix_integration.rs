@@ -140,7 +140,9 @@ impl Handler<ExecuteKernel> for KernelActor {
 
         let request_id = uuid::Uuid::new_v4().to_string();
         let timeout = Duration::from_millis(
-            msg.metadata.timeout_ms.unwrap_or(self.config.default_timeout.as_millis() as u64),
+            msg.metadata
+                .timeout_ms
+                .unwrap_or(self.config.default_timeout.as_millis() as u64),
         );
 
         // Try batch kernel execution

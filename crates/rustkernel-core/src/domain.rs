@@ -430,8 +430,14 @@ mod tests {
     fn test_from_ring_domain_renamed_variants() {
         use ringkernel_core::domain::Domain as RD;
 
-        assert_eq!(Domain::from_ring_domain(RD::TimeSeries), Domain::TemporalAnalysis);
-        assert_eq!(Domain::from_ring_domain(RD::RiskManagement), Domain::RiskAnalytics);
+        assert_eq!(
+            Domain::from_ring_domain(RD::TimeSeries),
+            Domain::TemporalAnalysis
+        );
+        assert_eq!(
+            Domain::from_ring_domain(RD::RiskManagement),
+            Domain::RiskAnalytics
+        );
         assert_eq!(Domain::from_ring_domain(RD::General), Domain::Core);
     }
 
@@ -439,8 +445,14 @@ mod tests {
     fn test_from_ring_domain_closest_match() {
         use ringkernel_core::domain::Domain as RD;
 
-        assert_eq!(Domain::from_ring_domain(RD::NetworkAnalysis), Domain::GraphAnalytics);
-        assert_eq!(Domain::from_ring_domain(RD::FraudDetection), Domain::Banking);
+        assert_eq!(
+            Domain::from_ring_domain(RD::NetworkAnalysis),
+            Domain::GraphAnalytics
+        );
+        assert_eq!(
+            Domain::from_ring_domain(RD::FraudDetection),
+            Domain::Banking
+        );
         assert_eq!(Domain::from_ring_domain(RD::Settlement), Domain::Clearing);
         assert_eq!(Domain::from_ring_domain(RD::MarketData), Domain::Core);
         assert_eq!(Domain::from_ring_domain(RD::Simulation), Domain::Core);

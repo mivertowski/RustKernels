@@ -22,3 +22,7 @@ target
 
 # Generated documentation
 docs/book/
+docs/rustkernels-executive-overview.aux
+docs/rustkernels-executive-overview.log
+docs/rustkernels-executive-overview.out
+docs/rustkernels-executive-overview.toc

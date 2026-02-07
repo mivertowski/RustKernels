@@ -223,13 +223,16 @@ impl ServiceMetrics {
 
     /// Get minimum latency in microseconds (returns 0 if no requests)
     pub fn min_latency_us(&self) -> u64 {
-        let val = self.min_latency_us.load(std::sync::atomic::Ordering::Relaxed);
+        let val = self
+            .min_latency_us
+            .load(std::sync::atomic::Ordering::Relaxed);
         if val == u64::MAX { 0 } else { val }
     }
 
     /// Get maximum latency in microseconds
     pub fn max_latency_us(&self) -> u64 {
-        self.max_latency_us.load(std::sync::atomic::Ordering::Relaxed)
+        self.max_latency_us
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 }
 

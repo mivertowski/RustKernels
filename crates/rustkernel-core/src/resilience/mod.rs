@@ -36,8 +36,8 @@ pub use timeout::{DeadlineContext, TimeoutConfig, TimeoutError};
 
 // Re-export ringkernel-core 0.4.2 health/resilience primitives for deep integration.
 pub use ringkernel_core::health as ring_health;
-pub use ringkernel_core::timeout as ring_timeout;
 pub use ringkernel_core::rate_limiting as ring_rate_limiting;
+pub use ringkernel_core::timeout as ring_timeout;
 
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
